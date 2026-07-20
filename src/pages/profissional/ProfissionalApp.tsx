@@ -27,7 +27,12 @@ export function ProfissionalApp({ onLogout }: { onLogout: () => void }) {
       <div className="auth-screen">
         <div className="auth-card">
           <p>Profissional não encontrado.</p>
-          <button type="button" className="btn btn-primary" onClick={onLogout}>Sair</button>
+          <p className="muted" style={{ marginTop: 8 }}>
+            Use uma conta de mão de obra (ex.: <strong>carlos</strong> / demo123) ou complete o cadastro.
+          </p>
+          <button type="button" className="btn btn-primary btn-block" onClick={onLogout}>
+            Voltar ao login
+          </button>
         </div>
       </div>
     )

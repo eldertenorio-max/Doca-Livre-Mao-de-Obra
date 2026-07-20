@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { IntroSplash } from './components/IntroSplash'
 import { StoreProvider, useStore } from './lib/store'
 import { AdminApp } from './pages/admin/AdminApp'
@@ -49,7 +49,8 @@ function portalFromUser(role: string | undefined): PortalTipo {
 }
 
 function AppRoutes() {
-  const { currentUser, logout } = useStore()
+  const store = useStore()
+  const { currentUser, currentProfissional, currentEmpresa, logout, login } = store
   const [portal, setPortal] = useState<PortalTipo>(
     () => readPortal() ?? portalFromUser(currentUser?.role),
   )
@@ -65,6 +66,36 @@ function AppRoutes() {
     }
     setGate('select')
   }, [currentUser])
+
+  // Sessão presa sem perfil do portal → demo ou cadastro
+  useEffect(() => {
+    if (gate !== 'app' || !currentUser) return
+
+    if (portal === 'profissional' && !currentProfissional) {
+      if (currentUser.role === 'profissional') {
+        setGate('cadastro_profissional')
+        return
+      }
+      const res = login('carlos@email.com', 'demo123')
+      if (!res.ok) {
+        logout()
+        setGate('select')
+      }
+      return
+    }
+
+    if (portal === 'empresa' && !currentEmpresa) {
+      if (currentUser.role === 'empresa') {
+        setGate('cadastro_empresa')
+        return
+      }
+      const res = login('empresa@logexpress.com', 'demo123')
+      if (!res.ok) {
+        logout()
+        setGate('select')
+      }
+    }
+  }, [gate, portal, currentUser, currentProfissional, currentEmpresa, login, logout])
 
   function handleLogout() {
     logout()
@@ -84,7 +115,6 @@ function AppRoutes() {
     role: string
   }) {
     writePortal(portal)
-    // Hierarquia/permissões só no acesso Admin (superusuário)
     if (portal === 'admin' && (opts.precisaConfig || opts.isSuperuser)) {
       setGate('config')
       return
@@ -113,14 +143,30 @@ function AppRoutes() {
   }
 
   if (gate === 'app' && currentUser) {
-    // Roteia pelo portal escolhido no login — não força Admin para super.
     if (portal === 'profissional') {
+      if (!currentProfissional) {
+        return (
+          <div className="auth-screen">
+            <div className="auth-card">
+              <p>Carregando painel do profissional…</p>
+            </div>
+          </div>
+        )
+      }
       return <ProfissionalApp onLogout={handleLogout} />
     }
     if (portal === 'empresa') {
+      if (!currentEmpresa) {
+        return (
+          <div className="auth-screen">
+            <div className="auth-card">
+              <p>Carregando painel da empresa…</p>
+            </div>
+          </div>
+        )
+      }
       return <EmpresaApp onLogout={handleLogout} />
     }
-    // portal === 'admin'
     return <AdminApp onLogout={handleLogout} onOpenConfig={() => setGate('config')} />
   }
 

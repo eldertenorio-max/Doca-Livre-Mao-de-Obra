@@ -160,7 +160,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
     loginPortal(usuarioOuEmail, senha, portal) {
       const key = usuarioOuEmail.trim().toLowerCase()
-      const user = state.users.find(
+      let user = state.users.find(
         (u) =>
           u.ativo &&
           u.senha === senha &&
@@ -189,14 +189,38 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         }
       }
 
-      update((s) => ({ ...s, sessionUserId: user.id }))
+      // Super/admin nos portais operacionais: usa conta demo com perfil completo
+      if ((isSuper || user.role === 'admin') && portal !== 'admin') {
+        if (portal === 'profissional') {
+          const demo =
+            state.users.find((u) => u.email === 'carlos@email.com' && u.role === 'profissional') ||
+            state.users.find((u) => u.role === 'profissional' && u.ativo)
+          if (demo) user = demo
+        } else if (portal === 'empresa') {
+          const demo =
+            state.users.find((u) => u.email === 'empresa@logexpress.com' && u.role === 'empresa') ||
+            state.users.find((u) => u.role === 'empresa' && u.ativo)
+          if (demo) user = demo
+        }
+      }
+
+      const hasPerfil =
+        user.role === 'profissional'
+          ? state.profissionais.some((p) => p.userId === user!.id)
+          : user.role === 'empresa'
+            ? state.empresas.some((e) => e.userId === user!.id)
+            : true
+
+      update((s) => ({ ...s, sessionUserId: user!.id }))
       return {
         ok: true,
         role: user.role,
         usuario: user.usuario || user.email,
         isSuperuser: isSuper,
         precisaConfig: isSuper && portal === 'admin',
-        precisaPerfil: user.perfilCompleto === false,
+        precisaPerfil:
+          (user.role === 'empresa' || user.role === 'profissional') &&
+          (user.perfilCompleto === false || !hasPerfil),
       }
     },
 
