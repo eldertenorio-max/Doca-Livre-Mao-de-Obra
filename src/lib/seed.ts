@@ -1,0 +1,753 @@
+import { matchDemanda } from './matching'
+import type {
+  AppState,
+  Candidatura,
+  Demanda,
+  Disponibilidade,
+  DocumentoRegistro,
+  Endereco,
+  Empresa,
+  Profissional,
+  User,
+} from './types'
+
+export function uid(prefix = 'id') {
+  return `${prefix}_${Math.random().toString(36).slice(2, 10)}${Date.now().toString(36).slice(-4)}`
+}
+
+export function nowIso() {
+  return new Date().toISOString()
+}
+
+const CAJAMAR: Endereco = {
+  cep: '07750-000',
+  rua: 'Av. São Paulo',
+  numero: '1000',
+  cidade: 'Cajamar',
+  estado: 'SP',
+  lat: -23.355,
+  lng: -46.877,
+}
+
+const CAMPINAS: Endereco = {
+  cep: '13010-000',
+  rua: 'Rua Barão de Jaguara',
+  numero: '200',
+  cidade: 'Campinas',
+  estado: 'SP',
+  lat: -22.9056,
+  lng: -47.0608,
+}
+
+const GUARULHOS: Endereco = {
+  cep: '07010-000',
+  rua: 'Av. Monteiro Lobato',
+  numero: '4550',
+  cidade: 'Guarulhos',
+  estado: 'SP',
+  lat: -23.4543,
+  lng: -46.5337,
+}
+
+function disp(partial: Partial<Disponibilidade> = {}): Disponibilidade {
+  return {
+    hoje: true,
+    amanha: true,
+    estaSemana: true,
+    finaisDeSemana: false,
+    noturno: false,
+    viagens: false,
+    temporario: true,
+    efetivo: false,
+    freelancer: true,
+    ...partial,
+  }
+}
+
+function near(base: Endereco, dLat: number, dLng: number): Endereco {
+  return { ...base, lat: base.lat + dLat, lng: base.lng + dLng }
+}
+
+export function createSeedState(): AppState {
+  const diegoUser: User = {
+    id: 'user_diego',
+    email: 'diego@docalivre.com',
+    senha: 'demo123',
+    usuario: 'Diego',
+    role: 'super',
+    nivelHierarquia: 'super',
+    superiorUsuario: null,
+    perfilCompleto: true,
+    ativo: true,
+    createdAt: nowIso(),
+  }
+
+  const elderUser: User = {
+    id: 'user_elder',
+    email: 'elder@docalivre.com',
+    senha: 'demo123',
+    usuario: 'Elder',
+    role: 'super',
+    nivelHierarquia: 'super',
+    superiorUsuario: null,
+    perfilCompleto: true,
+    ativo: true,
+    createdAt: nowIso(),
+  }
+
+  const adminUser: User = {
+    id: 'user_admin',
+    email: 'admin@docalivre.com',
+    senha: 'admin123',
+    usuario: 'admin',
+    role: 'admin',
+    nivelHierarquia: 'gestor',
+    superiorUsuario: 'Diego',
+    perfilCompleto: true,
+    ativo: true,
+    createdAt: nowIso(),
+  }
+
+  const empUser1: User = {
+    id: 'user_emp1',
+    email: 'empresa@logexpress.com',
+    senha: 'demo123',
+    usuario: 'logexpress',
+    role: 'empresa',
+    nivelHierarquia: 'gestor',
+    superiorUsuario: 'admin',
+    perfilCompleto: true,
+    ativo: true,
+    createdAt: nowIso(),
+  }
+
+  const empUser2: User = {
+    id: 'user_emp2',
+    email: 'rh@cdcajamar.com',
+    senha: 'demo123',
+    usuario: 'cdcajamar',
+    role: 'empresa',
+    nivelHierarquia: 'operador',
+    superiorUsuario: 'logexpress',
+    perfilCompleto: true,
+    ativo: true,
+    createdAt: nowIso(),
+  }
+
+  const profUsers: User[] = [
+    { id: 'user_p1', email: 'joao@email.com', senha: 'demo123', usuario: 'joao', role: 'profissional', nivelHierarquia: 'operador', perfilCompleto: true, ativo: true, createdAt: nowIso() },
+    { id: 'user_p2', email: 'carlos@email.com', senha: 'demo123', usuario: 'carlos', role: 'profissional', nivelHierarquia: 'operador', perfilCompleto: true, ativo: true, createdAt: nowIso() },
+    { id: 'user_p3', email: 'maria@email.com', senha: 'demo123', usuario: 'maria', role: 'profissional', nivelHierarquia: 'operador', perfilCompleto: true, ativo: true, createdAt: nowIso() },
+    { id: 'user_p4', email: 'pedro@email.com', senha: 'demo123', usuario: 'pedro', role: 'profissional', nivelHierarquia: 'operador', perfilCompleto: true, ativo: true, createdAt: nowIso() },
+    { id: 'user_p5', email: 'ana@email.com', senha: 'demo123', usuario: 'ana', role: 'profissional', nivelHierarquia: 'operador', perfilCompleto: true, ativo: true, createdAt: nowIso() },
+    { id: 'user_p6', email: 'lucas@email.com', senha: 'demo123', usuario: 'lucas', role: 'profissional', nivelHierarquia: 'operador', perfilCompleto: true, ativo: true, createdAt: nowIso() },
+    { id: 'user_p7', email: 'bruno@email.com', senha: 'demo123', usuario: 'bruno', role: 'profissional', nivelHierarquia: 'operador', perfilCompleto: true, ativo: true, createdAt: nowIso() },
+    { id: 'user_p8', email: 'fernanda@email.com', senha: 'demo123', usuario: 'fernanda', role: 'profissional', nivelHierarquia: 'operador', perfilCompleto: true, ativo: true, createdAt: nowIso() },
+    { id: 'user_p9', email: 'rafael@email.com', senha: 'demo123', usuario: 'rafael', role: 'profissional', nivelHierarquia: 'operador', perfilCompleto: true, ativo: true, createdAt: nowIso() },
+    { id: 'user_p10', email: 'juliana@email.com', senha: 'demo123', usuario: 'juliana', role: 'profissional', nivelHierarquia: 'operador', perfilCompleto: true, ativo: true, createdAt: nowIso() },
+    { id: 'user_p11', email: 'diego.prof@email.com', senha: 'demo123', usuario: 'diegoprof', role: 'profissional', nivelHierarquia: 'operador', perfilCompleto: true, ativo: true, createdAt: nowIso() },
+    { id: 'user_p12', email: 'patricia@email.com', senha: 'demo123', usuario: 'patricia', role: 'profissional', nivelHierarquia: 'operador', perfilCompleto: true, ativo: true, createdAt: nowIso() },
+  ]
+
+  const empresas: Empresa[] = [
+    {
+      id: 'emp_1',
+      userId: empUser1.id,
+      cnpj: '12.345.678/0001-90',
+      razaoSocial: 'Log Express Transportes Ltda',
+      nomeFantasia: 'Log Express',
+      tipo: 'transportadora',
+      plano: 'premium',
+      responsavelNome: 'Ricardo Alves',
+      responsavelCpf: '123.456.789-00',
+      responsavelCargo: 'Gerente de Operações',
+      telefone: '(11) 98888-1000',
+      endereco: GUARULHOS,
+      status: 'aprovada',
+      avaliacaoMedia: 4.6,
+      favoritos: ['prof_1', 'prof_3'],
+      bloqueados: ['prof_12'],
+      docsOk: true,
+      saldo: 1210.67,
+      limitePosPago: 7000,
+      diasTaxaZero: 75,
+      metaTaxaZero: 300,
+      diasAgenciados: 194,
+      rankingDias: 500,
+      economiaTotal: 655.9,
+    },
+    {
+      id: 'emp_2',
+      userId: empUser2.id,
+      cnpj: '98.765.432/0001-10',
+      razaoSocial: 'CD Cajamar Operações Logísticas SA',
+      nomeFantasia: 'CD Cajamar',
+      tipo: 'centro_distribuicao',
+      plano: 'enterprise',
+      responsavelNome: 'Sandra Lima',
+      responsavelCargo: 'Coordenadora de CD',
+      responsavelCpf: '987.654.321-00',
+      telefone: '(11) 97777-2000',
+      endereco: CAJAMAR,
+      status: 'aprovada',
+      avaliacaoMedia: 4.8,
+      favoritos: ['prof_2', 'prof_5'],
+      bloqueados: [],
+      docsOk: true,
+      saldo: 3420.5,
+      limitePosPago: 15000,
+      diasTaxaZero: 120,
+      metaTaxaZero: 300,
+      diasAgenciados: 310,
+      rankingDias: 200,
+      economiaTotal: 1280.4,
+    },
+  ]
+
+  const profissionais: Profissional[] = [
+    {
+      id: 'prof_1', userId: 'user_p1', nome: 'João Silva', cpf: '111.111.111-11', rg: '11.111.111-1',
+      nascimento: '1988-03-12', telefone: '(11) 91111-1111',
+      profissoes: ['motorista_truck', 'carreteiro', 'mopp'],
+      experiencia: [{ cargo: 'Motorista Truck', empresa: 'TransBrasil', inicio: '2018-01', fim: '2024-06', descricao: 'Rotas SP-MG' }],
+      certificados: [{ tipo: 'MOPP', validade: '2027-01-01', valido: true }],
+      cnhCategoria: 'E', cnhValidade: '2028-05-01',
+      disponibilidade: disp({ viagens: true }),
+      nivel: 'elite', avaliacaoMedia: 4.9, taxaComparecimento: 98, faltas: 0, tempoRespostaMin: 3,
+      endereco: near(GUARULHOS, 0.02, 0.01), raioKm: 50, pix: '111.111.111-11',
+      status: 'aprovado', ganhosMes: 4200, saldo: 850,
+    },
+    {
+      id: 'prof_2', userId: 'user_p2', nome: 'Carlos Mendes', cpf: '222.222.222-22', rg: '22.222.222-2',
+      nascimento: '1990-07-22', telefone: '(11) 92222-2222',
+      profissoes: ['empilhadeira', 'paleteira'],
+      experiencia: [{ cargo: 'Operador de empilhadeira', empresa: 'CD Atacado', inicio: '2019-03', fim: '2025-01', descricao: 'NR11' }],
+      certificados: [{ tipo: 'NR11', validade: '2026-12-01', valido: true }],
+      disponibilidade: disp(),
+      nivel: 'ouro', avaliacaoMedia: 4.7, taxaComparecimento: 96, faltas: 1, tempoRespostaMin: 5,
+      endereco: near(CAJAMAR, 0.01, -0.01), raioKm: 30, pix: 'carlos@email.com',
+      status: 'aprovado', ganhosMes: 3100, saldo: 620,
+    },
+    {
+      id: 'prof_3', userId: 'user_p3', nome: 'Maria Oliveira', cpf: '333.333.333-33', rg: '33.333.333-3',
+      nascimento: '1995-01-08', telefone: '(11) 93333-3333',
+      profissoes: ['conferente', 'separador', 'auxiliar_logistica'],
+      experiencia: [{ cargo: 'Conferente', empresa: 'Magazine Log', inicio: '2020-02', fim: '2025-12', descricao: 'Conferência de NF' }],
+      certificados: [],
+      disponibilidade: disp({ noturno: true }),
+      nivel: 'prata', avaliacaoMedia: 4.5, taxaComparecimento: 94, faltas: 2, tempoRespostaMin: 8,
+      endereco: near(CAJAMAR, -0.02, 0.02), raioKm: 25, pix: '333.333.333-33',
+      status: 'aprovado', ganhosMes: 2800, saldo: 400,
+    },
+    {
+      id: 'prof_4', userId: 'user_p4', nome: 'Pedro Santos', cpf: '444.444.444-44', rg: '44.444.444-4',
+      nascimento: '1985-11-30', telefone: '(11) 94444-4444',
+      profissoes: ['ajudante_carga', 'auxiliar_logistica'],
+      experiencia: [{ cargo: 'Ajudante', empresa: 'Express Cargo', inicio: '2021-05', fim: '2025-08', descricao: 'Carga e descarga' }],
+      certificados: [],
+      disponibilidade: disp({ hoje: true, amanha: false }),
+      nivel: 'bronze', avaliacaoMedia: 4.1, taxaComparecimento: 88, faltas: 4, tempoRespostaMin: 15,
+      endereco: near(CAJAMAR, 0.03, 0.03), raioKm: 20, pix: 'pedro@email.com',
+      status: 'aprovado', ganhosMes: 1900, saldo: 150,
+    },
+    {
+      id: 'prof_5', userId: 'user_p5', nome: 'Ana Costa', cpf: '555.555.555-55', rg: '55.555.555-5',
+      nascimento: '1992-04-15', telefone: '(11) 95555-5555',
+      profissoes: ['separador', 'embalador', 'estoquista'],
+      experiencia: [{ cargo: 'Picker', empresa: 'E-commerce SP', inicio: '2019-08', fim: '2025-10', descricao: 'Separação WMS' }],
+      certificados: [],
+      disponibilidade: disp(),
+      nivel: 'ouro', avaliacaoMedia: 4.8, taxaComparecimento: 97, faltas: 0, tempoRespostaMin: 4,
+      endereco: near(CAJAMAR, 0.015, -0.02), raioKm: 35, pix: 'ana@email.com',
+      status: 'aprovado', ganhosMes: 2950, saldo: 510,
+    },
+    {
+      id: 'prof_6', userId: 'user_p6', nome: 'Lucas Ferreira', cpf: '666.666.666-66', rg: '66.666.666-6',
+      nascimento: '1987-09-03', telefone: '(11) 96666-6666',
+      profissoes: ['motorista_vuc', 'motorista_cnh_b'],
+      experiencia: [{ cargo: 'Motorista VUC', empresa: 'Last Mile SP', inicio: '2017-01', fim: '2025-03', descricao: 'Entregas SP capital' }],
+      certificados: [],
+      cnhCategoria: 'B', cnhValidade: '2027-08-01',
+      disponibilidade: disp(),
+      nivel: 'prata', avaliacaoMedia: 4.4, taxaComparecimento: 92, faltas: 2, tempoRespostaMin: 7,
+      endereco: near(GUARULHOS, -0.03, 0.02), raioKm: 40, pix: 'lucas@email.com',
+      status: 'aprovado', ganhosMes: 3400, saldo: 700,
+    },
+    {
+      id: 'prof_7', userId: 'user_p7', nome: 'Bruno Rocha', cpf: '777.777.777-77', rg: '77.777.777-7',
+      nascimento: '1983-12-19', telefone: '(11) 97777-7777',
+      profissoes: ['mecanico_diesel'],
+      experiencia: [{ cargo: 'Mecânico Diesel', empresa: 'Oficina Norte', inicio: '2010-01', fim: '2025-01', descricao: 'Manutenção de caminhões' }],
+      certificados: [],
+      disponibilidade: disp({ viagens: false }),
+      nivel: 'elite', avaliacaoMedia: 4.9, taxaComparecimento: 99, faltas: 0, tempoRespostaMin: 6,
+      endereco: near(GUARULHOS, 0.04, -0.01), raioKm: 45, pix: 'bruno@email.com',
+      status: 'aprovado', ganhosMes: 5100, saldo: 1200,
+    },
+    {
+      id: 'prof_8', userId: 'user_p8', nome: 'Fernanda Dias', cpf: '888.888.888-88', rg: '88.888.888-8',
+      nascimento: '1994-06-25', telefone: '(11) 98888-8888',
+      profissoes: ['conferente', 'expedidor', 'recebimento'],
+      experiencia: [{ cargo: 'Expedidor', empresa: 'CD Campinas', inicio: '2021-01', fim: '2025-11', descricao: 'Expedição' }],
+      certificados: [],
+      disponibilidade: disp({ estaSemana: true, hoje: false }),
+      nivel: 'prata', avaliacaoMedia: 4.3, taxaComparecimento: 91, faltas: 3, tempoRespostaMin: 10,
+      endereco: near(CAMPINAS, 0.01, 0.01), raioKm: 30, pix: 'fernanda@email.com',
+      status: 'aprovado', ganhosMes: 2600, saldo: 320,
+    },
+    {
+      id: 'prof_9', userId: 'user_p9', nome: 'Rafael Nunes', cpf: '999.999.999-99', rg: '99.999.999-9',
+      nascimento: '1991-02-14', telefone: '(11) 99999-9999',
+      profissoes: ['empilhadeira', 'reach_stacker'],
+      experiencia: [{ cargo: 'Empilhadeira', empresa: 'Porto Seco', inicio: '2016-04', fim: '2024-12', descricao: 'Pátio e armazém' }],
+      certificados: [
+        { tipo: 'NR11', validade: '2026-06-01', valido: true },
+        { tipo: 'NR35', validade: '2026-06-01', valido: true },
+      ],
+      disponibilidade: disp({ noturno: true }),
+      nivel: 'ouro', avaliacaoMedia: 4.6, taxaComparecimento: 95, faltas: 1, tempoRespostaMin: 5,
+      endereco: near(CAJAMAR, -0.01, 0.025), raioKm: 35, pix: 'rafael@email.com',
+      status: 'aprovado', ganhosMes: 3600, saldo: 890,
+    },
+    {
+      id: 'prof_10', userId: 'user_p10', nome: 'Juliana Martins', cpf: '101.101.101-10', rg: '10.101.101-0',
+      nascimento: '1996-08-07', telefone: '(11) 91010-1010',
+      profissoes: ['analista_transporte', 'monitor_frota'],
+      experiencia: [{ cargo: 'Monitor de Frota', empresa: 'Log Express', inicio: '2022-01', fim: '2025-09', descricao: 'Torre de controle' }],
+      certificados: [],
+      disponibilidade: disp({ efetivo: true, freelancer: false }),
+      nivel: 'prata', avaliacaoMedia: 4.5, taxaComparecimento: 97, faltas: 0, tempoRespostaMin: 9,
+      endereco: near(GUARULHOS, 0.01, -0.03), raioKm: 40, pix: 'juliana@email.com',
+      status: 'aprovado', ganhosMes: 4500, saldo: 980,
+    },
+    {
+      id: 'prof_11', userId: 'user_p11', nome: 'Diego Almeida', cpf: '121.121.121-12', rg: '12.121.121-1',
+      nascimento: '1989-05-21', telefone: '(11) 91212-1212',
+      profissoes: ['bitrem', 'rodotrem', 'carreteiro'],
+      experiencia: [{ cargo: 'Carreteiro', empresa: 'Rodovias BR', inicio: '2014-01', fim: '2025-05', descricao: 'Cargas longas' }],
+      certificados: [{ tipo: 'MOPP', validade: '2026-09-01', valido: true }],
+      cnhCategoria: 'E', cnhValidade: '2027-03-01',
+      disponibilidade: disp({ viagens: true }),
+      nivel: 'ouro', avaliacaoMedia: 4.7, taxaComparecimento: 95, faltas: 1, tempoRespostaMin: 4,
+      endereco: near(GUARULHOS, 0.05, 0.02), raioKm: 80, pix: 'diego@email.com',
+      status: 'aprovado', ganhosMes: 5800, saldo: 1400,
+    },
+    {
+      id: 'prof_12', userId: 'user_p12', nome: 'Patrícia Souza', cpf: '131.131.131-13', rg: '13.131.131-1',
+      nascimento: '1993-10-11', telefone: '(11) 91313-1313',
+      profissoes: ['eletricista', 'mecanico_diesel'],
+      experiencia: [{ cargo: 'Eletricista', empresa: 'AutoElétrica SP', inicio: '2018-06', fim: '2025-07', descricao: 'Elétrica veicular' }],
+      certificados: [{ tipo: 'NR10', validade: '2026-11-01', valido: true }],
+      disponibilidade: disp(),
+      nivel: 'bronze', avaliacaoMedia: 4.0, taxaComparecimento: 90, faltas: 2, tempoRespostaMin: 12,
+      endereco: near(CAMPINAS, -0.02, -0.01), raioKm: 25, pix: 'patricia@email.com',
+      status: 'pendente', ganhosMes: 0, saldo: 0,
+    },
+  ]
+
+  const today = new Date()
+  const todayStr = today.toISOString().slice(0, 10)
+  const tomorrow = new Date(today)
+  tomorrow.setDate(tomorrow.getDate() + 1)
+  const tomorrowStr = tomorrow.toISOString().slice(0, 10)
+
+  const demandas: Demanda[] = [
+    {
+      id: 'dem_1',
+      empresaId: 'emp_2',
+      cargo: 'empilhadeira',
+      categoria: 'operacao',
+      quantidade: 2,
+      data: todayStr,
+      horaInicio: '14:00',
+      horaFim: '22:00',
+      endereco: CAJAMAR,
+      valorDiaria: 250,
+      descricao: 'Operação de empilhadeira no CD — turno tarde',
+      epis: 'Capacete, colete, botina',
+      observacoes: 'Experiência com reach stacker é diferencial',
+      requisitos: ['NR11'],
+      status: 'aberta',
+      createdAt: nowIso(),
+    },
+    {
+      id: 'dem_2',
+      empresaId: 'emp_2',
+      cargo: 'conferente',
+      categoria: 'armazem',
+      quantidade: 3,
+      data: todayStr,
+      horaInicio: '18:00',
+      horaFim: '02:00',
+      endereco: CAJAMAR,
+      valorDiaria: 220,
+      descricao: 'Conferência de recebimento noturno',
+      epis: 'Colete, botina',
+      observacoes: '',
+      requisitos: [],
+      status: 'aberta',
+      createdAt: nowIso(),
+    },
+    {
+      id: 'dem_3',
+      empresaId: 'emp_1',
+      cargo: 'motorista_truck',
+      categoria: 'transporte',
+      quantidade: 1,
+      data: tomorrowStr,
+      horaInicio: '06:00',
+      horaFim: '18:00',
+      endereco: GUARULHOS,
+      valorDiaria: 380,
+      descricao: 'Viagem Guarulhos → Campinas com retorno',
+      epis: '',
+      observacoes: 'Preferência EAR',
+      requisitos: ['CNH'],
+      status: 'aberta',
+      createdAt: nowIso(),
+    },
+  ]
+
+  const candidaturas: Candidatura[] = demandas.flatMap((demanda) =>
+    matchDemanda(demanda, profissionais).slice(0, 15).map((m) => ({
+      id: uid('cand'),
+      demandaId: demanda.id,
+      profissionalId: m.profissional.id,
+      status: 'pendente' as const,
+      score: m.score,
+      distanciaKm: Math.round(m.distanciaKm * 10) / 10,
+      createdAt: nowIso(),
+    })),
+  )
+
+  return {
+    users: [diegoUser, elderUser, adminUser, empUser1, empUser2, ...profUsers],
+    empresas,
+    profissionais,
+    demandas,
+    candidaturas,
+    checkIns: [],
+    avaliacoes: [],
+    pagamentos: [],
+    infracoes: [],
+    sinistros: [],
+    operacoes: [
+      {
+        id: 'op_1',
+        empresaId: 'emp_1',
+        tipoContrato: 'Motorista - Curtas Distâncias',
+        perfilIdeal: 'Possui',
+        titulo: 'MOTORISTA CURTAS SP',
+        tipoOperacao: 'Carga Geral - Varejo / Distribuição',
+        categoria: 'motorista',
+      },
+      {
+        id: 'op_2',
+        empresaId: 'emp_1',
+        tipoContrato: 'Ajudante - Diária',
+        perfilIdeal: 'Possui',
+        titulo: 'Ajudante de Entrega',
+        tipoOperacao: '',
+        categoria: 'ajudante',
+      },
+      {
+        id: 'op_3',
+        empresaId: 'emp_1',
+        tipoContrato: 'Ajudante - Diária',
+        perfilIdeal: 'Possui',
+        titulo: 'Ajudante de Armazém',
+        tipoOperacao: '',
+        categoria: 'ajudante',
+      },
+      {
+        id: 'op_4',
+        empresaId: 'emp_2',
+        tipoContrato: 'Operador - Empilhadeira',
+        perfilIdeal: 'Possui',
+        titulo: 'EMPILHADEIRA CD CAJAMAR',
+        tipoOperacao: 'Armazém - Movimentação',
+        categoria: 'ajudante',
+      },
+    ],
+    perfisIdeais: [
+      {
+        id: 'pi_1',
+        empresaId: 'emp_1',
+        nome: 'MOTORISTA CURTA DISTANCIA MG',
+        operacao: '—',
+        categoria: 'motorista',
+        selecaoAutomatica: false,
+      },
+      {
+        id: 'pi_2',
+        empresaId: 'emp_1',
+        nome: 'MOTORISTA CURTAS SP',
+        operacao: 'MOTORISTA CURTAS SP',
+        categoria: 'motorista',
+        selecaoAutomatica: false,
+      },
+      {
+        id: 'pi_3',
+        empresaId: 'emp_1',
+        nome: 'AJUDANTE ENTREGA SP',
+        operacao: 'Ajudante de Entrega',
+        categoria: 'ajudante',
+        selecaoAutomatica: true,
+      },
+    ],
+    enderecosEmpresa: [
+      {
+        id: 'end_1',
+        empresaId: 'emp_1',
+        nome: 'Matriz Guarulhos',
+        rua: 'Av. Monteiro Lobato',
+        cidade: 'Guarulhos',
+        uf: 'SP',
+      },
+      {
+        id: 'end_2',
+        empresaId: 'emp_1',
+        nome: 'Base Campinas',
+        rua: 'Rua Barão de Jaguara',
+        cidade: 'Campinas',
+        uf: 'SP',
+      },
+      {
+        id: 'end_3',
+        empresaId: 'emp_2',
+        nome: 'CD Cajamar',
+        rua: 'Av. São Paulo',
+        cidade: 'Cajamar',
+        uf: 'SP',
+      },
+    ],
+    veiculos: [
+      {
+        id: 'vei_1',
+        empresaId: 'emp_1',
+        marca: 'MERCEDES-BENZ',
+        modelo: 'ATEGO',
+        ano: '2019',
+        placa: 'HJI-0369',
+      },
+      {
+        id: 'vei_2',
+        empresaId: 'emp_1',
+        marca: 'VOLKSWAGEN',
+        modelo: 'DELIVERY',
+        ano: '2020',
+        placa: 'RFS-3144',
+      },
+    ],
+    relatorios: [],
+    contratos: [],
+    documentos: buildSeedDocumentos(),
+    auditLogs: [
+      {
+        id: 'log_1',
+        at: nowIso(),
+        actorId: 'user_admin',
+        action: 'seed',
+        detail: 'Base inicial carregada',
+      },
+    ],
+    sessionUserId: null,
+  }
+}
+
+function doc(
+  partial: Omit<DocumentoRegistro, 'id' | 'enviadoEm'> & { id?: string },
+): DocumentoRegistro {
+  return {
+    id: partial.id ?? uid('doc'),
+    tipoId: partial.tipoId,
+    donoTipo: partial.donoTipo,
+    donoId: partial.donoId,
+    status: partial.status,
+    arquivoNome: partial.arquivoNome,
+    validade: partial.validade,
+    enviadoEm: nowIso(),
+    revisadoEm: partial.revisadoEm,
+    revisadoPor: partial.revisadoPor,
+    observacao: partial.observacao,
+    meta: partial.meta,
+  }
+}
+
+function buildSeedDocumentos(): DocumentoRegistro[] {
+  const commonProf = (profId: string, extras: DocumentoRegistro[] = []) => [
+    doc({
+      tipoId: 'rg_cpf',
+      donoTipo: 'profissional',
+      donoId: profId,
+      status: 'aprovado',
+      arquivoNome: 'rg_cpf.pdf',
+    }),
+    doc({
+      tipoId: 'selfie',
+      donoTipo: 'profissional',
+      donoId: profId,
+      status: 'aprovado',
+      arquivoNome: 'selfie.jpg',
+    }),
+    doc({
+      tipoId: 'comprovante_residencia',
+      donoTipo: 'profissional',
+      donoId: profId,
+      status: 'aprovado',
+      arquivoNome: 'comprovante.pdf',
+    }),
+    doc({
+      tipoId: 'aso',
+      donoTipo: 'profissional',
+      donoId: profId,
+      status: 'aprovado',
+      arquivoNome: 'aso.pdf',
+      validade: '2026-12-31',
+    }),
+    doc({
+      tipoId: 'pix_dados',
+      donoTipo: 'profissional',
+      donoId: profId,
+      status: 'aprovado',
+      arquivoNome: 'pix.txt',
+    }),
+    ...extras,
+  ]
+
+  return [
+    ...commonProf('prof_1', [
+      doc({
+        tipoId: 'cnh',
+        donoTipo: 'profissional',
+        donoId: 'prof_1',
+        status: 'aprovado',
+        arquivoNome: 'cnh.pdf',
+        validade: '2028-05-01',
+        meta: { categoria: 'E', ear: 'sim' },
+      }),
+      doc({
+        tipoId: 'mopp',
+        donoTipo: 'profissional',
+        donoId: 'prof_1',
+        status: 'aprovado',
+        arquivoNome: 'mopp.pdf',
+        validade: '2027-01-01',
+      }),
+      doc({
+        tipoId: 'aptidao_gr',
+        donoTipo: 'profissional',
+        donoId: 'prof_1',
+        status: 'aprovado',
+        arquivoNome: 'gr.pdf',
+        validade: '2026-11-01',
+      }),
+    ]),
+    ...commonProf('prof_2', [
+      doc({
+        tipoId: 'nr11',
+        donoTipo: 'profissional',
+        donoId: 'prof_2',
+        status: 'aprovado',
+        arquivoNome: 'nr11.pdf',
+        validade: '2026-12-01',
+      }),
+    ]),
+    ...commonProf('prof_3'),
+    ...commonProf('prof_5'),
+    ...commonProf('prof_6', [
+      doc({
+        tipoId: 'cnh',
+        donoTipo: 'profissional',
+        donoId: 'prof_6',
+        status: 'aprovado',
+        arquivoNome: 'cnh.pdf',
+        validade: '2027-08-01',
+        meta: { categoria: 'B' },
+      }),
+    ]),
+    ...commonProf('prof_9', [
+      doc({
+        tipoId: 'nr11',
+        donoTipo: 'profissional',
+        donoId: 'prof_9',
+        status: 'aprovado',
+        arquivoNome: 'nr11.pdf',
+        validade: '2026-06-01',
+      }),
+      doc({
+        tipoId: 'nr35',
+        donoTipo: 'profissional',
+        donoId: 'prof_9',
+        status: 'em_analise',
+        arquivoNome: 'nr35.pdf',
+        validade: '2026-06-01',
+      }),
+    ]),
+    ...commonProf('prof_11', [
+      doc({
+        tipoId: 'cnh',
+        donoTipo: 'profissional',
+        donoId: 'prof_11',
+        status: 'aprovado',
+        arquivoNome: 'cnh.pdf',
+        validade: '2027-03-01',
+        meta: { categoria: 'E' },
+      }),
+      doc({
+        tipoId: 'mopp',
+        donoTipo: 'profissional',
+        donoId: 'prof_11',
+        status: 'aprovado',
+        arquivoNome: 'mopp.pdf',
+        validade: '2026-09-01',
+      }),
+    ]),
+    // profissional pendente — docs incompletos
+    doc({
+      tipoId: 'rg_cpf',
+      donoTipo: 'profissional',
+      donoId: 'prof_12',
+      status: 'em_analise',
+      arquivoNome: 'rg.pdf',
+    }),
+    doc({
+      tipoId: 'nr10',
+      donoTipo: 'profissional',
+      donoId: 'prof_12',
+      status: 'pendente',
+      validade: '2026-11-01',
+    }),
+    // empresas
+    ...(['emp_1', 'emp_2'] as const).flatMap((empId) => [
+      doc({
+        tipoId: 'contrato_social',
+        donoTipo: 'empresa',
+        donoId: empId,
+        status: 'aprovado',
+        arquivoNome: 'contrato_social.pdf',
+      }),
+      doc({
+        tipoId: 'cartao_cnpj',
+        donoTipo: 'empresa',
+        donoId: empId,
+        status: 'aprovado',
+        arquivoNome: 'cnpj.pdf',
+      }),
+      doc({
+        tipoId: 'comprovante_endereco_empresa',
+        donoTipo: 'empresa',
+        donoId: empId,
+        status: 'aprovado',
+        arquivoNome: 'endereco.pdf',
+      }),
+      doc({
+        tipoId: 'doc_responsavel',
+        donoTipo: 'empresa',
+        donoId: empId,
+        status: empId === 'emp_2' ? 'em_analise' : 'aprovado',
+        arquivoNome: 'responsavel.pdf',
+      }),
+    ]),
+  ]
+}

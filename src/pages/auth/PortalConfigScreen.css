@@ -1,0 +1,221 @@
+.pconfig {
+  min-height: 100dvh;
+  background: #f1f5f9;
+  padding: 20px;
+  color: #0f172a;
+}
+
+.pconfig-header {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 16px;
+}
+
+.pconfig-header h1 {
+  margin: 0 0 6px;
+  font-size: 1.45rem;
+}
+
+.pconfig-header p {
+  margin: 0;
+  color: #64748b;
+  max-width: 520px;
+  font-size: 0.92rem;
+}
+
+.pconfig-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.pconfig-btn {
+  border-radius: 10px;
+  padding: 10px 14px;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid #cbd5e1;
+  background: #fff;
+}
+
+.pconfig-btn--primary {
+  background: #0f172a;
+  color: #fff;
+  border-color: #0f172a;
+}
+
+.pconfig-btn--ghost {
+  background: transparent;
+}
+
+.pconfig-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.pconfig-tabs button {
+  border: 0;
+  background: transparent;
+  padding: 8px 12px;
+  font: inherit;
+  font-weight: 600;
+  color: #64748b;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+}
+
+.pconfig-tabs button.is-active {
+  color: #0f172a;
+  border-bottom-color: #f9db00;
+}
+
+.pconfig-ok {
+  color: #0f766e;
+  font-weight: 600;
+}
+
+.pconfig-layout {
+  display: grid;
+  grid-template-columns: 260px 1fr;
+  gap: 16px;
+  align-items: start;
+}
+
+@media (max-width: 800px) {
+  .pconfig-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+.pconfig-list,
+.pconfig-main {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  padding: 14px;
+}
+
+.pconfig-search,
+.pconfig-input {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  padding: 10px 12px;
+  font: inherit;
+  margin-bottom: 10px;
+}
+
+.pconfig-users {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 60vh;
+  overflow: auto;
+}
+
+.pconfig-user {
+  text-align: left;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  padding: 10px;
+  background: #f8fafc;
+  cursor: pointer;
+  font: inherit;
+}
+
+.pconfig-user strong {
+  display: block;
+}
+
+.pconfig-user span {
+  font-size: 0.8rem;
+  color: #64748b;
+}
+
+.pconfig-user.is-active {
+  border-color: #f9db00;
+  background: #fffbeb;
+}
+
+.pconfig-label {
+  display: block;
+  font-size: 0.85rem;
+  font-weight: 600;
+  margin: 8px 0 4px;
+}
+
+.pconfig-subtitle {
+  margin: 24px 0 8px;
+  font-size: 1rem;
+}
+
+.pconfig-tree-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  width: 100%;
+  text-align: left;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 8px 10px;
+  margin: 4px 0;
+  background: #f8fafc;
+  font: inherit;
+  cursor: pointer;
+}
+
+.pconfig-tree-btn span {
+  font-size: 0.8rem;
+  color: #64748b;
+}
+
+.pconfig-tree-btn.is-active {
+  border-color: #f9db00;
+}
+
+.pconfig-sis {
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 12px;
+  margin-bottom: 12px;
+}
+
+.pconfig-sis-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.pconfig-check {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.9rem;
+}
+
+.pconfig-mods {
+  display: grid;
+  gap: 8px;
+}
+
+.pconfig-mod {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  font-size: 0.9rem;
+}
+
+.pconfig-mod select {
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  padding: 6px 8px;
+  font: inherit;
+}
