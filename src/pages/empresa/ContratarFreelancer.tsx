@@ -3,6 +3,7 @@ import { BibliotecaDocumental } from '../../components/BibliotecaDocumental'
 import { CATEGORIES, cargoLabel } from '../../data/categories'
 import { CIDADES_OPERACAO } from '../../data/cidades'
 import { analisarCurriculos, requisitosDoCargo, rotuloAnos, type CurriculoAnalisado } from '../../lib/analiseCurriculo'
+import { abrirCurriculoPdf } from '../../lib/curriculoPdf'
 import { checklistProfissional, resumoDocumental } from '../../lib/documentos'
 import type { DocumentoRegistro } from '../../lib/types'
 import {
@@ -815,6 +816,9 @@ function PessoaCard({
         <div className="cf-actions">
           <button type="button" className="cf-open" onClick={onToggle}>
             {aberto ? 'Ocultar currículo' : 'Ver currículo'}
+          </button>
+          <button type="button" className="cf-open" onClick={() => abrirCurriculoPdf(p)}>
+            Ver currículo em PDF
           </button>
           {onConvidar && item.atendeObrigatorios && item.situacao !== 'bloqueado' && !convite && (
             <button type="button" className="cf-primary" onClick={onConvidar}>
