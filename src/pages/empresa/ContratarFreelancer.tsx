@@ -212,6 +212,8 @@ export function ContratarFreelancer({ onLogout }: { onLogout: () => void }) {
   const [cidade, setCidade] = useState(empresa.endereco.cidade)
   const [observacoes, setObservacoes] = useState('')
   const [erro, setErro] = useState('')
+  const [analisando, setAnalisando] = useState(false)
+  const esperaBusca = useRef<number | null>(null)
   const [resultados, setResultados] = useState<CurriculoAnalisado[] | null>(null)
   const [analisados, setAnalisados] = useState(0)
   const [aberto, setAberto] = useState<string | null>(null)
@@ -219,6 +221,12 @@ export function ContratarFreelancer({ onLogout }: { onLogout: () => void }) {
   const [modelo, setModelo] = useState<ModeloMissao | null>(() => lerModelo(empresa.id))
   const [aba, setAba] = useState<'missao' | 'documentos'>('missao')
   const empresaValidada = empresa.status === 'aprovada'
+
+  useEffect(() => {
+    return () => {
+      if (esperaBusca.current) window.clearTimeout(esperaBusca.current)
+    }
+  }, [])
 
   const dias = diasEntre(inicio, fim)
   const avisoPrazo = validarNecessidade('temporario', inicio, fim)
@@ -313,7 +321,12 @@ export function ContratarFreelancer({ onLogout }: { onLogout: () => void }) {
     }
     gravarModelo(empresa.id, salvo)
     setModelo(salvo)
-    const busca = analisarCurriculos({
+    setAnalisando(true)
+    setResultados(null)
+    setMissaoId(null)
+    if (esperaBusca.current) window.clearTimeout(esperaBusca.current)
+    esperaBusca.current = window.setTimeout(() => {
+      const busca = analisarCurriculos({
       pedido: {
         cargoId,
         requisitos,
@@ -337,10 +350,12 @@ export function ContratarFreelancer({ onLogout }: { onLogout: () => void }) {
       demandas: state.demandas,
       candidaturas: state.candidaturas,
     })
-    setResultados(busca.pessoas)
-    setAnalisados(busca.analisados)
-    setAberto(busca.pessoas[0]?.profissional.id ?? null)
-    setMissaoId(null)
+      setResultados(busca.pessoas)
+      setAnalisados(busca.analisados)
+      setAberto(busca.pessoas[0]?.profissional.id ?? null)
+      setAnalisando(false)
+      esperaBusca.current = null
+    }, 1600)
   }
 
   function convidar(item: CurriculoAnalisado) {
@@ -601,13 +616,19 @@ export function ContratarFreelancer({ onLogout }: { onLogout: () => void }) {
                 type="button"
                 className="cf-primary"
                 onClick={analisar}
-                disabled={avisoPrazo.nivel === 'bloqueio' || !motivo || !empresaValidada}
+                disabled={analisando || avisoPrazo.nivel === 'bloqueio' || !motivo || !empresaValidada}
               >
-                Encontrar profissionais
+                {analisando ? 'Analisando currículos' : 'Encontrar profissionais'}
               </button>
               <span className="muted">A análise mostra o encaixe. A empresa decide o convite.</span>
             </div>
           </section>
+
+          {analisando && (
+            <section className="cf-analisando" role="status">
+              <p>Aguarda um momento. A IA está analisando os currículos para trazer os melhores profissionais para você.</p>
+            </section>
+          )}
 
           {resultados && (
             <section className="cf-results">

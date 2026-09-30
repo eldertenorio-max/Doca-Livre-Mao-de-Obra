@@ -269,6 +269,19 @@
   padding: 16px;
 }
 
+.cf-analisando {
+  background: #000;
+  color: #fff;
+  border-radius: 16px;
+  padding: 22px 20px;
+}
+
+.cf-analisando p {
+  margin: 0;
+  font-size: 1.05rem;
+  line-height: 1.45;
+}
+
 .cf-summary {
   background: #000;
   color: #fff;
