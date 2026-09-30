@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 import { DOCS_ETT } from '../data/documentCatalog'
 import { cargoLabel } from '../data/categories'
 import {
@@ -48,8 +48,8 @@ export function BibliotecaDocumental({
       <p className="bib-aviso">{AVISO_MINUTA}</p>
       {!ett.registroSirett.trim() && (
         <p className="bib-alerta">
-          O registro SIRETT ainda não foi informado. A empresa de trabalho temporário precisa desse
-          número para atuar. O sistema não gera nem inventa o registro.
+          O registro SIRETT ainda não foi informado.
+          <InfoSirett />
         </p>
       )}
 
@@ -92,6 +92,60 @@ export function BibliotecaDocumental({
   )
 }
 
+function InfoSirett() {
+  const [aberto, setAberto] = useState(false)
+  const caixa = useRef<HTMLSpanElement>(null)
+  const painelId = useId()
+
+  useEffect(() => {
+    if (!aberto) return
+    function fechar(evento: MouseEvent) {
+      if (!caixa.current?.contains(evento.target as Node)) setAberto(false)
+    }
+    function tecla(evento: KeyboardEvent) {
+      if (evento.key === 'Escape') setAberto(false)
+    }
+    document.addEventListener('mousedown', fechar)
+    document.addEventListener('keydown', tecla)
+    return () => {
+      document.removeEventListener('mousedown', fechar)
+      document.removeEventListener('keydown', tecla)
+    }
+  }, [aberto])
+
+  return (
+    <span className="bib-info" ref={caixa}>
+      <button
+        type="button"
+        className="bib-info-btn"
+        aria-label="Como conseguir o registro SIRETT"
+        aria-expanded={aberto}
+        aria-controls={painelId}
+        onClick={() => setAberto((valor) => !valor)}
+      >
+        i
+      </button>
+      {aberto && (
+        <span className="bib-info-pop" id={painelId} role="note">
+          <strong>Como conseguir o registro SIRETT</strong>
+          <ol>
+            <li>A empresa de trabalho temporário pede o registro no SIRETT. Depois de preencher os dados, o SIRETT gera o requerimento.</li>
+            <li>
+              Esse requerimento, assinado, é protocolado no Ministério do Trabalho e Emprego pelo SEI, com o CNPJ, o registro na
+              Junta Comercial da sede e a prova de capital social de pelo menos R$ 100.000,00.
+            </li>
+            <li>O certificado de registro volta pelo processo no SEI.</li>
+            <li>O número desse certificado é informado aqui. Este sistema não gera nem inventa o registro.</li>
+          </ol>
+          <a href="https://www.gov.br/pt-br/servicos/solicitar-registro-de-empresa-de-trabalho-temporario" target="_blank" rel="noreferrer">
+            Serviço oficial no gov.br
+          </a>
+        </span>
+      )}
+    </span>
+  )
+}
+
 function CadastroEttForm() {
   const { state, atualizarCadastroEtt, enviarDocumento } = useStore()
   const [form, setForm] = useState(state.cadastroEtt)
@@ -121,7 +175,13 @@ function CadastroEttForm() {
         {campo('capitalSocial', 'Capital social')}
         {campo('cnae', 'CNAE')}
         {campo('sede', 'Sede')}
-        {campo('registroSirett', 'Número do registro SIRETT')}
+        <label>
+          <span>
+            Número do registro SIRETT
+            <InfoSirett />
+          </span>
+          <input value={form.registroSirett} onChange={(e) => setForm({ ...form, registroSirett: e.target.value })} />
+        </label>
         {campo('certificadoRegistro', 'Certificado de registro')}
         {campo('certificadoDigital', 'Certificado digital')}
         {campo('procuracoes', 'Procurações')}
