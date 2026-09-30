@@ -196,6 +196,13 @@ function valorNumero(texto: string) {
   return match ? Number(match[0]) : 0
 }
 
+const BENEFICIOS_OPCOES = ['Vale-transporte', 'Refeição no local'] as const
+
+function beneficiosDoTexto(texto: string) {
+  const normal = texto.toLocaleLowerCase('pt-BR')
+  return BENEFICIOS_OPCOES.filter((item) => normal.includes(item.toLocaleLowerCase('pt-BR')))
+}
+
 function formatarDataBr(iso: string) {
   const [y, m, d] = iso.split('-')
   if (!y || !m || !d) return iso
@@ -223,7 +230,7 @@ export function ContratarFreelancer({ onLogout }: { onLogout: () => void }) {
   const [motivo, setMotivo] = useState<MotivoTemporario | ''>('')
   const [atividades, setAtividades] = useState('')
   const [remuneracao, setRemuneracao] = useState('')
-  const [beneficios, setBeneficios] = useState('')
+  const [beneficios, setBeneficios] = useState<string[]>([])
   const [cidade, setCidade] = useState(empresa.endereco.cidade)
   const [observacoes, setObservacoes] = useState('')
   const [erro, setErro] = useState('')
@@ -278,10 +285,16 @@ export function ContratarFreelancer({ onLogout }: { onLogout: () => void }) {
     setMotivo(modelo.motivo)
     setAtividades(modelo.atividades)
     setRemuneracao(formatarMoeda(modelo.remuneracao))
-    setBeneficios(modelo.beneficios)
+    setBeneficios(beneficiosDoTexto(modelo.beneficios))
     setQuantidade(modelo.quantidade)
     setResultados(null)
     setMissaoId(null)
+  }
+
+  const beneficiosTexto = beneficios.join(', ')
+
+  function alternarBeneficio(item: string) {
+    setBeneficios((atual) => (atual.includes(item) ? atual.filter((b) => b !== item) : [...atual, item]))
   }
 
   function analisar() {
@@ -331,7 +344,7 @@ export function ContratarFreelancer({ onLogout }: { onLogout: () => void }) {
       motivo,
       atividades,
       remuneracao,
-      beneficios,
+      beneficios: beneficiosTexto,
       quantidade,
     }
     gravarModelo(empresa.id, salvo)
@@ -357,7 +370,7 @@ export function ContratarFreelancer({ onLogout }: { onLogout: () => void }) {
         motivo,
         atividades,
         remuneracao,
-        beneficios,
+        beneficios: beneficiosTexto,
       },
       empresa,
       profissionais: state.profissionais,
@@ -393,13 +406,13 @@ export function ContratarFreelancer({ onLogout }: { onLogout: () => void }) {
             endereco: { ...empresa.endereco, cidade: cidadeMissao },
             valorDiaria: valorNumero(remuneracao),
             descricao: atividades,
-            epis: beneficios,
+            epis: beneficiosTexto,
             observacoes,
             requisitos,
             diferenciais,
             motivo,
             atividades,
-            beneficios,
+            beneficios: beneficiosTexto,
           },
     })
     if (resp) setMissaoId(resp.demandaId)
@@ -598,14 +611,19 @@ export function ContratarFreelancer({ onLogout }: { onLogout: () => void }) {
                   />
                 </label>
 
-                <label className="cf-field">
-                  <span>Benefícios</span>
-                  <input
-                    value={beneficios}
-                    onChange={(e) => setBeneficios(e.target.value)}
-                    placeholder="Ex.: vale-transporte, refeição no local"
-                  />
-                </label>
+                <p className="cf-label">Benefícios</p>
+                <div className="cf-checks">
+                  {BENEFICIOS_OPCOES.map((item) => (
+                    <label key={item} className="cf-check">
+                      <input
+                        type="checkbox"
+                        checked={beneficios.includes(item)}
+                        onChange={() => alternarBeneficio(item)}
+                      />
+                      <span>{item}</span>
+                    </label>
+                  ))}
+                </div>
 
                 <label className="cf-field">
                   <span>Observações da operação</span>
