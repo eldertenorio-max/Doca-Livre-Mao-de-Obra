@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react'
 import { AvailabilityToggle } from '../../components/AvailabilityToggle'
 import { BibliotecaDocumental } from '../../components/BibliotecaDocumental'
 import { ContratoViewer } from '../../components/ContratoViewer'
@@ -8,7 +8,9 @@ import { cargoLabel } from '../../data/categories'
 import { pendenciasParaIniciar } from '../../lib/dossieTemporario'
 import { BRAND_PRODUCT_NAME, LOGO_DOCA_LIVRE_SRC } from '../../lib/brandAssets'
 import { useStore } from '../../lib/store'
+import type { Disponibilidade } from '../../lib/types'
 import '../empresa/contratar.css'
+import './perfil.css'
 
 const TABS = [
   { id: 'inicio', label: 'Início', icon: <IconeInicio /> },
@@ -473,44 +475,321 @@ function FinanceiroTab() {
 function PerfilTab() {
   const { currentProfissional } = useStore()
   const prof = currentProfissional!
-  const [docsOpen, setDocsOpen] = useState(true)
+  const [docsOpen, setDocsOpen] = useState(false)
+  const [slide, setSlide] = useState(0)
+  const toque = useRef({ x: 0, y: 0 })
+  const idade = idadeDe(prof.nascimento)
+  const cargo = prof.profissoes[0] ? cargoLabel(prof.profissoes[0]) : 'Trabalhador'
+  const nota = prof.avaliacaoMedia.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })
+  const turnos = TURNOS.filter((item) => prof.disponibilidade[item.key])
+
+  const slides = useMemo(() => {
+    const itens: { id: string; node: ReactNode }[] = [
+      {
+        id: 'capa',
+        node: (
+          <div className="td-cover">
+            {prof.foto ? (
+              <img src={prof.foto} alt="" />
+            ) : (
+              <div className="td-mono" aria-hidden>
+                <span>{iniciais(prof.nome)}</span>
+              </div>
+            )}
+            <div className="td-shade" />
+            <div className="td-badges">
+              <LevelBadge nivel={prof.nivel} />
+              <span className={`td-status td-status--${prof.status}`}>{rotuloStatus(prof.status)}</span>
+            </div>
+            <div className="td-copy">
+              <h1>
+                {prof.nome}
+                {idade != null && <span> {idade}</span>}
+              </h1>
+              <p className="td-job">{cargo}</p>
+              <p className="td-place">
+                {prof.endereco.cidade}, {prof.endereco.estado}
+              </p>
+            </div>
+          </div>
+        ),
+      },
+    ]
+    prof.experiencia.slice(0, 2).forEach((item, index) => {
+      itens.push({
+        id: `exp-${index}`,
+        node: (
+          <div className="td-prompt">
+            <small>Experiência</small>
+            <h2>{item.cargo}</h2>
+            <p>{item.empresa}</p>
+            <span>
+              {periodo(item.inicio, item.fim)}
+              {item.descricao ? ` · ${item.descricao}` : ''}
+            </span>
+          </div>
+        ),
+      })
+    })
+    if (prof.certificados.length || prof.cnhCategoria) {
+      itens.push({
+        id: 'certs',
+        node: (
+          <div className="td-prompt td-prompt--ink">
+            <small>Certificados</small>
+            <h2>{prof.certificados[0]?.tipo ?? `CNH ${prof.cnhCategoria}`}</h2>
+            <p>
+              {[
+                prof.cnhCategoria ? `CNH ${prof.cnhCategoria}` : '',
+                ...prof.certificados.map((c) => c.tipo),
+              ]
+                .filter(Boolean)
+                .join(' · ')}
+            </p>
+          </div>
+        ),
+      })
+    }
+    return itens
+  }, [cargo, idade, prof])
+
+  function ir(delta: number) {
+    setSlide((atual) => Math.min(slides.length - 1, Math.max(0, atual + delta)))
+  }
+
+  function soltar(event: ReactPointerEvent<HTMLDivElement>) {
+    if (slides.length < 2) return
+    const dx = event.clientX - toque.current.x
+    const dy = event.clientY - toque.current.y
+    if (Math.abs(dy) > Math.abs(dx) && Math.abs(dy) > 24) return
+    if (dx <= -36) {
+      ir(1)
+      return
+    }
+    if (dx >= 36) {
+      ir(-1)
+      return
+    }
+    if (Math.abs(dx) > 16) return
+    const caixa = event.currentTarget.getBoundingClientRect()
+    const x = event.clientX - caixa.left
+    ir(x < caixa.width * 0.35 ? -1 : 1)
+  }
 
   return (
-    <div className="panel panel--mobile">
-      <h2>Perfil</h2>
-      <LevelBadge nivel={prof.nivel} />
-      <ul className="list profile-list">
-        <li><span className="muted">Nome</span><strong>{prof.nome}</strong></li>
-        <li><span className="muted">Comparecimento</span><strong>{prof.taxaComparecimento}%</strong></li>
-        <li><span className="muted">Faltas</span><strong>{prof.faltas}</strong></li>
-        <li><span className="muted">Resposta média</span><strong>{prof.tempoRespostaMin} min</strong></li>
-        <li><span className="muted">Profissões</span><strong>{prof.profissoes.map(cargoLabel).join(', ')}</strong></li>
-        <li><span className="muted">CNH</span><strong>{prof.cnhCategoria ?? '—'}</strong></li>
-        <li><span className="muted">Cidade</span><strong>{prof.endereco.cidade}/{prof.endereco.estado}</strong></li>
-        <li><span className="muted">Cargo principal</span><strong>{prof.profissoes[0] ? cargoLabel(prof.profissoes[0]) : '—'}</strong></li>
-        <li>
-          <span className="muted">Experiências</span>
-          <strong>
-            {prof.experiencia.length
-              ? prof.experiencia.map((e) => `${e.cargo} · ${e.empresa} · ${e.inicio}–${e.fim}`).join(' | ')
-              : '—'}
-          </strong>
-        </li>
-        <li>
-          <span className="muted">Certificados</span>
-          <strong>{prof.certificados.length ? prof.certificados.map((c) => c.tipo).join(', ') : '—'}</strong>
-        </li>
-        <li><span className="muted">Status</span><strong>{prof.status}</strong></li>
-      </ul>
+    <div className="td-page">
+      <article
+        className="td-hero"
+        onPointerDown={(event) => {
+          toque.current = { x: event.clientX, y: event.clientY }
+        }}
+        onPointerUp={soltar}
+      >
+        <div className="td-bars" aria-hidden>
+          {slides.map((item, index) => (
+            <span key={item.id} className={index <= slide ? 'on' : ''} />
+          ))}
+        </div>
+        <div className="td-track" style={{ transform: `translateX(-${slide * 100}%)` }}>
+          {slides.map((item) => (
+            <div className="td-slide" key={item.id}>
+              {item.node}
+            </div>
+          ))}
+        </div>
+      </article>
 
-      <div className="docs-mobile-head">
-        <h3>Meus documentos</h3>
-        <button type="button" className="btn btn-ghost" onClick={() => setDocsOpen((v) => !v)}>
-          {docsOpen ? 'Ocultar' : 'Abrir'}
+      <section className="td-card">
+        <h2>Sobre</h2>
+        <p>{textoSobre(prof.experiencia, cargo, prof.endereco.cidade)}</p>
+      </section>
+
+      <section className="td-card">
+        <h2>O básico</h2>
+        <ul className="td-facts">
+          <li>
+            <IconeBolha>
+              <path d="M4 9h16v10H4z" stroke="currentColor" strokeWidth="1.75" />
+              <path d="M9 9V7a3 3 0 0 1 6 0v2" stroke="currentColor" strokeWidth="1.75" />
+            </IconeBolha>
+            <span>{cargo}</span>
+          </li>
+          <li>
+            <IconeBolha>
+              <path d="M12 21s6-5.2 6-10a6 6 0 1 0-12 0c0 4.8 6 10 6 10z" stroke="currentColor" strokeWidth="1.75" />
+              <circle cx="12" cy="11" r="1.6" fill="currentColor" />
+            </IconeBolha>
+            <span>
+              {prof.endereco.cidade}, {prof.endereco.estado} · até {prof.raioKm} km
+            </span>
+          </li>
+          <li>
+            <IconeBolha>
+              <path d="m12 3 2.2 4.6L19 8.2l-3.5 3.4.8 4.9L12 14.8 7.7 16.5l.8-4.9L5 8.2l4.8-.6L12 3z" stroke="currentColor" strokeWidth="1.75" strokeLinejoin="round" />
+            </IconeBolha>
+            <span>Avaliação {nota}</span>
+          </li>
+          <li>
+            <IconeBolha>
+              <path d="m5 12 4.2 4.2L19 7" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
+            </IconeBolha>
+            <span>{prof.taxaComparecimento}% de comparecimento · {prof.faltas} {prof.faltas === 1 ? 'falta' : 'faltas'}</span>
+          </li>
+          <li>
+            <IconeBolha>
+              <circle cx="12" cy="12" r="8" stroke="currentColor" strokeWidth="1.75" />
+              <path d="M12 8v4.5l3 2" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" />
+            </IconeBolha>
+            <span>Responde em {prof.tempoRespostaMin} min</span>
+          </li>
+          {prof.cnhCategoria && (
+            <li>
+              <IconeBolha>
+                <rect x="3" y="6" width="18" height="12" rx="2" stroke="currentColor" strokeWidth="1.75" />
+                <path d="M7 12h4" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" />
+              </IconeBolha>
+              <span>CNH {prof.cnhCategoria}</span>
+            </li>
+          )}
+        </ul>
+      </section>
+
+      {prof.profissoes.length > 0 && (
+        <section className="td-card">
+          <h2>Profissões</h2>
+          <div className="td-chips">
+            {prof.profissoes.map((id, index) => (
+              <span key={id} className={index === 0 ? 'td-chip td-chip--on' : 'td-chip'}>
+                {cargoLabel(id)}
+              </span>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {prof.experiencia.length > 0 && (
+        <section className="td-card">
+          <h2>Experiência</h2>
+          <ul className="td-jobs">
+            {prof.experiencia.map((item) => (
+              <li key={`${item.empresa}-${item.inicio}`}>
+                <strong>{item.cargo}</strong>
+                <span>
+                  {item.empresa} · {periodo(item.inicio, item.fim)}
+                </span>
+                {item.descricao && <p>{item.descricao}</p>}
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      {prof.certificados.length > 0 && (
+        <section className="td-card">
+          <h2>Certificados</h2>
+          <div className="td-chips">
+            {prof.certificados.map((item) => (
+              <span key={item.tipo} className="td-chip td-chip--on">
+                {item.tipo}
+                {item.valido ? '' : ' · vencido'}
+              </span>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {turnos.length > 0 && (
+        <section className="td-card">
+          <h2>Disponibilidade</h2>
+          <div className="td-chips">
+            {turnos.map((item) => (
+              <span key={item.key} className="td-chip">
+                {item.label}
+              </span>
+            ))}
+          </div>
+        </section>
+      )}
+
+      <section className="td-card">
+        <button
+          type="button"
+          className="td-fold"
+          aria-expanded={docsOpen}
+          onClick={() => setDocsOpen((aberto) => !aberto)}
+        >
+          <span>Meus documentos</span>
+          <small>{docsOpen ? 'Ocultar' : 'Abrir'}</small>
         </button>
-      </div>
-      {docsOpen && <DocumentacaoProfissionalPanel profissional={prof} />}
-      <BibliotecaDocumental modo="trabalhador" />
+        {docsOpen && (
+          <div className="td-docs">
+            <DocumentacaoProfissionalPanel profissional={prof} />
+            <BibliotecaDocumental modo="trabalhador" />
+          </div>
+        )}
+      </section>
     </div>
+  )
+}
+
+const TURNOS: { key: keyof Disponibilidade; label: string }[] = [
+  { key: 'hoje', label: 'Hoje' },
+  { key: 'amanha', label: 'Amanhã' },
+  { key: 'estaSemana', label: 'Esta semana' },
+  { key: 'finaisDeSemana', label: 'Finais de semana' },
+  { key: 'noturno', label: 'Noturno' },
+  { key: 'viagens', label: 'Viagens' },
+  { key: 'temporario', label: 'Temporário' },
+  { key: 'efetivo', label: 'Efetivo' },
+  { key: 'freelancer', label: 'Freelancer' },
+]
+
+const MESES = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez']
+
+function idadeDe(nascimento: string) {
+  const nasc = new Date(`${nascimento}T12:00:00`)
+  if (Number.isNaN(nasc.getTime())) return null
+  const hoje = new Date()
+  let idade = hoje.getFullYear() - nasc.getFullYear()
+  const aniversario = new Date(hoje.getFullYear(), nasc.getMonth(), nasc.getDate())
+  if (hoje < aniversario) idade -= 1
+  return idade >= 0 ? idade : null
+}
+
+function mesAno(iso: string) {
+  const [ano, mes] = iso.split('-')
+  const nome = MESES[Number(mes) - 1]
+  if (!ano || !nome) return iso
+  return `${nome}/${ano}`
+}
+
+function periodo(inicio: string, fim: string) {
+  return `${mesAno(inicio)} a ${fim ? mesAno(fim) : 'atual'}`
+}
+
+function rotuloStatus(status: 'pendente' | 'aprovado' | 'bloqueado') {
+  if (status === 'aprovado') return 'Aprovado'
+  if (status === 'bloqueado') return 'Bloqueado'
+  return 'Em análise'
+}
+
+function textoSobre(
+  experiencia: { cargo: string; empresa: string; descricao: string }[],
+  cargo: string,
+  cidade: string,
+) {
+  const ultima = experiencia[0]
+  if (!ultima) return `${cargo} em ${cidade}.`
+  const detalhe = ultima.descricao ? ` ${ultima.descricao}.` : ''
+  return `${ultima.cargo} na ${ultima.empresa}.${detalhe} Atua como ${cargo} em ${cidade}.`
+}
+
+function IconeBolha({ children }: { children: ReactNode }) {
+  return (
+    <span className="td-ico" aria-hidden>
+      <svg viewBox="0 0 24 24" fill="none">
+        {children}
+      </svg>
+    </span>
   )
 }
