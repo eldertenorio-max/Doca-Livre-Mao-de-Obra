@@ -1,5 +1,6 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import { CATEGORIES, cargoLabel } from '../../data/categories'
+import { CIDADES_OPERACAO } from '../../data/cidades'
 import { analisarCurriculos, requisitosDoCargo, type CurriculoAnalisado } from '../../lib/analiseCurriculo'
 import { LOGO_DOCA_LIVRE_SRC } from '../../lib/brandAssets'
 import { useStore } from '../../lib/store'
@@ -10,6 +11,125 @@ function dataLocal(offsetDias = 0) {
   d.setDate(d.getDate() + offsetDias)
   const z = new Date(d.getTime() - d.getTimezoneOffset() * 60000)
   return z.toISOString().slice(0, 10)
+}
+
+function semAcento(value: string) {
+  return value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+}
+
+function CampoCidade({
+  value,
+  onChange,
+  cidades,
+}: {
+  value: string
+  onChange: (cidade: string) => void
+  cidades: string[]
+}) {
+  const listaId = useId()
+  const caixa = useRef<HTMLDivElement>(null)
+  const [aberta, setAberta] = useState(false)
+  const [consulta, setConsulta] = useState('')
+  const [destaque, setDestaque] = useState(0)
+
+  const opcoes = useMemo(() => {
+    const unicas = [...new Set(cidades.map((c) => c.trim()).filter(Boolean))]
+    unicas.sort((a, b) => a.localeCompare(b, 'pt-BR'))
+    const termo = semAcento(consulta.trim())
+    if (!termo) return unicas
+    return unicas
+      .filter((cidade) => semAcento(cidade).includes(termo))
+      .sort((a, b) => {
+        const aComeca = semAcento(a).startsWith(termo) ? 0 : 1
+        const bComeca = semAcento(b).startsWith(termo) ? 0 : 1
+        if (aComeca !== bComeca) return aComeca - bComeca
+        return a.localeCompare(b, 'pt-BR')
+      })
+  }, [cidades, consulta])
+
+  useEffect(() => {
+    setDestaque(0)
+  }, [consulta, aberta])
+
+  useEffect(() => {
+    if (!aberta) return
+    function fecharAoClicarFora(evento: MouseEvent) {
+      if (!caixa.current?.contains(evento.target as Node)) setAberta(false)
+    }
+    document.addEventListener('mousedown', fecharAoClicarFora)
+    return () => document.removeEventListener('mousedown', fecharAoClicarFora)
+  }, [aberta])
+
+  function escolher(cidade: string) {
+    onChange(cidade)
+    setConsulta('')
+    setAberta(false)
+  }
+
+  return (
+    <div className="cf-field cf-city" ref={caixa}>
+      <span id={`${listaId}-label`}>Cidade da operação</span>
+      <input
+        role="combobox"
+        aria-expanded={aberta}
+        aria-controls={listaId}
+        aria-labelledby={`${listaId}-label`}
+        aria-autocomplete="list"
+        value={aberta && consulta !== '' ? consulta : value}
+        placeholder="Clique para ver as cidades ou digite o nome"
+        onClick={() => setAberta(true)}
+        onFocus={(e) => {
+          setConsulta('')
+          setAberta(true)
+          e.currentTarget.select()
+        }}
+        onChange={(e) => {
+          setConsulta(e.target.value)
+          onChange(e.target.value)
+          setAberta(true)
+        }}
+        onKeyDown={(e) => {
+          if (!aberta && (e.key === 'ArrowDown' || e.key === 'Enter')) {
+            setAberta(true)
+            return
+          }
+          if (e.key === 'ArrowDown') {
+            e.preventDefault()
+            setDestaque((i) => Math.min(i + 1, Math.max(opcoes.length - 1, 0)))
+          } else if (e.key === 'ArrowUp') {
+            e.preventDefault()
+            setDestaque((i) => Math.max(i - 1, 0))
+          } else if (e.key === 'Enter' && aberta && opcoes[destaque]) {
+            e.preventDefault()
+            escolher(opcoes[destaque])
+          } else if (e.key === 'Escape') {
+            setAberta(false)
+            setConsulta('')
+          }
+        }}
+      />
+      {aberta && (
+        <ul className="cf-city-list" id={listaId} role="listbox">
+          {opcoes.length === 0 && <li className="cf-city-empty muted">Nenhuma cidade com esse nome.</li>}
+          {opcoes.map((cidade, indice) => (
+            <li key={cidade}>
+              <button
+                type="button"
+                role="option"
+                aria-selected={indice === destaque}
+                className={indice === destaque ? 'cf-city-list--on' : undefined}
+                onMouseEnter={() => setDestaque(indice)}
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => escolher(cidade)}
+              >
+                {cidade}
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  )
 }
 
 function diasEntre(inicio: string, fim: string) {
@@ -149,10 +269,16 @@ export function ContratarFreelancer({ onLogout }: { onLogout: () => void }) {
                   ))}
                 </div>
 
-                <label className="cf-field">
-                  <span>Cidade da operação</span>
-                  <input value={cidade} onChange={(e) => setCidade(e.target.value)} />
-                </label>
+                <CampoCidade
+                  value={cidade}
+                  onChange={setCidade}
+                  cidades={[
+                    ...CIDADES_OPERACAO,
+                    ...state.profissionais.map((p) => p.endereco.cidade),
+                    ...state.empresas.map((e) => e.endereco.cidade),
+                    ...state.enderecosEmpresa.map((e) => e.cidade),
+                  ]}
+                />
               </div>
 
               <div>
