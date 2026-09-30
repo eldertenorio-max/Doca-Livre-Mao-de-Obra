@@ -1056,19 +1056,16 @@ function PessoaCard({
         <span className="cf-pill cf-pill--city">{p.endereco.cidade}/{p.endereco.estado}</span>
         <span className="cf-pill cf-pill--exp">{rotuloAnos(item.anosExperiencia)}</span>
         <span className="cf-pill cf-pill--km">{item.distanciaKm} km</span>
-      </div>
-
-      <ul className="cf-marks">
         {item.checagens.map((checagem) => (
-          <li
+          <span
             key={`${checagem.rotulo}-${checagem.obrigatorio}`}
-            className={checagem.ok ? (checagem.obrigatorio ? 'cf-mark--ok' : 'cf-mark--dif') : 'cf-mark--no'}
+            className={`cf-pill ${checagem.ok ? (checagem.obrigatorio ? 'cf-mark--ok' : 'cf-mark--dif') : 'cf-mark--no'}`}
           >
             {checagem.ok ? '✓' : '✕'} {checagem.rotulo}
             {!checagem.obrigatorio ? ' · diferencial' : ''}
-          </li>
+          </span>
         ))}
-      </ul>
+      </div>
 
       <div className="cf-bars">
         {barras.map(([rotulo, texto]) => {
