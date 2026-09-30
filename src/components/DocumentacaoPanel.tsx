@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import {
   DOCS_EMPRESA,
   DOCS_PLATAFORMA,
@@ -6,184 +6,105 @@ import {
   docDefById,
 } from '../data/documentCatalog'
 import {
+  STATUS_LABEL,
+  checklistEmpresa,
   checklistProfissional,
   daysUntil,
-  docsDoDono,
   effectiveStatus,
   isDocVencendo,
   isDocVencido,
   resumoDocumental,
+  validarEnvioDocumento,
+  type ChecklistItem,
 } from '../lib/documentos'
 import { useStore } from '../lib/store'
-import type { DocumentoRegistro, Empresa, Profissional } from '../lib/types'
+import type { DocumentoStatus, Empresa, Profissional } from '../lib/types'
 
-function StatusBadge({ status }: { status: string }) {
-  return <span className={`px-status px-status--${status}`}>{status.replace('_', ' ')}</span>
+function StatusBadge({ status }: { status: DocumentoStatus | string }) {
+  const label = STATUS_LABEL[status as DocumentoStatus] ?? status
+  return <span className={`docs-status docs-status--${status}`}>{label}</span>
 }
 
 export function DocumentacaoProfissionalPanel({ profissional }: { profissional: Profissional }) {
-  const { state, enviarDocumento } = useStore()
+  const { state } = useStore()
   const items = useMemo(
     () => checklistProfissional(profissional, state.documentos),
     [profissional, state.documentos],
   )
   const resumo = resumoDocumental(items)
-  const [tipoId, setTipoId] = useState(DOCS_PROFISSIONAL[0].id)
-  const [validade, setValidade] = useState('')
-  const [arquivo, setArquivo] = useState('')
+  const obrigatorios = items.filter((i) => !i.opcional)
+  const opcionais = items.filter((i) => i.opcional)
+  const [selecao, setSelecao] = useState<{ tipoId: string; validade: string } | null>(null)
 
   return (
     <div className="docs-panel">
-      <div className="docs-resumo">
-        <div className="px-mini-card">
-          <span className="muted">Completude</span>
-          <strong>{resumo.pct}%</strong>
-        </div>
-        <div className="px-mini-card">
-          <span className="muted">Aprovados</span>
-          <strong>{resumo.ok}/{resumo.total}</strong>
-        </div>
-        <div className="px-mini-card">
-          <span className="muted">Pendentes</span>
-          <strong>{resumo.pendentes}</strong>
-        </div>
-        <div className="px-mini-card">
-          <span className="muted">Vencendo / vencidos</span>
-          <strong>{resumo.vencendo + resumo.vencidos}</strong>
-        </div>
-      </div>
+      <ResumoCards resumo={resumo} />
 
       {!resumo.completo && (
         <div className="docs-alert">
-          Complete a documentação obrigatória para aumentar a chance de matching e confirmação em
-          contratos.
+          A documentação obrigatória entra no score do matching. Documento vencido, recusado ou
+          ainda não aprovado reduz a prioridade nas demandas.
         </div>
       )}
 
       <h3>Checklist obrigatório</h3>
-      <ul className="px-list">
-        {items.map(({ def, doc, status, faltando, vencendo }) => (
-          <li key={def.id} className="px-list-card docs-item">
-            <div>
-              <strong>{def.label}</strong>
-              <p className="muted">{def.descricao}</p>
-              {doc?.arquivoNome && <p className="muted">Arquivo: {doc.arquivoNome}</p>}
-              {doc?.validade && (
-                <p className="muted">
-                  Validade: {doc.validade}
-                  {vencendo ? ' · vence em breve' : ''}
-                  {isDocVencido(doc) ? ' · VENCIDO' : ''}
-                </p>
-              )}
-              {doc?.observacao && <p className="error">Obs.: {doc.observacao}</p>}
-            </div>
-            <div className="px-row-actions">
-              <StatusBadge status={faltando ? 'pendente' : status} />
-              <button
-                type="button"
-                className="px-btn px-btn-outline"
-                onClick={() => {
-                  setTipoId(def.id)
-                  setValidade(doc?.validade ?? '')
-                }}
-              >
-                {faltando ? 'Enviar' : 'Atualizar'}
-              </button>
-            </div>
-          </li>
-        ))}
-      </ul>
+      <ChecklistLista items={obrigatorios} onSelect={setSelecao} />
 
-      <div className="px-card" style={{ marginTop: 16 }}>
-        <h3 style={{ marginTop: 0 }}>Enviar / atualizar documento</h3>
-        <div className="px-form-grid">
-          <label className="px-field">
-            <span>Tipo</span>
-            <select value={tipoId} onChange={(e) => setTipoId(e.target.value)}>
-              {DOCS_PROFISSIONAL.map((d) => (
-                <option key={d.id} value={d.id}>{d.label}</option>
-              ))}
-            </select>
-          </label>
-          <label className="px-field">
-            <span>Nome do arquivo (mock)</span>
-            <input
-              value={arquivo}
-              onChange={(e) => setArquivo(e.target.value)}
-              placeholder="ex: cnh_frente.pdf"
-            />
-          </label>
-          {docDefById(tipoId)?.temValidade && (
-            <label className="px-field">
-              <span>Validade</span>
-              <input type="date" value={validade} onChange={(e) => setValidade(e.target.value)} />
-            </label>
-          )}
-        </div>
-        <button
-          type="button"
-          className="px-btn px-btn-primary"
-          onClick={() => {
-            enviarDocumento({
-              tipoId,
-              donoTipo: 'profissional',
-              donoId: profissional.id,
-              arquivoNome: arquivo || `${tipoId}.pdf`,
-              validade: validade || undefined,
-            })
-            setArquivo('')
-          }}
-        >
-          Enviar para análise
-        </button>
-      </div>
+      {opcionais.length > 0 && (
+        <>
+          <h3>Opcionais</h3>
+          <ChecklistLista items={opcionais} onSelect={setSelecao} />
+        </>
+      )}
 
+      <EnvioDocumentoForm
+        defs={DOCS_PROFISSIONAL}
+        donoTipo="profissional"
+        donoId={profissional.id}
+        selecao={selecao}
+      />
       <TermosPlataforma />
     </div>
   )
 }
 
 export function DocumentacaoEmpresaPanel({ empresa }: { empresa: Empresa }) {
-  const { state, enviarDocumento } = useStore()
-  const docs = docsDoDono(state.documentos, 'empresa', empresa.id)
+  const { state } = useStore()
+  const items = useMemo(
+    () => checklistEmpresa(empresa.id, state.documentos),
+    [empresa.id, state.documentos],
+  )
+  const resumo = resumoDocumental(items)
+  const obrigatorios = items.filter((i) => !i.opcional)
+  const opcionais = items.filter((i) => i.opcional)
+  const [selecao, setSelecao] = useState<{ tipoId: string; validade: string } | null>(null)
 
   return (
     <div className="docs-panel">
       <p className="muted">
-        Documentos cadastrais da empresa. Sem aprovação, a conta pode ficar limitada.
+        Documentos cadastrais da empresa. Sem aprovação dos obrigatórios, a conta pode ficar limitada.
       </p>
-      <ul className="px-list">
-        {DOCS_EMPRESA.map((def) => {
-          const doc = docs.find((d) => d.tipoId === def.id)
-          const status = doc ? effectiveStatus(doc) : 'pendente'
-          return (
-            <li key={def.id} className="px-list-card docs-item">
-              <div>
-                <strong>{def.label}</strong>
-                <p className="muted">{def.descricao}</p>
-                {doc?.arquivoNome && <p className="muted">Arquivo: {doc.arquivoNome}</p>}
-              </div>
-              <div className="px-row-actions">
-                <StatusBadge status={status} />
-                <button
-                  type="button"
-                  className="px-btn px-btn-outline"
-                  onClick={() =>
-                    enviarDocumento({
-                      tipoId: def.id,
-                      donoTipo: 'empresa',
-                      donoId: empresa.id,
-                      arquivoNome: `${def.id}.pdf`,
-                    })
-                  }
-                >
-                  {doc ? 'Reenviar' : 'Enviar'}
-                </button>
-              </div>
-            </li>
-          )
-        })}
-      </ul>
+      <ResumoCards resumo={resumo} />
+      {!resumo.completo && (
+        <div className="docs-alert">
+          Envie contrato social, cartão CNPJ, comprovante de endereço e documento do responsável.
+          Procuração só é necessária quando quem acessa não é o sócio.
+        </div>
+      )}
+      <h3>Checklist obrigatório</h3>
+      <ChecklistLista items={obrigatorios} onSelect={setSelecao} />
+      {opcionais.length > 0 && (
+        <>
+          <h3>Opcionais</h3>
+          <ChecklistLista items={opcionais} onSelect={setSelecao} />
+        </>
+      )}
+      <EnvioDocumentoForm
+        defs={DOCS_EMPRESA}
+        donoTipo="empresa"
+        donoId={empresa.id}
+        selecao={selecao}
+      />
       <TermosPlataforma />
     </div>
   )
@@ -221,18 +142,18 @@ export function CentralDocumentacaoAdmin() {
       .map((d) => ({ d, status: effectiveStatus(d), def: docDefById(d.tipoId) }))
       .filter(({ d, status }) => {
         if (filtro === 'todos') return true
-        if (filtro === 'em_analise') return d.status === 'em_analise' || d.status === 'pendente'
-        if (filtro === 'vencendo') return isDocVencendo(d)
-        if (filtro === 'vencido') return status === 'vencido' || isDocVencido(d)
+        if (filtro === 'em_analise') return d.status === 'em_analise' && Boolean(d.arquivoNome?.trim())
+        if (filtro === 'vencendo') return status === 'aprovado' && isDocVencendo(d)
+        if (filtro === 'vencido') return status === 'vencido'
         if (filtro === 'recusado') return d.status === 'recusado'
         return true
       })
       .sort((a, b) => (a.d.enviadoEm < b.d.enviadoEm ? 1 : -1))
   }, [state.documentos, filtro])
 
-  const emAnalise = state.documentos.filter((d) => d.status === 'em_analise').length
-  const vencendo = state.documentos.filter((d) => isDocVencendo(d)).length
-  const vencidos = state.documentos.filter((d) => isDocVencido(d) || effectiveStatus(d) === 'vencido').length
+  const emAnalise = state.documentos.filter((d) => d.status === 'em_analise' && d.arquivoNome?.trim()).length
+  const vencendo = state.documentos.filter((d) => effectiveStatus(d) === 'aprovado' && isDocVencendo(d)).length
+  const vencidos = state.documentos.filter((d) => effectiveStatus(d) === 'vencido').length
 
   return (
     <div className="px-page">
@@ -284,10 +205,11 @@ export function CentralDocumentacaoAdmin() {
                   {d.donoTipo} · {dono ?? d.donoId} · {d.arquivoNome ?? 'sem arquivo'}
                   {d.validade ? ` · val. ${d.validade}${dias != null ? ` (${dias}d)` : ''}` : ''}
                 </p>
+                {d.observacao && <p className="error">Obs.: {d.observacao}</p>}
               </div>
               <div className="px-row-actions">
                 <StatusBadge status={status} />
-                {(d.status === 'em_analise' || d.status === 'pendente') && (
+                {d.status === 'em_analise' && d.arquivoNome?.trim() && (
                   <>
                     <button
                       type="button"
@@ -299,9 +221,11 @@ export function CentralDocumentacaoAdmin() {
                     <button
                       type="button"
                       className="px-btn px-btn-ghost"
-                      onClick={() =>
-                        revisarDocumento(d.id, 'recusado', 'Documento ilegível ou incompleto')
-                      }
+                      onClick={() => {
+                        const motivo = window.prompt('Motivo da recusa', 'Documento ilegível ou incompleto')
+                        if (!motivo?.trim()) return
+                        revisarDocumento(d.id, 'recusado', motivo.trim())
+                      }}
                     >
                       Recusar
                     </button>
@@ -327,6 +251,160 @@ export function CentralDocumentacaoAdmin() {
           <CatalogBlock title="Plataforma" items={DOCS_PLATAFORMA} />
         </div>
       </div>
+    </div>
+  )
+}
+
+function ResumoCards({
+  resumo,
+}: {
+  resumo: ReturnType<typeof resumoDocumental>
+}) {
+  return (
+    <div className="docs-resumo">
+      <div className="px-mini-card">
+        <span className="muted">Completude</span>
+        <strong>{resumo.pct}%</strong>
+      </div>
+      <div className="px-mini-card">
+        <span className="muted">Aprovados</span>
+        <strong>{resumo.ok}/{resumo.total}</strong>
+      </div>
+      <div className="px-mini-card">
+        <span className="muted">Pendentes</span>
+        <strong>{resumo.pendentes}</strong>
+      </div>
+      <div className="px-mini-card">
+        <span className="muted">Vencendo / vencidos</span>
+        <strong>{resumo.vencendo + resumo.vencidos}</strong>
+      </div>
+    </div>
+  )
+}
+
+function ChecklistLista({
+  items,
+  onSelect,
+}: {
+  items: ChecklistItem[]
+  onSelect: (selecao: { tipoId: string; validade: string }) => void
+}) {
+  return (
+    <ul className="px-list">
+      {items.map(({ def, doc, status, faltando, vencendo }) => (
+        <li key={def.id} className="px-list-card docs-item">
+          <div>
+            <strong>
+              {def.label}
+              {def.opcional && <span className="docs-tag">opcional</span>}
+            </strong>
+            <p className="muted">{def.descricao}</p>
+            {doc?.arquivoNome && <p className="muted">Arquivo: {doc.arquivoNome}</p>}
+            {doc?.validade && (
+              <p className="muted">
+                Validade: {doc.validade}
+                {vencendo ? ' · vence em breve' : ''}
+                {isDocVencido(doc) ? ' · vencido' : ''}
+              </p>
+            )}
+            {doc?.observacao && <p className="error">Obs.: {doc.observacao}</p>}
+          </div>
+          <div className="px-row-actions">
+            <StatusBadge status={faltando ? 'pendente' : status} />
+            <button
+              type="button"
+              className="px-btn px-btn-outline"
+              onClick={() => onSelect({ tipoId: def.id, validade: doc?.validade ?? '' })}
+            >
+              {faltando ? 'Enviar' : 'Atualizar'}
+            </button>
+          </div>
+        </li>
+      ))}
+    </ul>
+  )
+}
+
+function EnvioDocumentoForm({
+  defs,
+  donoTipo,
+  donoId,
+  selecao,
+}: {
+  defs: { id: string; label: string }[]
+  donoTipo: 'profissional' | 'empresa'
+  donoId: string
+  selecao: { tipoId: string; validade: string } | null
+}) {
+  const { enviarDocumento } = useStore()
+  const [tipoId, setTipoId] = useState(selecao?.tipoId ?? defs[0]?.id ?? '')
+  const [validade, setValidade] = useState(selecao?.validade ?? '')
+  const [arquivo, setArquivo] = useState('')
+  const [erro, setErro] = useState('')
+
+  useEffect(() => {
+    if (!selecao) return
+    setTipoId(selecao.tipoId)
+    setValidade(selecao.validade)
+    setErro('')
+  }, [selecao])
+
+  return (
+    <div className="px-card" style={{ marginTop: 16 }}>
+      <h3 style={{ marginTop: 0 }}>Enviar / atualizar documento</h3>
+      <div className="px-form-grid">
+        <label className="px-field">
+          <span>Tipo</span>
+          <select
+            value={tipoId}
+            onChange={(e) => {
+              setTipoId(e.target.value)
+              setErro('')
+            }}
+          >
+            {defs.map((d) => (
+              <option key={d.id} value={d.id}>{d.label}</option>
+            ))}
+          </select>
+        </label>
+        <label className="px-field">
+          <span>Nome do arquivo</span>
+          <input
+            value={arquivo}
+            onChange={(e) => setArquivo(e.target.value)}
+            placeholder="ex: cnh_frente.pdf"
+          />
+        </label>
+        {docDefById(tipoId)?.temValidade && (
+          <label className="px-field">
+            <span>Validade</span>
+            <input type="date" value={validade} onChange={(e) => setValidade(e.target.value)} />
+          </label>
+        )}
+      </div>
+      {erro && <p className="error">{erro}</p>}
+      <button
+        type="button"
+        className="px-btn px-btn-primary"
+        onClick={() => {
+          const msg = validarEnvioDocumento(tipoId, arquivo, validade || undefined)
+          if (msg) {
+            setErro(msg)
+            return
+          }
+          enviarDocumento({
+            tipoId,
+            donoTipo,
+            donoId,
+            arquivoNome: arquivo.trim(),
+            validade: docDefById(tipoId)?.temValidade ? validade : undefined,
+          })
+          setArquivo('')
+          setErro('')
+        }}
+      >
+        Enviar para análise
+      </button>
     </div>
   )
 }
@@ -397,6 +475,3 @@ function TermosPlataforma() {
     </div>
   )
 }
-
-/** Evita unused warning se importado só parcialmente */
-export type _DocRegistro = DocumentoRegistro

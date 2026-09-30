@@ -25,6 +25,8 @@ export type DocumentDef = {
   obrigatorio: DocObrigatorioPara
   /** Códigos de cargo/requisito que exigem este doc */
   requisitos?: string[]
+  /** Não entra na completude (ex.: MEI se houver, procuração se aplicável) */
+  opcional?: boolean
 }
 
 /** Documentos do profissional */
@@ -68,8 +70,8 @@ export const DOCS_PROFISSIONAL: DocumentDef[] = [
     categoria: 'certificacao',
     descricao: 'Curso de Movimentação de Produtos Perigosos.',
     temValidade: true,
-    obrigatorio: 'motorista',
-    requisitos: ['MOPP'],
+    obrigatorio: 'demanda',
+    requisitos: ['MOPP', 'mopp'],
   },
   {
     id: 'nr11',
@@ -77,8 +79,8 @@ export const DOCS_PROFISSIONAL: DocumentDef[] = [
     categoria: 'certificacao',
     descricao: 'Treinamento e habilitação para operação de equipamentos de movimentação.',
     temValidade: true,
-    obrigatorio: 'equipamentos',
-    requisitos: ['NR11'],
+    obrigatorio: 'demanda',
+    requisitos: ['NR11', 'empilhadeira', 'paleteira', 'reach'],
   },
   {
     id: 'nr35',
@@ -86,7 +88,7 @@ export const DOCS_PROFISSIONAL: DocumentDef[] = [
     categoria: 'certificacao',
     descricao: 'Obrigatório quando a operação envolver altura.',
     temValidade: true,
-    obrigatorio: 'equipamentos',
+    obrigatorio: 'demanda',
     requisitos: ['NR35'],
   },
   {
@@ -95,8 +97,8 @@ export const DOCS_PROFISSIONAL: DocumentDef[] = [
     categoria: 'certificacao',
     descricao: 'Para eletricistas e serviços com risco elétrico.',
     temValidade: true,
-    obrigatorio: 'equipamentos',
-    requisitos: ['NR10'],
+    obrigatorio: 'demanda',
+    requisitos: ['NR10', 'eletricista'],
   },
   {
     id: 'nr20',
@@ -104,7 +106,7 @@ export const DOCS_PROFISSIONAL: DocumentDef[] = [
     categoria: 'certificacao',
     descricao: 'Quando a operação envolver inflamáveis/combustíveis.',
     temValidade: true,
-    obrigatorio: 'equipamentos',
+    obrigatorio: 'demanda',
     requisitos: ['NR20'],
   },
   {
@@ -113,8 +115,8 @@ export const DOCS_PROFISSIONAL: DocumentDef[] = [
     categoria: 'certificacao',
     descricao: 'Certificado de operador de guindaste munck.',
     temValidade: true,
-    obrigatorio: 'equipamentos',
-    requisitos: ['Munck'],
+    obrigatorio: 'demanda',
+    requisitos: ['Munck', 'munck'],
   },
   {
     id: 'ponte_rolante',
@@ -122,8 +124,8 @@ export const DOCS_PROFISSIONAL: DocumentDef[] = [
     categoria: 'certificacao',
     descricao: 'Certificado de operador de ponte rolante.',
     temValidade: true,
-    obrigatorio: 'equipamentos',
-    requisitos: ['Ponte Rolante'],
+    obrigatorio: 'demanda',
+    requisitos: ['Ponte Rolante', 'ponte'],
   },
   {
     id: 'aso',
@@ -137,9 +139,10 @@ export const DOCS_PROFISSIONAL: DocumentDef[] = [
     id: 'aptidao_gr',
     label: 'Aptidão GR / Seguradora',
     categoria: 'saude',
-    descricao: 'Aptidão junto à seguradora/GR do cliente (exigido em vários contratos de rota).',
+    descricao: 'Aptidão junto à seguradora/GR do cliente, exigida em rota de truck, carreta, bitrem e rodotrem.',
     temValidade: true,
-    obrigatorio: 'motorista',
+    obrigatorio: 'demanda',
+    requisitos: ['GR', 'motorista_truck', 'carreteiro', 'bitrem', 'rodotrem'],
   },
   {
     id: 'pix_dados',
@@ -156,6 +159,7 @@ export const DOCS_PROFISSIONAL: DocumentDef[] = [
     descricao: 'Cartão CNPJ ou certificado MEI quando o prestador emitir NF.',
     temValidade: false,
     obrigatorio: 'todos',
+    opcional: true,
   },
 ]
 
@@ -200,6 +204,7 @@ export const DOCS_EMPRESA: DocumentDef[] = [
     descricao: 'Quando o usuário não for o sócio/administrador.',
     temValidade: false,
     obrigatorio: 'empresa',
+    opcional: true,
   },
 ]
 
@@ -288,23 +293,33 @@ export function requiredDocsForProfissional(profissoes: string[], requisitosDema
       p.includes('munck') ||
       p.includes('vuc'),
   )
-  const isEquip = profissoes.some(
-    (p) =>
-      p.includes('empilhadeira') ||
-      p.includes('paleteira') ||
-      p.includes('ponte') ||
-      p.includes('guindaste') ||
-      p.includes('reach') ||
-      p.includes('eletricista'),
-  )
+  return DOCS_PROFISSIONAL.filter((d) => docExigido(d, profissoes, reqs, isMotorista))
+}
 
-  return DOCS_PROFISSIONAL.filter((d) => {
-    if (d.obrigatorio === 'todos') return true
-    if (d.obrigatorio === 'motorista' && isMotorista) return true
-    if (d.obrigatorio === 'equipamentos' && isEquip) return true
-    if (d.requisitos?.some((r) => reqs.has(r))) return true
-    return false
+function profissaoCombina(profissoes: string[], token: string) {
+  const t = token.toLowerCase()
+  return profissoes.some((p) => {
+    const id = p.toLowerCase()
+    return id === t || id.includes(t)
   })
+}
+
+function docExigido(
+  d: DocumentDef,
+  profissoes: string[],
+  reqs: Set<string>,
+  isMotorista: boolean,
+) {
+  if (d.opcional) return false
+  if (d.obrigatorio === 'todos') return true
+  if (d.obrigatorio === 'motorista' && isMotorista) return true
+  if (d.requisitos?.some((r) => reqs.has(r) || profissaoCombina(profissoes, r))) return true
+  return false
+}
+
+/** Docs obrigatórios da empresa. Procuração fica de fora da completude. */
+export function requiredDocsForEmpresa() {
+  return DOCS_EMPRESA.filter((d) => !d.opcional)
 }
 
 export const DIAS_ALERTA_VENCIMENTO = 30

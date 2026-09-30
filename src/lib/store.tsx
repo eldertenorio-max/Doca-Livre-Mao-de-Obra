@@ -470,7 +470,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       }
 
       update((s) => {
-        const matches = matchDemanda(demanda, s.profissionais)
+        const matches = matchDemanda(demanda, s.profissionais, 40, s.documentos)
         const novas: Candidatura[] = matches.slice(0, 15).map((m) => ({
           id: uid('cand'),
           demandaId: demanda.id,

@@ -1,4 +1,5 @@
-import type { Demanda, Nivel, Profissional } from './types'
+import { ajusteScoreDocumental, checklistProfissional } from './documentos'
+import type { Demanda, DocumentoRegistro, Nivel, Profissional } from './types'
 
 const NIVEL_SCORE: Record<Nivel, number> = {
   bronze: 10,
@@ -55,6 +56,7 @@ export function matchDemanda(
   demanda: Demanda,
   profissionais: Profissional[],
   raioMaxKm = 40,
+  documentos?: DocumentoRegistro[],
 ): MatchResult[] {
   const results: MatchResult[] = []
 
@@ -73,9 +75,12 @@ export function matchDemanda(
     const faltaPenalty = p.faltas * 8
     const comparecimento = p.taxaComparecimento * 0.25
     const resposta = Math.max(0, 15 - p.tempoRespostaMin)
+    const docScore = documentos
+      ? ajusteScoreDocumental(checklistProfissional(p, documentos, demanda.requisitos))
+      : 0
 
     const score = Math.round(
-      distScore + avalScore + nivelScore + comparecimento + resposta - faltaPenalty,
+      distScore + avalScore + nivelScore + comparecimento + resposta + docScore - faltaPenalty,
     )
 
     results.push({ profissional: p, score: Math.max(0, Math.min(100, score)), distanciaKm })

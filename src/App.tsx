@@ -7,7 +7,7 @@ import { CadastroProfissionalScreen } from './pages/auth/CadastroProfissionalScr
 import { PortalConfigScreen } from './pages/auth/PortalConfigScreen'
 import { PortalLoginScreen } from './pages/auth/PortalLoginScreen'
 import { PortalSelectScreen } from './pages/auth/PortalSelectScreen'
-import { EmpresaApp } from './pages/empresa/EmpresaApp'
+import { ContratarFreelancer } from './pages/empresa/ContratarFreelancer'
 import { ProfissionalApp } from './pages/profissional/ProfissionalApp'
 import './App.css'
 
@@ -165,7 +165,7 @@ function AppRoutes() {
           </div>
         )
       }
-      return <EmpresaApp onLogout={handleLogout} />
+      return <ContratarFreelancer onLogout={handleLogout} />
     }
     return <AdminApp onLogout={handleLogout} onOpenConfig={() => setGate('config')} />
   }

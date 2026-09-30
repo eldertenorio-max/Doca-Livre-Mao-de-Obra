@@ -408,12 +408,15 @@ export function createSeedState(): AppState {
     },
   ]
 
+  const documentos = buildSeedDocumentos()
+
   const candidaturas: Candidatura[] = demandas.flatMap((demanda) =>
-    matchDemanda(demanda, profissionais).slice(0, 15).map((m) => ({
+    matchDemanda(demanda, profissionais, 40, documentos).slice(0, 15).map((m) => ({
       id: uid('cand'),
       demandaId: demanda.id,
       profissionalId: m.profissional.id,
-      status: 'pendente' as const,
+      status:
+        demanda.id === 'dem_1' && m.profissional.id === 'prof_2' ? ('aceita' as const) : ('pendente' as const),
       score: m.score,
       distanciaKm: Math.round(m.distanciaKm * 10) / 10,
       createdAt: nowIso(),
@@ -541,7 +544,7 @@ export function createSeedState(): AppState {
     ],
     relatorios: [],
     contratos: [],
-    documentos: buildSeedDocumentos(),
+    documentos,
     auditLogs: [
       {
         id: 'log_1',
@@ -654,7 +657,10 @@ function buildSeedDocumentos(): DocumentoRegistro[] {
       }),
     ]),
     ...commonProf('prof_3'),
+    ...commonProf('prof_4'),
     ...commonProf('prof_5'),
+    ...commonProf('prof_7'),
+    ...commonProf('prof_8'),
     ...commonProf('prof_6', [
       doc({
         tipoId: 'cnh',
@@ -666,6 +672,7 @@ function buildSeedDocumentos(): DocumentoRegistro[] {
         meta: { categoria: 'B' },
       }),
     ]),
+    ...commonProf('prof_10'),
     ...commonProf('prof_9', [
       doc({
         tipoId: 'nr11',

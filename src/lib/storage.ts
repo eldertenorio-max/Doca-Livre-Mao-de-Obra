@@ -1,7 +1,7 @@
 import { createSeedState } from './seed'
 import type { AppState } from './types'
 
-const STORAGE_KEY = 'doca-livre-mao-de-obra-v5'
+const STORAGE_KEY = 'doca-livre-mao-de-obra-v7'
 
 export function loadState(): AppState {
   try {

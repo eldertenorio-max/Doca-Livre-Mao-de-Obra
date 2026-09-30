@@ -209,11 +209,29 @@
   margin-top: 16px;
 }
 
-.px-status--aprovado { background: #dcfce7; color: #166534; }
-.px-status--em_analise { background: #dbeafe; color: #1e40af; }
-.px-status--pendente { background: #f3f4f6; color: #4b5563; }
-.px-status--recusado,
-.px-status--vencido { background: #fee2e2; color: #991b1b; }
+.docs-status {
+  display: inline-flex;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  background: #eef2f6;
+  color: #475569;
+  white-space: nowrap;
+}
+
+.docs-status--aprovado { background: #dcfce7; color: #166534; }
+.docs-status--em_analise { background: #dbeafe; color: #1e40af; }
+.docs-status--pendente { background: #f3f4f6; color: #4b5563; }
+.docs-status--recusado,
+.docs-status--vencido { background: #fee2e2; color: #991b1b; }
+
+.docs-tag {
+  margin-left: 8px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: #64748b;
+}
 
 /* Shell — chrome escuro + conteúdo branco */
 .app-shell {
