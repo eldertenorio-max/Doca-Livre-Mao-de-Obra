@@ -19,7 +19,7 @@ export function RoleSelectScreen({ onEmpresa, onProfissional, onBack }: Props) {
               E
             </span>
             <strong>Empresa</strong>
-            <p>Preciso contratar profissionais para minha operação.</p>
+            <p>Preciso de trabalhadores temporários para a operação.</p>
             <span className="btn btn-accent">Cadastrar Empresa</span>
           </button>
           <button type="button" className="role-card" onClick={onProfissional}>
@@ -27,7 +27,7 @@ export function RoleSelectScreen({ onEmpresa, onProfissional, onBack }: Props) {
               P
             </span>
             <strong>Profissional</strong>
-            <p>Quero encontrar oportunidades de trabalho.</p>
+            <p>Estou procurando trabalho temporário.</p>
             <span className="btn btn-primary">Cadastrar Profissional</span>
           </button>
         </div>

@@ -61,6 +61,13 @@ type StoreApi = {
   completeEmpresaPerfil: (empresa: Omit<Empresa, 'id' | 'userId' | 'status' | 'avaliacaoMedia' | 'favoritos' | 'bloqueados' | 'docsOk' | 'saldo' | 'limitePosPago' | 'diasTaxaZero' | 'metaTaxaZero' | 'diasAgenciados' | 'rankingDias' | 'economiaTotal'>) => { ok: boolean; error?: string }
   completeProfissionalPerfil: (profissional: Omit<Profissional, 'id' | 'userId' | 'status' | 'nivel' | 'avaliacaoMedia' | 'taxaComparecimento' | 'faltas' | 'tempoRespostaMin' | 'ganhosMes' | 'saldo'>) => { ok: boolean; error?: string }
   createDemanda: (data: Omit<Demanda, 'id' | 'createdAt' | 'status' | 'categoria'>) => Demanda
+  convidarParaMissao: (input: {
+    demandaId?: string | null
+    profissionalId: string
+    score: number
+    distanciaKm: number
+    pedido?: Omit<Demanda, 'id' | 'createdAt' | 'status' | 'categoria'>
+  }) => { demandaId: string; candidaturaId: string } | null
   updateCandidaturaStatus: (id: string, status: Candidatura['status']) => void
   acceptOferta: (demandaId: string, profissionalId: string) => void
   refuseOferta: (demandaId: string, profissionalId: string) => void
@@ -96,6 +103,14 @@ const StoreContext = createContext<StoreApi | null>(null)
 function persist(next: AppState) {
   saveState(next)
   return next
+}
+
+function diasDaMissao(demanda: Demanda) {
+  if (!demanda.dataFim) return 1
+  const a = new Date(`${demanda.data}T12:00:00`)
+  const b = new Date(`${demanda.dataFim}T12:00:00`)
+  if (Number.isNaN(a.getTime()) || Number.isNaN(b.getTime()) || b < a) return 1
+  return Math.round((b.getTime() - a.getTime()) / 86400000) + 1
 }
 
 export function StoreProvider({ children }: { children: ReactNode }) {
@@ -500,6 +515,61 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       return demanda
     },
 
+    convidarParaMissao(input) {
+      let demandaId = input.demandaId ?? ''
+      let candidaturaId = ''
+      update((s) => {
+        let demandas = s.demandas
+        if (!demandaId) {
+          if (!input.pedido) return s
+          const criada: Demanda = {
+            ...input.pedido,
+            id: uid('dem'),
+            categoria: cargoCategoria(input.pedido.cargo),
+            status: 'aberta',
+            createdAt: nowIso(),
+          }
+          demandaId = criada.id
+          demandas = [criada, ...s.demandas]
+        }
+        const existente = s.candidaturas.find(
+          (c) => c.demandaId === demandaId && c.profissionalId === input.profissionalId,
+        )
+        if (existente) {
+          candidaturaId = existente.id
+          return { ...s, demandas }
+        }
+        const cand: Candidatura = {
+          id: uid('cand'),
+          demandaId,
+          profissionalId: input.profissionalId,
+          status: 'pendente',
+          score: input.score,
+          distanciaKm: Math.round(input.distanciaKm * 10) / 10,
+          createdAt: nowIso(),
+        }
+        candidaturaId = cand.id
+        const profissional = s.profissionais.find((p) => p.id === input.profissionalId)
+        return {
+          ...s,
+          demandas,
+          candidaturas: [cand, ...s.candidaturas],
+          auditLogs: [
+            {
+              id: uid('log'),
+              at: nowIso(),
+              actorId: s.sessionUserId ?? 'system',
+              action: 'convidar_missao',
+              detail: `${profissional?.nome ?? input.profissionalId} — ${demandaId}`,
+            },
+            ...s.auditLogs,
+          ],
+        }
+      })
+      if (!demandaId || !candidaturaId) return null
+      return { demandaId, candidaturaId }
+    },
+
     updateCandidaturaStatus(id, status) {
       update((s) => ({
         ...s,
@@ -789,13 +859,15 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         const confirmados = s.candidaturas.filter(
           (c) => c.demandaId === demandaId && c.status === 'confirmada',
         )
+        const dias = diasDaMissao(demanda)
+        const valor = demanda.valorDiaria * dias
         const pagamentos: Pagamento[] = confirmados.map((c) => ({
           id: uid('pag'),
           demandaId,
           profissionalId: c.profissionalId,
           empresaId: demanda.empresaId,
-          valor: demanda.valorDiaria,
-          comissao: Math.round(demanda.valorDiaria * 0.12),
+          valor,
+          comissao: Math.round(valor * 0.12),
           status: 'pago' as const,
           createdAt: nowIso(),
         }))
@@ -810,8 +882,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
             profIds.has(p.id)
               ? {
                   ...p,
-                  saldo: p.saldo + demanda.valorDiaria,
-                  ganhosMes: p.ganhosMes + demanda.valorDiaria,
+                  saldo: p.saldo + valor,
+                  ganhosMes: p.ganhosMes + valor,
                 }
               : p,
           ),

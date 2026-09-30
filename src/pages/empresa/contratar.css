@@ -262,13 +262,52 @@
 }
 
 .cf-person {
-  display: grid;
-  grid-template-columns: 72px 1fr;
-  gap: 14px;
+  display: block;
   background: #fff;
   border: 1px solid var(--border);
   border-radius: 16px;
   padding: 16px;
+}
+
+.cf-summary {
+  background: #000;
+  color: #fff;
+  border-radius: 16px;
+  padding: 16px 18px;
+  margin-bottom: 12px;
+}
+
+.cf-summary strong {
+  display: block;
+  margin-bottom: 6px;
+}
+
+.cf-summary p {
+  margin: 0;
+}
+
+.cf-marks {
+  list-style: none;
+  margin: 10px 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+}
+
+.cf-mark--ok {
+  color: #166534;
+}
+
+.cf-mark--no {
+  color: #991b1b;
+}
+
+.cf-compat {
+  display: grid;
+  gap: 4px;
+  font-size: 0.86rem;
+  margin-bottom: 8px;
 }
 
 .cf-person--block {

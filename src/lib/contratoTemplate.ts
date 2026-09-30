@@ -1,4 +1,5 @@
 import { cargoLabel } from '../data/categories'
+import { rotuloMotivo } from './modalidadeContratacao'
 import type { ContratoServico, Demanda, Empresa, Profissional } from './types'
 import { nowIso, uid } from './seed'
 
@@ -38,10 +39,12 @@ export function buildContratoFromConfirmacao(params: {
   candidaturaId: string
 }): ContratoServico {
   const { demanda, empresa, profissional, candidaturaId } = params
+  const fimData = demanda.dataFim || demanda.data
   const inicio = `${demanda.data}T${demanda.horaInicio}:00`
-  const fim = `${demanda.data}T${demanda.horaFim}:00`
+  const fim = `${fimData}T${demanda.horaFim}:00`
   const now = nowIso()
   const numero = String(Math.floor(100000 + Math.random() * 900000))
+  const temporario = Boolean(demanda.motivo)
 
   const episFromDemanda = demanda.epis
     ? demanda.epis.split(/[,;]/).map((s) => s.trim()).filter(Boolean)
@@ -66,7 +69,20 @@ export function buildContratoFromConfirmacao(params: {
     episEmpresa: episFromDemanda.length ? episFromDemanda : ['EPIs conforme NR aplicável'],
     episPrestador: ['Calçado de segurança', 'Calça comprida'],
     tiposServico: [cargoLabel(demanda.cargo), demanda.descricao || 'Prestação operacional logística'].filter(Boolean),
-    instrucoesExtras: [
+    instrucoesExtras: temporario
+      ? [
+          demanda.atividades,
+          demanda.observacoes,
+          `Motivo da contratação temporária: ${rotuloMotivo(demanda.motivo ?? '')}.`,
+          `Período da missão: ${demanda.data} a ${fimData}, das ${demanda.horaInicio} às ${demanda.horaFim}.`,
+          `Remuneração prevista: ${formatMoneyBr(demanda.valorDiaria)} por dia trabalhado.`,
+          demanda.beneficios ? `Benefícios: ${demanda.beneficios}.` : '',
+          'O trabalhador é contratado pela empresa de trabalho temporário e colocado à disposição da empresa tomadora pelo prazo e pelo motivo desta missão.',
+          'O contrato entre a empresa de trabalho temporário e a tomadora é escrito e registra o motivo, o prazo, o valor da prestação e as regras de segurança e saúde.',
+        ]
+          .filter(Boolean)
+          .join('\n')
+      : [
       demanda.observacoes,
       'DETALHES DO SERVIÇO:',
       `• SERVIÇO: ${cargoLabel(demanda.cargo)}.`,
@@ -125,7 +141,11 @@ export function renderContratoHtml(params: {
   <div class="brand">
     <img src="${PLATAFORMA_DOCA.site.startsWith('http') ? '' : '/logo-doca-livre.png'}" alt="Doca Livre" />
   </div>
-  <h1>CONTRATO DE PRESTAÇÃO DE SERVIÇO VIA PLATAFORMA DOCA LIVRE MÃO DE OBRA — ID ${escapeHtml(c.numero)}</h1>
+  <h1>${
+    demanda.motivo
+      ? `CONTRATO DE TRABALHO TEMPORÁRIO — ID ${escapeHtml(c.numero)}`
+      : `CONTRATO DE PRESTAÇÃO DE SERVIÇO VIA PLATAFORMA DOCA LIVRE MÃO DE OBRA — ID ${escapeHtml(c.numero)}`
+  }</h1>
   <p class="meta">${escapeHtml(PLATAFORMA_DOCA.produto)} · Documento gerado em ${formatDateTimeBr(c.createdAt)}</p>
 
   <p>
@@ -133,7 +153,11 @@ export function renderContratoHtml(params: {
     inscrita no CNPJ/MF sob o nº <strong>${escapeHtml(PLATAFORMA_DOCA.cnpj)}</strong>
     (${escapeHtml(PLATAFORMA_DOCA.endereco)}), doravante denominada <strong>"DOCA LIVRE"</strong>;
   </p>
-  <p>Intermedia o presente contrato de serviço, formalizado entre as partes abaixo nominadas:</p>
+  <p>${
+    demanda.motivo
+      ? 'A Doca Livre Mão de Obra atua, neste fluxo, como empresa de trabalho temporário: contrata o trabalhador e o coloca à disposição da empresa tomadora. O registro dessa atividade é feito no Ministério do Trabalho, pelo SIRETT. O contrato com a tomadora é escrito.'
+      : 'Intermedia o presente contrato de serviço, formalizado entre as partes abaixo nominadas:'
+  }</p>
 
   <p>
     <strong>${escapeHtml(empresa.razaoSocial)}</strong>, pessoa jurídica de direito privado,
@@ -194,11 +218,13 @@ export function renderContratoHtml(params: {
   <h2>Descrição do Serviço na plataforma</h2>
 
   <div class="box">
-    <strong>Local / cargo</strong>
+    <strong>Missão temporária</strong>
     <p style="margin:6px 0 0">
-      ${escapeHtml(cargoLabel(demanda.cargo))} · ${escapeHtml(endEmp.cidade)}/${escapeHtml(endEmp.estado)}
-      · ${escapeHtml(endEmp.rua)}, ${escapeHtml(endEmp.numero)}
-      ${demanda.quantidade > 1 ? ` · Vaga em equipe (qtd. demanda: ${demanda.quantidade})` : ''}
+      ${escapeHtml(cargoLabel(demanda.cargo))} · ${escapeHtml(demanda.endereco?.cidade || endEmp.cidade)}/${escapeHtml(demanda.endereco?.estado || endEmp.estado)}
+      · ${escapeHtml(demanda.horaInicio)} às ${escapeHtml(demanda.horaFim)}
+      ${demanda.dataFim ? ` · ${escapeHtml(demanda.data)} a ${escapeHtml(demanda.dataFim)}` : ''}
+      ${demanda.motivo ? ` · Motivo: ${escapeHtml(rotuloMotivo(demanda.motivo))}` : ''}
+      ${demanda.quantidade > 1 ? ` · ${demanda.quantidade} trabalhadores` : ''}
     </p>
   </div>
 

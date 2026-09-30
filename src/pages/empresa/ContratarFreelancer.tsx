@@ -1,7 +1,9 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import { CATEGORIES, cargoLabel } from '../../data/categories'
 import { CIDADES_OPERACAO } from '../../data/cidades'
-import { analisarCurriculos, requisitosDoCargo, type CurriculoAnalisado } from '../../lib/analiseCurriculo'
+import { analisarCurriculos, requisitosDoCargo, rotuloAnos, type CurriculoAnalisado } from '../../lib/analiseCurriculo'
+import { checklistProfissional, resumoDocumental } from '../../lib/documentos'
+import type { DocumentoRegistro } from '../../lib/types'
 import {
   AVISO_FORMALIZACAO,
   MOTIVOS_TEMPORARIOS,
@@ -139,6 +141,45 @@ function CampoCidade({
   )
 }
 
+type ModeloMissao = {
+  titulo: string
+  cargoId: string
+  requisitos: string[]
+  diferenciais: string[]
+  cidade: string
+  horaInicio: string
+  horaFim: string
+  observacoes: string
+  motivo: MotivoTemporario | ''
+  atividades: string
+  remuneracao: string
+  beneficios: string
+  quantidade: number
+}
+
+function chaveModelo(empresaId: string) {
+  return `doca-modelo-missao:${empresaId}`
+}
+
+function lerModelo(empresaId: string): ModeloMissao | null {
+  try {
+    const raw = localStorage.getItem(chaveModelo(empresaId))
+    if (!raw) return null
+    return JSON.parse(raw) as ModeloMissao
+  } catch {
+    return null
+  }
+}
+
+function gravarModelo(empresaId: string, modelo: ModeloMissao) {
+  localStorage.setItem(chaveModelo(empresaId), JSON.stringify(modelo))
+}
+
+function valorNumero(texto: string) {
+  const match = texto.replace(/\./g, '').replace(',', '.').match(/\d+(?:\.\d+)?/)
+  return match ? Number(match[0]) : 0
+}
+
 function formatarDataBr(iso: string) {
   const [y, m, d] = iso.split('-')
   if (!y || !m || !d) return iso
@@ -153,10 +194,11 @@ function diasEntre(inicio: string, fim: string) {
 }
 
 export function ContratarFreelancer({ onLogout }: { onLogout: () => void }) {
-  const { currentEmpresa, state } = useStore()
+  const { currentEmpresa, state, convidarParaMissao, confirmCandidato } = useStore()
   const empresa = currentEmpresa!
   const [cargoId, setCargoId] = useState('empilhadeira')
   const [requisitos, setRequisitos] = useState<string[]>(() => requisitosDoCargo('empilhadeira').padrao)
+  const [diferenciais, setDiferenciais] = useState<string[]>([])
   const [inicio, setInicio] = useState(dataLocal(1))
   const [fim, setFim] = useState(dataLocal(5))
   const [horaInicio, setHoraInicio] = useState('08:00')
@@ -170,32 +212,58 @@ export function ContratarFreelancer({ onLogout }: { onLogout: () => void }) {
   const [observacoes, setObservacoes] = useState('')
   const [erro, setErro] = useState('')
   const [resultados, setResultados] = useState<CurriculoAnalisado[] | null>(null)
+  const [analisados, setAnalisados] = useState(0)
   const [aberto, setAberto] = useState<string | null>(null)
-  const [selecionado, setSelecionado] = useState<CurriculoAnalisado | null>(null)
+  const [missaoId, setMissaoId] = useState<string | null>(null)
+  const [modelo, setModelo] = useState<ModeloMissao | null>(() => lerModelo(empresa.id))
+  const empresaValidada = empresa.status === 'aprovada'
 
   const dias = diasEntre(inicio, fim)
   const avisoPrazo = validarNecessidade('temporario', inicio, fim)
   const base = state.profissionais.filter((p) => p.status === 'aprovado').length
-
-  const cargoAtual = useMemo(
-    () => CATEGORIES.flatMap((c) => c.cargos).find((c) => c.id === cargoId),
-    [cargoId],
-  )
   const opcoesRequisito = requisitosDoCargo(cargoId).opcoes
 
   function aoMudarCargo(id: string) {
     setCargoId(id)
     setRequisitos(requisitosDoCargo(id).padrao)
+    setDiferenciais([])
     setResultados(null)
+    setMissaoId(null)
   }
 
-  function alternarRequisito(req: string) {
-    setRequisitos((atual) =>
-      atual.includes(req) ? atual.filter((r) => r !== req) : [...atual, req],
-    )
+  function marcarRequisito(grupo: 'obrigatorio' | 'diferencial', req: string) {
+    if (grupo === 'obrigatorio') {
+      setRequisitos((atual) => (atual.includes(req) ? atual.filter((item) => item !== req) : [...atual, req]))
+      setDiferenciais((atual) => atual.filter((item) => item !== req))
+      return
+    }
+    setDiferenciais((atual) => (atual.includes(req) ? atual.filter((item) => item !== req) : [...atual, req]))
+    setRequisitos((atual) => atual.filter((item) => item !== req))
+  }
+
+  function repetirModelo() {
+    if (!modelo) return
+    setCargoId(modelo.cargoId)
+    setRequisitos(modelo.requisitos)
+    setDiferenciais(modelo.diferenciais)
+    setCidade(modelo.cidade)
+    setHoraInicio(modelo.horaInicio)
+    setHoraFim(modelo.horaFim)
+    setObservacoes(modelo.observacoes)
+    setMotivo(modelo.motivo)
+    setAtividades(modelo.atividades)
+    setRemuneracao(modelo.remuneracao)
+    setBeneficios(modelo.beneficios)
+    setQuantidade(modelo.quantidade)
+    setResultados(null)
+    setMissaoId(null)
   }
 
   function analisar() {
+    if (!empresaValidada) {
+      setErro('A empresa tomadora precisa estar validada antes de publicar uma missão temporária.')
+      return
+    }
     if (!cargoId) {
       setErro('Escolha o cargo.')
       return
@@ -226,11 +294,28 @@ export function ContratarFreelancer({ onLogout }: { onLogout: () => void }) {
       return
     }
     setErro('')
-    setSelecionado(null)
-    const lista = analisarCurriculos({
+    const salvo: ModeloMissao = {
+      titulo: `${cargoLabel(cargoId)} — ${cidade || empresa.endereco.cidade}`,
+      cargoId,
+      requisitos,
+      diferenciais,
+      cidade,
+      horaInicio,
+      horaFim,
+      observacoes,
+      motivo,
+      atividades,
+      remuneracao,
+      beneficios,
+      quantidade,
+    }
+    gravarModelo(empresa.id, salvo)
+    setModelo(salvo)
+    const busca = analisarCurriculos({
       pedido: {
         cargoId,
         requisitos,
+        diferenciais,
         inicio,
         fim,
         cidade,
@@ -250,12 +335,58 @@ export function ContratarFreelancer({ onLogout }: { onLogout: () => void }) {
       demandas: state.demandas,
       candidaturas: state.candidaturas,
     })
-    setResultados(lista)
-    setAberto(lista[0]?.profissional.id ?? null)
+    setResultados(busca.pessoas)
+    setAnalisados(busca.analisados)
+    setAberto(busca.pessoas[0]?.profissional.id ?? null)
+    setMissaoId(null)
   }
 
-  const disponiveis = resultados?.filter((r) => r.situacao !== 'bloqueado') ?? []
+  function convidar(item: CurriculoAnalisado) {
+    const cidadeMissao = cidade || empresa.endereco.cidade
+    const resp = convidarParaMissao({
+      demandaId: missaoId,
+      profissionalId: item.profissional.id,
+      score: item.score,
+      distanciaKm: item.distanciaKm,
+      pedido: missaoId
+        ? undefined
+        : {
+            empresaId: empresa.id,
+            cargo: cargoId,
+            quantidade,
+            data: inicio,
+            dataFim: fim,
+            horaInicio,
+            horaFim,
+            endereco: { ...empresa.endereco, cidade: cidadeMissao },
+            valorDiaria: valorNumero(remuneracao),
+            descricao: atividades,
+            epis: beneficios,
+            observacoes,
+            requisitos,
+            diferenciais,
+            motivo,
+            atividades,
+            beneficios,
+          },
+    })
+    if (resp) setMissaoId(resp.demandaId)
+  }
+
+  const compativeis = resultados?.filter((r) => r.situacao !== 'bloqueado' && r.atendeObrigatorios) ?? []
+  const incompletos = resultados?.filter((r) => r.situacao !== 'bloqueado' && !r.atendeObrigatorios) ?? []
   const bloqueadosPeriodo = resultados?.filter((r) => r.situacao === 'bloqueado') ?? []
+  const atendemTudo = compativeis.length
+
+  function conviteDe(profissionalId: string) {
+    if (!missaoId) return null
+    const cand = state.candidaturas.find(
+      (c) => c.demandaId === missaoId && c.profissionalId === profissionalId,
+    )
+    if (!cand) return null
+    const contrato = state.contratos.find((c) => c.candidaturaId === cand.id)
+    return { id: cand.id, status: cand.status, contratoNumero: contrato?.numero }
+  }
 
   return (
     <div className="cf-shell">
@@ -277,12 +408,17 @@ export function ContratarFreelancer({ onLogout }: { onLogout: () => void }) {
       <main className="cf-main">
         <div className="cf-wrap">
           <div className="cf-intro">
-            <h1>Preciso de trabalhadores temporários</h1>
+            <h1>Vaga temporária</h1>
             <p>
-              {empresa.nomeFantasia} pede a missão. A Doca Livre Mão de Obra, como empresa de trabalho
-              temporário, recruta o trabalhador e o coloca à disposição da tomadora. Hoje há {base}{' '}
+              {empresa.nomeFantasia} descreve a missão. A análise compara o pedido com o banco de currículos
+              estruturados e mostra quem atende. A escolha continua com a empresa tomadora. Hoje há {base}{' '}
               currículos aprovados na base.
             </p>
+            {modelo && (
+              <button type="button" className="cf-open" onClick={repetirModelo}>
+                Repetir demanda: {modelo.titulo}
+              </button>
+            )}
           </div>
 
           <section className="cf-card">
@@ -303,18 +439,30 @@ export function ContratarFreelancer({ onLogout }: { onLogout: () => void }) {
                   </select>
                 </label>
 
-                <p className="cf-label">Requisitos que a pessoa deve ter</p>
-                <p className="muted">
-                  Requisitos de {cargoAtual?.label ?? 'este cargo'}. Os marcados já vêm com o tipo.
-                  Inclua ou retire o que esta operação exige.
-                </p>
+                <p className="cf-label">Requisitos obrigatórios</p>
+                <p className="muted">Quem não comprovar um item obrigatório fica em uma lista separada.</p>
                 <div className="cf-chips" style={{ margin: '8px 0 14px' }}>
                   {opcoesRequisito.map((req) => (
                     <button
                       key={req}
                       type="button"
                       className={`cf-chip ${requisitos.includes(req) ? 'cf-chip--on' : ''}`}
-                      onClick={() => alternarRequisito(req)}
+                      onClick={() => marcarRequisito('obrigatorio', req)}
+                    >
+                      {req}
+                    </button>
+                  ))}
+                </div>
+
+                <p className="cf-label">Diferenciais</p>
+                <p className="muted">Somam correspondência. Não eliminam o candidato.</p>
+                <div className="cf-chips" style={{ margin: '8px 0 14px' }}>
+                  {opcoesRequisito.map((req) => (
+                    <button
+                      key={req}
+                      type="button"
+                      className={`cf-chip ${diferenciais.includes(req) ? 'cf-chip--on' : ''}`}
+                      onClick={() => marcarRequisito('diferencial', req)}
                     >
                       {req}
                     </button>
@@ -433,50 +581,83 @@ export function ContratarFreelancer({ onLogout }: { onLogout: () => void }) {
             <div className="cf-rule">
               <p>{AVISO_FORMALIZACAO}</p>
             </div>
+            {!empresaValidada && (
+              <div className="cf-rule cf-rule--block">
+                <p>A empresa tomadora precisa estar validada antes de publicar uma missão temporária.</p>
+              </div>
+            )}
             {erro && <p className="error">{erro}</p>}
             <div className="cf-actions">
               <button
                 type="button"
                 className="cf-primary"
                 onClick={analisar}
-                disabled={avisoPrazo.nivel === 'bloqueio' || !motivo}
+                disabled={avisoPrazo.nivel === 'bloqueio' || !motivo || !empresaValidada}
               >
-                Buscar para a missão
+                Encontrar profissionais
               </button>
-              <span className="muted">Sem o motivo da temporariedade, a missão não segue.</span>
+              <span className="muted">A análise mostra o encaixe. A empresa decide o convite.</span>
             </div>
           </section>
 
           {resultados && (
             <section className="cf-results">
-              <h2>
-                {disponiveis.length} {disponiveis.length === 1 ? 'pessoa acompanha' : 'pessoas acompanham'} esta missão
-              </h2>
+              <div className="cf-summary">
+                <strong>Profissionais encontrados</strong>
+                <p>{analisados} candidatos analisados</p>
+                <p>
+                  {atendemTudo} {atendemTudo === 1 ? 'atende' : 'atendem'} todos os requisitos obrigatórios
+                </p>
+              </div>
               <p className="muted">
                 {quantidade} {cargoLabel(cargoId)} · {dias} dia{dias === 1 ? '' : 's'} · {horaInicio}–{horaFim} · {cidade || empresa.endereco.cidade}
                 {motivo ? ` · ${rotuloMotivo(motivo)}` : ''}
-                {requisitos.length ? ` · ${requisitos.join(', ')}` : ''}
               </p>
+              <p className="muted">A análise identifica quem atende aos requisitos informados. A decisão final continua com a empresa.</p>
 
               <div className="cf-list">
-                {disponiveis.map((item) => (
+                {compativeis.map((item) => (
                   <PessoaCard
                     key={item.profissional.id}
                     item={item}
                     aberto={aberto === item.profissional.id}
+                    convite={conviteDe(item.profissional.id)}
+                    documentos={state.documentos}
+                    requisitos={requisitos}
                     onToggle={() =>
                       setAberto((id) => (id === item.profissional.id ? null : item.profissional.id))
                     }
-                    onSelecionar={() => setSelecionado(item)}
+                    onConvidar={() => convidar(item)}
+                    onContrato={(candidaturaId) => confirmCandidato(candidaturaId)}
                   />
                 ))}
-                {disponiveis.length === 0 && (
+                {compativeis.length === 0 && (
                   <div className="cf-card">
-                    <strong>Nenhum currículo aprovado ficou disponível para este pedido.</strong>
-                    <p className="muted">Ajuste o cargo, a cidade ou os requisitos e analise de novo.</p>
+                    <strong>Ninguém atendeu todos os requisitos obrigatórios.</strong>
+                    <p className="muted">Quem ficou perto aparece na lista seguinte, com o item que faltou.</p>
                   </div>
                 )}
               </div>
+
+              {incompletos.length > 0 && (
+                <>
+                  <h2 style={{ marginTop: 22 }}>Não atende requisito obrigatório</h2>
+                  <div className="cf-list">
+                    {incompletos.map((item) => (
+                      <PessoaCard
+                        key={item.profissional.id}
+                        item={item}
+                        aberto={aberto === item.profissional.id}
+                        documentos={state.documentos}
+                        requisitos={requisitos}
+                        onToggle={() =>
+                          setAberto((id) => (id === item.profissional.id ? null : item.profissional.id))
+                        }
+                      />
+                    ))}
+                  </div>
+                </>
+              )}
 
               {bloqueadosPeriodo.length > 0 && (
                 <>
@@ -488,6 +669,8 @@ export function ContratarFreelancer({ onLogout }: { onLogout: () => void }) {
                         key={item.profissional.id}
                         item={item}
                         aberto={aberto === item.profissional.id}
+                        documentos={state.documentos}
+                        requisitos={requisitos}
                         onToggle={() =>
                           setAberto((id) => (id === item.profissional.id ? null : item.profissional.id))
                         }
@@ -495,28 +678,6 @@ export function ContratarFreelancer({ onLogout }: { onLogout: () => void }) {
                     ))}
                   </div>
                 </>
-              )}
-
-              {selecionado && motivo && (
-                <div className="cf-card" style={{ marginTop: 16 }}>
-                  <h2 style={{ marginTop: 0 }}>Indicação para a missão temporária</h2>
-                  <p>
-                    {selecionado.profissional.nome} pode ser colocado à disposição de {empresa.nomeFantasia} como
-                    trabalhador temporário: {cargoLabel(cargoId)}, {formatarDataBr(inicio)} a {formatarDataBr(fim)},{' '}
-                    {horaInicio}–{horaFim}, em {cidade}. Remuneração prevista: {remuneracao}.
-                  </p>
-                  <p>
-                    Motivo: <strong>{rotuloMotivo(motivo)}</strong>.
-                  </p>
-                  <p>{atividades}</p>
-                  {beneficios.trim() && <p>Benefícios: {beneficios}</p>}
-                  <p className="muted">{selecionado.situacaoTexto}</p>
-                  <p>
-                    Quem contrata o trabalhador é a empresa de trabalho temporário. A tomadora recebe a pessoa
-                    pelo prazo e pelo motivo desta missão. O próximo passo é o contrato escrito entre as duas
-                    empresas e o contrato de trabalho temporário.
-                  </p>
-                </div>
               )}
             </section>
           )}
@@ -530,91 +691,91 @@ function PessoaCard({
   item,
   aberto,
   onToggle,
-  onSelecionar,
+  onConvidar,
+  onContrato,
+  convite,
+  documentos,
+  requisitos,
 }: {
   item: CurriculoAnalisado
   aberto: boolean
   onToggle: () => void
-  onSelecionar?: () => void
+  onConvidar?: () => void
+  onContrato?: (candidaturaId: string) => void
+  convite?: { id: string; status: string; contratoNumero?: string } | null
+  documentos: DocumentoRegistro[]
+  requisitos: string[]
 }) {
   const p = item.profissional
-  const pill =
-    item.situacao === 'bloqueado'
-      ? 'cf-pill cf-pill--bad'
-      : item.situacao === 'alerta'
-        ? 'cf-pill cf-pill--warn'
-        : 'cf-pill cf-pill--ok'
-  const pillLabel =
-    item.situacao === 'bloqueado'
-      ? 'Fora do prazo temporário'
-      : item.situacao === 'alerta'
-        ? 'Cabe só como prorrogação'
-        : 'Dentro dos 180 dias'
+  const docs = resumoDocumental(checklistProfissional(p, documentos, requisitos))
+  const podeContrato = convite?.status === 'aceita' && docs.completo
 
   return (
-    <article className={`cf-person ${item.situacao === 'bloqueado' ? 'cf-person--block' : ''}`}>
-      <div className="cf-score" aria-label={`Aderência ${item.score}`}>
-        {item.score}
-        <small>aderência</small>
-      </div>
+    <article className={`cf-person ${item.situacao === 'bloqueado' || !item.atendeObrigatorios ? 'cf-person--block' : ''}`}>
       <div>
         <h3>{p.nome}</h3>
         <p className="muted">
-          {p.profissoes.map(cargoLabel).join(' · ')} · {p.endereco.cidade}/{p.endereco.estado} · avaliação {p.avaliacaoMedia.toFixed(1)}
+          {p.profissoes.map(cargoLabel).join(' · ')} · {p.endereco.cidade}/{p.endereco.estado} · experiência {rotuloAnos(item.anosExperiencia)}
         </p>
-        <div className="cf-meta">
-          <span className={pill}>{pillLabel}</span>
-          {p.cnhCategoria && <span className="cf-pill">CNH {p.cnhCategoria}</span>}
-          {p.certificados.map((c) => (
-            <span key={c.tipo} className="cf-pill">
-              {c.tipo}
-            </span>
+        <ul className="cf-marks">
+          {item.checagens.map((checagem) => (
+            <li key={`${checagem.rotulo}-${checagem.obrigatorio}`} className={checagem.ok ? 'cf-mark--ok' : 'cf-mark--no'}>
+              {checagem.ok ? '✓' : '✕'} {checagem.rotulo}
+              {!checagem.obrigatorio ? ' (diferencial)' : ''}
+            </li>
           ))}
+        </ul>
+        <div className="cf-compat">
+          <span>Requisitos obrigatórios: {item.compatibilidade.requisitos}</span>
+          <span>Experiência: {item.compatibilidade.experiencia}</span>
+          <span>Disponibilidade: {item.compatibilidade.disponibilidade}</span>
+          <span>Localização: {item.compatibilidade.localizacao}</span>
+          <span>Certificações: {item.compatibilidade.certificacoes}</span>
         </div>
-        <p className="cf-leitura">{item.leitura}</p>
-        <div className="cf-cols">
-          <div>
-            <strong>Por que aparece</strong>
-            <ul>
-              {item.aderencias.map((t) => (
-                <li key={t}>{t}</li>
-              ))}
-            </ul>
-          </div>
-          <div>
-            <strong>O que pesa contra</strong>
-            {item.falhas.length === 0 ? (
-              <p className="muted">Nada relevante fora do pedido.</p>
-            ) : (
-              <ul>
-                {item.falhas.map((t) => (
-                  <li key={t}>{t}</li>
-                ))}
-              </ul>
-            )}
-          </div>
-        </div>
+        <p className="cf-leitura">
+          <strong>Por que este profissional apareceu? </strong>
+          {item.porque}
+        </p>
         <div className="cf-actions">
           <button type="button" className="cf-open" onClick={onToggle}>
             {aberto ? 'Ocultar currículo' : 'Ver currículo'}
           </button>
-          {onSelecionar && item.situacao !== 'bloqueado' && (
-            <button type="button" className="cf-primary" onClick={onSelecionar}>
-              Indicar para a missão temporária
+          {onConvidar && item.atendeObrigatorios && item.situacao !== 'bloqueado' && !convite && (
+            <button type="button" className="cf-primary" onClick={onConvidar}>
+              Convidar para a missão
             </button>
           )}
+          {convite?.status === 'pendente' && <span className="muted">Convite enviado. Aguardando o trabalhador.</span>}
+          {convite?.status === 'aceita' && (
+            <span className="muted">
+              Demonstrou interesse. Documentação {docs.completo ? 'completa' : `em ${docs.pct}%`}.
+            </span>
+          )}
+          {podeContrato && onContrato && (
+            <button type="button" className="cf-primary" onClick={() => onContrato(convite.id)}>
+              Gerar contrato temporário
+            </button>
+          )}
+          {convite?.status === 'aceita' && !docs.completo && (
+            <span className="muted">O contrato espera a validação documental.</span>
+          )}
+          {convite?.status === 'recusada' && <span className="muted">O trabalhador não tem interesse nesta missão.</span>}
+          {convite?.contratoNumero && <span className="muted">Contrato temporário {convite.contratoNumero} gerado.</span>}
         </div>
         {aberto && (
           <div className="cf-cv">
-            <span>Telefone {p.telefone}</span>
+            <strong>Currículo estruturado</strong>
+            <span>Cidade: {p.endereco.cidade}/{p.endereco.estado}</span>
+            <span>CNH: {p.cnhCategoria ?? 'não informada'}</span>
             <span>
-              Comparecimento {p.taxaComparecimento}% · faltas {p.faltas} · responde em cerca de {p.tempoRespostaMin} min
+              Experiências:{' '}
+              {p.experiencia.length
+                ? p.experiencia.map((e) => `${e.cargo} na ${e.empresa} (${e.inicio} a ${e.fim})`).join(' · ')
+                : 'não descritas'}
             </span>
-            {p.experiencia.map((e) => (
-              <span key={`${e.empresa}-${e.inicio}`}>
-                {e.cargo} · {e.empresa} · {e.inicio} a {e.fim}. {e.descricao}
-              </span>
-            ))}
+            <span>
+              Certificados: {p.certificados.length ? p.certificados.map((c) => c.tipo).join(', ') : 'nenhum registrado'}
+            </span>
             <span className="muted">{item.situacaoTexto}</span>
           </div>
         )}

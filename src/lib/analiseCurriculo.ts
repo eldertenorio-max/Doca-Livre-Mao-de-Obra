@@ -51,7 +51,19 @@ const REQUISITOS_POR_CARGO: Record<string, { opcoes: string[]; padrao: string[] 
   soldador: { opcoes: ['Experiência em solda', 'NR18'], padrao: ['Experiência em solda'] },
   borracheiro: { opcoes: ['Experiência em pneus'], padrao: ['Experiência em pneus'] },
   lavador_frota: { opcoes: ['Experiência em lavagem de frota'], padrao: ['Experiência em lavagem de frota'] },
-  analista_transporte: { opcoes: ['Experiência em transporte', 'TMS', 'Excel'], padrao: ['Experiência em transporte'] },
+  analista_transporte: {
+    opcoes: [
+      'CNH',
+      'EAR',
+      'MOPP',
+      'Experiência em transporte',
+      'Disponibilidade no período',
+      'TMS',
+      'Excel',
+      'Roteirização',
+    ],
+    padrao: ['Experiência em transporte', 'Disponibilidade no período'],
+  },
   torre_controle: { opcoes: ['Experiência em torre de controle', 'TMS'], padrao: ['Experiência em torre de controle'] },
   monitor_frota: { opcoes: ['Experiência em monitoramento de frota', 'CNH'], padrao: ['Experiência em monitoramento de frota'] },
   controlador_patio: { opcoes: ['Experiência em pátio', 'NR11'], padrao: ['Experiência em pátio'] },
@@ -73,6 +85,8 @@ const CHAVES_REQUISITO: Record<string, string[]> = {
   'Experiência em pneus': ['pneu', 'borrache'],
   'Experiência em lavagem de frota': ['lavagem', 'lavador', 'frota'],
   'Experiência em transporte': ['transporte', 'frota', 'rota'],
+  Roteirização: ['roteir', 'rota'],
+  'Disponibilidade no período': [],
   TMS: ['tms'],
   Excel: ['excel', 'planilha'],
   'Experiência em torre de controle': ['torre', 'controle'],
@@ -102,6 +116,7 @@ const DOC_DO_REQUISITO: Record<string, string> = {
 export type PedidoContratacao = {
   cargoId: string
   requisitos: string[]
+  diferenciais: string[]
   inicio: string
   fim: string
   cidade: string
@@ -116,6 +131,12 @@ export type PedidoContratacao = {
   beneficios: string
 }
 
+export type ChecagemRequisito = {
+  rotulo: string
+  ok: boolean
+  obrigatorio: boolean
+}
+
 export type CurriculoAnalisado = {
   profissional: Profissional
   score: number
@@ -126,6 +147,23 @@ export type CurriculoAnalisado = {
   situacaoTexto: string
   diasPedido: number
   mesmaCidade: boolean
+  distanciaKm: number
+  checagens: ChecagemRequisito[]
+  atendeObrigatorios: boolean
+  anosExperiencia: number | null
+  porque: string
+  compatibilidade: {
+    requisitos: string
+    experiencia: string
+    disponibilidade: string
+    localizacao: string
+    certificacoes: string
+  }
+}
+
+export type BuscaMissao = {
+  analisados: number
+  pessoas: CurriculoAnalisado[]
 }
 
 const STOP = new Set([
@@ -208,6 +246,10 @@ function requisitoAtendido(
   requisito: string,
 ) {
   if (requisito === 'Turno noturno') return profissional.disponibilidade.noturno
+  if (requisito === 'Disponibilidade no período') {
+    const d = profissional.disponibilidade
+    return d.temporario || d.hoje || d.amanha || d.estaSemana || d.noturno || d.finaisDeSemana
+  }
   const chaves = CHAVES_REQUISITO[requisito]
   if (chaves) {
     const texto = textoCurriculo(profissional)
@@ -258,6 +300,29 @@ function avaliarNaModalidade(
   })
 }
 
+function mesesEntre(inicio: string, fim: string) {
+  const [y1, m1] = inicio.split('-').map(Number)
+  const [y2, m2] = fim.split('-').map(Number)
+  if (!y1 || !m1 || !y2 || !m2) return 0
+  return Math.max(0, (y2 - y1) * 12 + (m2 - m1))
+}
+
+function anosExperiencia(profissional: Profissional) {
+  if (!profissional.experiencia.length) return null
+  const meses = profissional.experiencia.reduce((soma, item) => soma + mesesEntre(item.inicio, item.fim), 0)
+  return Math.round((meses / 12) * 10) / 10
+}
+
+export function rotuloAnos(anos: number | null) {
+  if (anos === null) return 'sem experiência descrita'
+  const totalMeses = Math.round(anos * 12)
+  const anosCheios = Math.floor(totalMeses / 12)
+  const meses = totalMeses % 12
+  if (anosCheios && meses) return `${anosCheios} ano${anosCheios === 1 ? '' : 's'} e ${meses} ${meses === 1 ? 'mês' : 'meses'}`
+  if (anosCheios) return `${anosCheios} ano${anosCheios === 1 ? '' : 's'}`
+  return `${meses} ${meses === 1 ? 'mês' : 'meses'}`
+}
+
 function formatarData(iso: string) {
   const [y, m, d] = iso.split('-')
   if (!y || !m || !d) return iso
@@ -277,7 +342,7 @@ export function analisarCurriculos(params: {
   documentos: DocumentoRegistro[]
   demandas: Demanda[]
   candidaturas: Candidatura[]
-}): CurriculoAnalisado[] {
+}): BuscaMissao {
   const { pedido, empresa, profissionais, documentos, demandas, candidaturas } = params
   const label = cargoLabel(pedido.cargoId)
   const diasPedido = diasInclusivos(pedido.inicio, pedido.fim)
@@ -285,10 +350,12 @@ export function analisarCurriculos(params: {
   const cidadePedida = semAcento(pedido.cidade.trim())
 
   const lista: CurriculoAnalisado[] = []
+  let analisados = 0
 
   for (const profissional of profissionais) {
     if (profissional.status !== 'aprovado') continue
     if (empresa.bloqueados.includes(profissional.id)) continue
+    analisados += 1
 
     const aderencias: string[] = []
     const falhas: string[] = []
@@ -303,16 +370,31 @@ export function analisarCurriculos(params: {
     }
 
     const reqs = pedido.requisitos
+    const diferenciais = pedido.diferenciais ?? []
     const okReqs: string[] = []
     const faltaReqs: string[] = []
+    const checagens: ChecagemRequisito[] = [
+      { rotulo: label, ok: temCargo, obrigatorio: true },
+    ]
     for (const req of reqs) {
-      if (requisitoAtendido(profissional, documentos, req)) okReqs.push(req)
+      const ok = requisitoAtendido(profissional, documentos, req)
+      checagens.push({ rotulo: req, ok, obrigatorio: true })
+      if (ok) okReqs.push(req)
       else faltaReqs.push(req)
     }
-    if (reqs.length === 0) score += 30
+    const okDifs: string[] = []
+    for (const req of diferenciais) {
+      const ok = requisitoAtendido(profissional, documentos, req)
+      checagens.push({ rotulo: req, ok, obrigatorio: false })
+      if (ok) okDifs.push(req)
+    }
+    const obrigatoriosOk = temCargo && faltaReqs.length === 0
+    if (reqs.length === 0) score += temCargo ? 30 : 0
     else score += Math.round((okReqs.length / reqs.length) * 30)
-    if (okReqs.length) aderencias.push(`Requisitos atendidos: ${okReqs.join(', ')}.`)
-    if (faltaReqs.length) falhas.push(`Requisitos em falta: ${faltaReqs.join(', ')}.`)
+    if (okDifs.length) score += Math.min(10, okDifs.length * 3)
+    if (okReqs.length) aderencias.push(`Requisitos obrigatórios atendidos: ${okReqs.join(', ')}.`)
+    if (faltaReqs.length) falhas.push(`Não atende requisito obrigatório: ${faltaReqs.join(', ')}.`)
+    if (okDifs.length) aderencias.push(`Diferenciais encontrados: ${okDifs.join(', ')}.`)
 
     const expTexto = profissional.experiencia
       .map((e) => `${e.cargo} ${e.empresa} ${e.descricao}`)
@@ -360,13 +442,30 @@ export function analisarCurriculos(params: {
 
     if (!temCargo) score = Math.min(score, 42)
 
+    const relevante = temCargo || okReqs.length > 0 || okDifs.length > 0
+    if (!relevante) continue
+
     const seq = avaliarNaModalidade(profissional.id, empresa, pedido, demandas, candidaturas)
+    const anos = anosExperiencia(profissional)
+    const disp = profissional.disponibilidade
+    const disponivel =
+      disp.temporario || disp.hoje || disp.amanha || disp.estaSemana || disp.noturno || disp.finaisDeSemana
+    const certsPedidas = [...reqs, ...diferenciais].filter((req) => DOC_DO_REQUISITO[req] || req === 'CNH' || req === 'EAR')
+    const certsOk = certsPedidas.filter((req) => requisitoAtendido(profissional, documentos, req))
+    const compatibilidade = {
+      requisitos: obrigatoriosOk
+        ? `${checagens.filter((c) => c.obrigatorio && c.ok).length}/${checagens.filter((c) => c.obrigatorio).length} atendidos`
+        : 'Não atende requisito obrigatório',
+      experiencia: expRelacionada || acertosObs.length ? 'Alta correspondência' : profissional.experiencia.length ? 'Correspondência parcial' : 'Sem experiência descrita',
+      disponibilidade: disponivel ? 'Compatível' : 'Sem disponibilidade marcada',
+      localizacao: mesmaCidade || distancia <= 40 ? 'Compatível' : 'Distante da operação',
+      certificacoes: certsPedidas.length === 0 ? 'Nenhuma certificação exigida' : certsOk.length === certsPedidas.length ? 'Compatível' : 'Falta certificação',
+    }
+    const porque = obrigatoriosOk
+      ? `Possui ${rotuloAnos(anos)} de experiência, ${okReqs.length ? okReqs.join(', ') : label} e ${disponivel ? 'disponibilidade no período solicitado' : 'cadastro sem disponibilidade marcada'}. A análise identifica o encaixe. A escolha continua com a empresa tomadora.`
+      : `Não atende requisito obrigatório${faltaReqs.length ? `: ${faltaReqs.join(', ')}` : temCargo ? '.' : `: ${label}.`}`
     const leitura = [
-      temCargo
-        ? `${profissional.nome} cobre o cargo ${label}.`
-        : `${profissional.nome} não tem ${label} no cadastro de profissões.`,
-      okReqs.length ? `Atende ${okReqs.join(', ')}.` : '',
-      faltaReqs.length ? `Não comprova ${faltaReqs.join(', ')}.` : '',
+      porque,
       expRelacionada
         ? `No currículo: ${expRelacionada.cargo} na ${expRelacionada.empresa}, ${expRelacionada.descricao}.`
         : '',
@@ -386,15 +485,21 @@ export function analisarCurriculos(params: {
       situacaoTexto: seq.texto,
       diasPedido,
       mesmaCidade,
+      distanciaKm: Math.round(distancia * 10) / 10,
+      checagens,
+      atendeObrigatorios: obrigatoriosOk,
+      anosExperiencia: anos,
+      porque,
+      compatibilidade,
     })
   }
 
   lista.sort((a, b) => {
     if (a.situacao === 'bloqueado' && b.situacao !== 'bloqueado') return 1
     if (b.situacao === 'bloqueado' && a.situacao !== 'bloqueado') return -1
+    if (a.atendeObrigatorios !== b.atendeObrigatorios) return a.atendeObrigatorios ? -1 : 1
     return b.score - a.score
   })
 
-  const relevantes = lista.filter((item) => item.score >= 45)
-  return relevantes.length > 0 ? relevantes : lista.slice(0, 5)
+  return { analisados, pessoas: lista }
 }

@@ -10,7 +10,7 @@ import { useStore } from '../../lib/store'
 const TABS = [
   { id: 'inicio', label: 'Início', icon: '⌂' },
   { id: 'oportunidades', label: 'Oportunidades', icon: '◎' },
-  { id: 'agenda', label: 'Agenda', icon: '▦' },
+  { id: 'agenda', label: 'Missões', icon: '▦' },
   { id: 'financeiro', label: 'Financeiro', icon: '$' },
   { id: 'perfil', label: 'Perfil', icon: '☺' },
 ] as const
@@ -104,8 +104,8 @@ function HomeTab() {
         </div>
       </div>
 
-      <h3>Disponível agora</h3>
-      <p className="muted">A empresa quer saber quem pode trabalhar — não só quem existe.</p>
+      <h3>Disponível para missões temporárias</h3>
+      <p className="muted">A empresa tomadora vê quem pode ser colocado em uma missão.</p>
       <AvailabilityToggle
         value={prof.disponibilidade}
         onChange={(d) => updateDisponibilidade(prof.id, d)}
@@ -140,35 +140,42 @@ function OportunidadesTab() {
         {ofertas.map(({ c, dem, emp }) => (
           <li key={c.id} className="opportunity-card">
             <div className="opportunity-head">
-              <strong>{cargoLabel(dem!.cargo)}</strong>
-              <span className="price">R$ {dem!.valorDiaria}</span>
+              <strong>{c.status === 'pendente' ? 'Nova oportunidade' : 'Interesse registrado'}</strong>
+              <span className="price">{dem!.valorDiaria ? `R$ ${dem!.valorDiaria}` : 'A combinar'}</span>
             </div>
+            <p>
+              <strong>{cargoLabel(dem!.cargo)}</strong>
+            </p>
+            <p className="muted">Empresa: {emp?.nomeFantasia}</p>
+            <p className="muted">Local: {dem!.endereco.cidade}</p>
             <p className="muted">
-              {emp?.nomeFantasia} · ★ {emp?.avaliacaoMedia.toFixed(1)}
+              Período: {dem!.data}
+              {dem!.dataFim ? ` → ${dem!.dataFim}` : ''}
             </p>
             <p className="muted">
-              {dem!.data} {dem!.horaInicio}–{dem!.horaFim} · {dem!.endereco.cidade} · {c.distanciaKm} km
+              Horário: {dem!.horaInicio} → {dem!.horaFim}
             </p>
-            <p>{dem!.descricao || 'Sem descrição'}</p>
+            {dem!.motivo && <p className="muted">Motivo da contratação temporária informado pela tomadora.</p>}
+            <p>{dem!.descricao || dem!.atividades || 'Missão temporária'}</p>
             <div className="row-actions">
               {c.status === 'pendente' && (
                 <>
                   <button type="button" className="btn btn-accent" onClick={() => acceptOferta(dem!.id, prof.id)}>
-                    Aceitar
+                    Tenho interesse
                   </button>
                   <button type="button" className="btn btn-ghost" onClick={() => refuseOferta(dem!.id, prof.id)}>
-                    Recusar
+                    Não tenho interesse
                   </button>
                 </>
               )}
               {c.status === 'aceita' && (
-                <span className="success">Aguardando confirmação da empresa</span>
+                <span className="success">Interesse registrado. Segue a validação documental e o contrato temporário.</span>
               )}
             </div>
           </li>
         ))}
         {ofertas.length === 0 && (
-          <p className="muted">Nenhuma oferta no momento. Ative sua disponibilidade.</p>
+          <p className="muted">Nenhuma missão no momento. Mantenha o perfil e a disponibilidade atualizados.</p>
         )}
       </ul>
     </div>
@@ -176,7 +183,7 @@ function OportunidadesTab() {
 }
 
 function AgendaTab() {
-  const { currentProfissional, state, doCheckIn, doCheckOut, addAvaliacao, currentUser } = useStore()
+  const { currentProfissional, state, doCheckIn, doCheckOut, addAvaliacao, currentUser, finishDemanda } = useStore()
   const prof = currentProfissional!
   const [contratoAberto, setContratoAberto] = useState<string | null>(null)
 
@@ -191,61 +198,85 @@ function AgendaTab() {
       const contrato = state.contratos.find((ct) => ct.candidaturaId === c.id)
       return { c, dem, emp, check, contrato }
     })
+    .filter((job) => job.dem)
 
   return (
     <div className="panel panel--mobile">
-      <h2>Agenda</h2>
+      <h2>Minhas missões</h2>
       <ul className="list">
-        {jobs.map(({ c, dem, emp, check, contrato }) => (
-          <li key={c.id} className="opportunity-card">
-            <strong>{cargoLabel(dem.cargo)}</strong>
-            <p className="muted">
-              {emp?.nomeFantasia} · {dem.data} {dem.horaInicio}
-            </p>
-            <div className="row-actions">
-              {contrato && (
-                <button type="button" className="btn btn-primary" onClick={() => setContratoAberto(contrato.id)}>
-                  Contrato #{contrato.numero}
-                </button>
+        {jobs.map(({ c, dem, emp, check, contrato }) => {
+          const encerrada = dem.status === 'finalizada'
+          const dias = dem.dataFim
+            ? Math.round(
+                (new Date(`${dem.dataFim}T12:00:00`).getTime() - new Date(`${dem.data}T12:00:00`).getTime()) /
+                  86400000,
+              ) + 1
+            : 1
+          return (
+            <li key={c.id} className="opportunity-card">
+              <strong>Missão {dem.id.replace('dem_', '#')}</strong>
+              <p>{cargoLabel(dem.cargo)}</p>
+              <p className="muted">
+                {emp?.nomeFantasia} · {dem.data}
+                {dem.dataFim ? ` → ${dem.dataFim}` : ''}
+              </p>
+              <p>{encerrada ? 'Encerrada' : 'Em andamento'}</p>
+              {encerrada && (
+                <p className="muted">
+                  Dias da missão: {dias}
+                  {check?.horasTrabalhadas ? ` · Horas registradas: ${check.horasTrabalhadas}h` : ''}
+                </p>
               )}
-              {!check?.checkInAt && (
-                <button type="button" className="btn btn-accent" onClick={() => doCheckIn(dem.id, prof.id)}>
-                  Check-in (GPS)
-                </button>
-              )}
-              {check?.checkInAt && !check.checkOutAt && (
-                <button type="button" className="btn btn-primary" onClick={() => doCheckOut(dem.id, prof.id)}>
-                  Check-out
-                </button>
-              )}
-              {check?.checkInAt && (
-                <span className="muted">
-                  In {new Date(check.checkInAt).toLocaleTimeString()}
-                  {check.gpsOk ? ' · GPS ok' : ''}
-                </span>
-              )}
-              {check?.checkOutAt && (
-                <button
-                  type="button"
-                  className="btn btn-ghost"
-                  onClick={() =>
-                    addAvaliacao({
-                      demandaId: dem.id,
-                      deUserId: currentUser!.id,
-                      paraUserId: emp!.userId,
-                      deRole: 'profissional',
-                      notas: { pontualidade: 5, qualidade: 5, educacao: 5, produtividade: 5 },
-                      observacoes: 'Boa operação',
-                    })
-                  }
-                >
-                  Avaliar empresa
-                </button>
-              )}
-            </div>
-          </li>
-        ))}
-        {jobs.length === 0 && <p className="muted">Nenhum trabalho confirmado.</p>}
+              <div className="row-actions">
+                {contrato && (
+                  <button type="button" className="btn btn-primary" onClick={() => setContratoAberto(contrato.id)}>
+                    Contrato temporário {contrato.numero}
+                  </button>
+                )}
+                {!encerrada && !check?.checkInAt && (
+                  <button type="button" className="btn btn-accent" onClick={() => doCheckIn(dem.id, prof.id)}>
+                    Registrar entrada
+                  </button>
+                )}
+                {!encerrada && check?.checkInAt && !check.checkOutAt && (
+                  <button type="button" className="btn btn-primary" onClick={() => doCheckOut(dem.id, prof.id)}>
+                    Registrar saída
+                  </button>
+                )}
+                {check?.checkInAt && (
+                  <span className="muted">
+                    Entrada {new Date(check.checkInAt).toLocaleTimeString()}
+                    {check.checkOutAt ? ` · Saída ${new Date(check.checkOutAt).toLocaleTimeString()}` : ''}
+                  </span>
+                )}
+                {!encerrada && check?.checkOutAt && (
+                  <button type="button" className="btn btn-ghost" onClick={() => finishDemanda(dem.id)}>
+                    Encerrar missão
+                  </button>
+                )}
+                {check?.checkOutAt && (
+                  <button
+                    type="button"
+                    className="btn btn-ghost"
+                    onClick={() =>
+                      addAvaliacao({
+                        demandaId: dem.id,
+                        deUserId: currentUser!.id,
+                        paraUserId: emp!.userId,
+                        deRole: 'profissional',
+                        notas: { pontualidade: 5, qualidade: 5, educacao: 5, produtividade: 5 },
+                        observacoes: 'Missão encerrada',
+                      })
+                    }
+                  >
+                    Avaliar empresa
+                  </button>
+                )}
+              </div>
+            </li>
+          )
+        })}
+        {jobs.length === 0 && <p className="muted">Nenhuma missão confirmada. Quando houver contrato, ela aparece aqui.</p>}
       </ul>
       {contratoAberto && (
         <ContratoViewer
@@ -307,6 +338,19 @@ function PerfilTab() {
         <li><span className="muted">Profissões</span><strong>{prof.profissoes.map(cargoLabel).join(', ')}</strong></li>
         <li><span className="muted">CNH</span><strong>{prof.cnhCategoria ?? '—'}</strong></li>
         <li><span className="muted">Cidade</span><strong>{prof.endereco.cidade}/{prof.endereco.estado}</strong></li>
+        <li><span className="muted">Cargo principal</span><strong>{prof.profissoes[0] ? cargoLabel(prof.profissoes[0]) : '—'}</strong></li>
+        <li>
+          <span className="muted">Experiências</span>
+          <strong>
+            {prof.experiencia.length
+              ? prof.experiencia.map((e) => `${e.cargo} · ${e.empresa} · ${e.inicio}–${e.fim}`).join(' | ')
+              : '—'}
+          </strong>
+        </li>
+        <li>
+          <span className="muted">Certificados</span>
+          <strong>{prof.certificados.length ? prof.certificados.map((c) => c.tipo).join(', ') : '—'}</strong>
+        </li>
         <li><span className="muted">Status</span><strong>{prof.status}</strong></li>
       </ul>
 

@@ -7,9 +7,8 @@ const OPTIONS: { key: keyof Disponibilidade; label: string }[] = [
   { key: 'finaisDeSemana', label: 'Finais de semana' },
   { key: 'noturno', label: 'Noturno' },
   { key: 'viagens', label: 'Viagens' },
-  { key: 'temporario', label: 'Temporário' },
+  { key: 'temporario', label: 'Trabalho temporário' },
   { key: 'efetivo', label: 'Efetivo' },
-  { key: 'freelancer', label: 'Freelancer' },
 ]
 
 type Props = {

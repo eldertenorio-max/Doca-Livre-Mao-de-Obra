@@ -212,6 +212,12 @@ export type Demanda = {
   epis: string
   observacoes: string
   requisitos: string[]
+  /** Término previsto da missão temporária. A data de início continua em `data`. */
+  dataFim?: string
+  motivo?: string
+  atividades?: string
+  beneficios?: string
+  diferenciais?: string[]
   status: DemandaStatus
   createdAt: string
 }

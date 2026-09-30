@@ -80,7 +80,7 @@ const PORTAL_TITLE: Record<PortalRole | 'admin', string> = {
 
 const PORTAL_TAG: Record<PortalRole | 'admin', string> = {
   empresa: 'Contratantes · demandas · prestadores',
-  profissional: 'Mão de obra · oportunidades · agenda',
+  profissional: 'Trabalhador · currículo · missões temporárias',
   admin: 'Administração · hierarquia · permissões',
 }
 
