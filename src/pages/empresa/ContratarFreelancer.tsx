@@ -1,16 +1,14 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import { CATEGORIES, cargoLabel } from '../../data/categories'
 import { CIDADES_OPERACAO } from '../../data/cidades'
+import { analisarCurriculos, requisitosDoCargo, type CurriculoAnalisado } from '../../lib/analiseCurriculo'
 import {
-  analisarCurriculos,
-  AVISO_PERIODO,
-  bloqueioDoPedido,
+  AVISO_FORMALIZACAO,
   MODALIDADES,
-  requisitosDoCargo,
-  textoModalidade,
-  type CurriculoAnalisado,
-  type ModalidadePretendida,
-} from '../../lib/analiseCurriculo'
+  rotuloModalidade,
+  validarNecessidade,
+  type Modalidade,
+} from '../../lib/modalidadeContratacao'
 import { LOGO_DOCA_LIVRE_SRC } from '../../lib/brandAssets'
 import { useStore } from '../../lib/store'
 import './contratar.css'
@@ -155,18 +153,19 @@ export function ContratarFreelancer({ onLogout }: { onLogout: () => void }) {
   const [requisitos, setRequisitos] = useState<string[]>(() => requisitosDoCargo('empilhadeira').padrao)
   const [inicio, setInicio] = useState(dataLocal(1))
   const [fim, setFim] = useState(dataLocal(5))
-  const [quantidade, setQuantidade] = useState(1)
   const [horaInicio, setHoraInicio] = useState('08:00')
   const [horaFim, setHoraFim] = useState('18:00')
-  const [modalidade, setModalidade] = useState<ModalidadePretendida | ''>('')
-  const [prorrogacao, setProrrogacao] = useState(false)
+  const [quantidade, setQuantidade] = useState(1)
+  const [modalidade, setModalidade] = useState<Modalidade | ''>('')
   const [cidade, setCidade] = useState(empresa.endereco.cidade)
   const [observacoes, setObservacoes] = useState('')
   const [erro, setErro] = useState('')
   const [resultados, setResultados] = useState<CurriculoAnalisado[] | null>(null)
   const [aberto, setAberto] = useState<string | null>(null)
+  const [selecionado, setSelecionado] = useState<CurriculoAnalisado | null>(null)
 
   const dias = diasEntre(inicio, fim)
+  const avisoModalidade = modalidade ? validarNecessidade(modalidade, inicio, fim) : null
   const base = state.profissionais.filter((p) => p.status === 'aprovado').length
 
   const cargoAtual = useMemo(
@@ -189,39 +188,41 @@ export function ContratarFreelancer({ onLogout }: { onLogout: () => void }) {
 
   function analisar() {
     if (!cargoId) {
-      setErro('Escolha o tipo de profissional.')
+      setErro('Escolha o cargo.')
       return
     }
     if (!modalidade) {
-      setErro('Escolha a modalidade pretendida. As datas sozinhas não definem o tipo de contrato.')
+      setErro('Escolha a modalidade pretendida. As datas sozinhas não definem o tipo de contratação.')
       return
     }
     if (quantidade < 1) {
       setErro('Informe quantos profissionais a operação precisa.')
       return
     }
-    const pedido = {
-      cargoId,
-      requisitos,
-      inicio,
-      fim,
-      cidade,
-      observacoes,
-      quantidade,
-      horaInicio,
-      horaFim,
-      modalidade,
-      prorrogacao: modalidade === 'temporario' && prorrogacao,
+    if (!horaInicio || !horaFim) {
+      setErro('Informe a jornada.')
+      return
     }
-    const bloqueio = bloqueioDoPedido(pedido)
-    if (bloqueio) {
-      setErro(bloqueio)
-      setResultados(null)
+    const aviso = validarNecessidade(modalidade, inicio, fim)
+    if (aviso.nivel === 'bloqueio') {
+      setErro(aviso.texto)
       return
     }
     setErro('')
+    setSelecionado(null)
     const lista = analisarCurriculos({
-      pedido,
+      pedido: {
+        cargoId,
+        requisitos,
+        inicio,
+        fim,
+        cidade,
+        observacoes,
+        modalidade,
+        quantidade,
+        horaInicio,
+        horaFim,
+      },
       empresa,
       profissionais: state.profissionais,
       documentos: state.documentos,
@@ -232,9 +233,8 @@ export function ContratarFreelancer({ onLogout }: { onLogout: () => void }) {
     setAberto(lista[0]?.profissional.id ?? null)
   }
 
-  const disponiveis = resultados?.filter((r) => r.situacao === 'compativel' || r.situacao === 'alerta') ?? []
-  const incompativeis = resultados?.filter((r) => r.situacao === 'bloqueio') ?? []
-  const bloqueadosPeriodo = resultados?.filter((r) => r.situacao === 'sobreposto') ?? []
+  const disponiveis = resultados?.filter((r) => r.situacao !== 'bloqueado') ?? []
+  const bloqueadosPeriodo = resultados?.filter((r) => r.situacao === 'bloqueado') ?? []
 
   return (
     <div className="cf-shell">
@@ -258,9 +258,9 @@ export function ContratarFreelancer({ onLogout }: { onLogout: () => void }) {
           <div className="cf-intro">
             <h1>Necessidade de mão de obra</h1>
             <p>
-              Descreva o cargo, o período em que a operação precisa de gente e a modalidade pretendida.
-              As datas não geram contrato. A busca só ordena os currículos. A formalização vem depois
-              da escolha. Hoje há {base} currículos aprovados na base.
+              Informe o cargo, o local, o período, a jornada e a modalidade pretendida. As datas
+              descrevem a necessidade da operação. A contratação só é formalizada depois que você
+              escolhe a pessoa. Hoje há {base} currículos aprovados na base.
             </p>
           </div>
 
@@ -268,7 +268,7 @@ export function ContratarFreelancer({ onLogout }: { onLogout: () => void }) {
             <div className="cf-grid">
               <div>
                 <label className="cf-field">
-                  <span>Cargo</span>
+                  <span>Tipo de profissional</span>
                   <select value={cargoId} onChange={(e) => aoMudarCargo(e.target.value)}>
                     {CATEGORIES.map((cat) => (
                       <optgroup key={cat.id} label={cat.label}>
@@ -310,6 +310,27 @@ export function ContratarFreelancer({ onLogout }: { onLogout: () => void }) {
                     ...state.enderecosEmpresa.map((e) => e.cidade),
                   ]}
                 />
+              </div>
+
+              <div>
+                <label className="cf-field">
+                  <span>Modalidade pretendida</span>
+                  <select
+                    value={modalidade}
+                    onChange={(e) => {
+                      setModalidade(e.target.value as Modalidade | '')
+                      setResultados(null)
+                      setSelecionado(null)
+                    }}
+                  >
+                    <option value="">Selecione</option>
+                    {MODALIDADES.map((item) => (
+                      <option key={item.id} value={item.id}>
+                        {item.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
 
                 <label className="cf-field">
                   <span>Quantidade de profissionais</span>
@@ -320,9 +341,7 @@ export function ContratarFreelancer({ onLogout }: { onLogout: () => void }) {
                     onChange={(e) => setQuantidade(Number(e.target.value))}
                   />
                 </label>
-              </div>
 
-              <div>
                 <p className="cf-label">Período da necessidade</p>
                 <div className="cf-dates">
                   <label className="cf-field">
@@ -334,82 +353,61 @@ export function ContratarFreelancer({ onLogout }: { onLogout: () => void }) {
                     <input type="date" value={fim} onChange={(e) => setFim(e.target.value)} />
                   </label>
                 </div>
-                <p className="muted" style={{ marginTop: -6, marginBottom: 12 }}>
+                <p className="muted" style={{ marginTop: -6 }}>
                   {dias >= 1 ? `Duração: ${dias} dia${dias === 1 ? '' : 's'}.` : 'Informe um período válido.'}
                 </p>
 
                 <p className="cf-label">Jornada / turno</p>
                 <div className="cf-dates">
                   <label className="cf-field">
-                    <span>Entrada</span>
+                    <span>Das</span>
                     <input type="time" value={horaInicio} onChange={(e) => setHoraInicio(e.target.value)} />
                   </label>
                   <label className="cf-field">
-                    <span>Saída</span>
+                    <span>Às</span>
                     <input type="time" value={horaFim} onChange={(e) => setHoraFim(e.target.value)} />
                   </label>
                 </div>
 
-                <label className="cf-field">
-                  <span>Modalidade pretendida</span>
-                  <select
-                    value={modalidade}
-                    onChange={(e) => {
-                      const valor = e.target.value as ModalidadePretendida | ''
-                      setModalidade(valor)
-                      if (valor !== 'temporario') setProrrogacao(false)
-                      setResultados(null)
-                    }}
-                  >
-                    <option value="">Selecione</option>
-                    {MODALIDADES.map((item) => (
-                      <option key={item.id} value={item.id}>
-                        {item.label}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                {modalidade === 'temporario' && (
-                  <label className="cf-check">
-                    <input
-                      type="checkbox"
-                      checked={prorrogacao}
-                      onChange={(e) => setProrrogacao(e.target.checked)}
-                    />
-                    Este pedido é prorrogação do mesmo contrato temporário, não uma contratação nova
-                  </label>
-                )}
-                {modalidade && <p className="muted">{textoModalidade(modalidade)}</p>}
+                <div className={`cf-rule ${avisoModalidade?.nivel === 'bloqueio' ? 'cf-rule--block' : ''}`}>
+                  <p>{AVISO_FORMALIZACAO}</p>
+                  {avisoModalidade && <p>{avisoModalidade.texto}</p>}
+                </div>
 
                 <label className="cf-field">
-                  <span>Observações</span>
+                  <span>Observações da operação</span>
                   <textarea
                     value={observacoes}
                     onChange={(e) => setObservacoes(e.target.value)}
-                    placeholder="Ex.: turno da noite, câmara fria, experiência com rota SP-Campinas."
+                    placeholder="Ex.: turno da noite, câmara fria, experiência com rota SP-Campinas, EAR."
                   />
                 </label>
-                <div className="cf-rule">{AVISO_PERIODO}</div>
               </div>
             </div>
 
             {erro && <p className="error">{erro}</p>}
             <div className="cf-actions">
-              <button type="button" className="cf-primary" onClick={analisar}>
+              <button
+                type="button"
+                className="cf-primary"
+                onClick={analisar}
+                disabled={avisoModalidade?.nivel === 'bloqueio'}
+              >
                 Analisar currículos
               </button>
-              <span className="muted">A ordem sai da comparação entre o pedido e cada currículo.</span>
+              <span className="muted">A ordem compara o pedido com cada currículo. A formalização vem depois.</span>
             </div>
           </section>
 
           {resultados && (
             <section className="cf-results">
               <h2>
-                {disponiveis.length} {disponiveis.length === 1 ? 'pessoa acompanha' : 'pessoas acompanham'} este pedido
+                {disponiveis.length} {disponiveis.length === 1 ? 'pessoa acompanha' : 'pessoas acompanham'} esta necessidade
               </h2>
               <p className="muted">
                 {cargoLabel(cargoId)} · {quantidade} profissional{quantidade === 1 ? '' : 'is'} · {dias} dia{dias === 1 ? '' : 's'} · {horaInicio}–{horaFim} · {cidade || empresa.endereco.cidade}
-                {modalidade ? ` · ${MODALIDADES.find((m) => m.id === modalidade)?.label}` : ''}
+                {modalidade ? ` · ${rotuloModalidade(modalidade)}` : ''}
+                {requisitos.length ? ` · ${requisitos.join(', ')}` : ''}
               </p>
 
               <div className="cf-list">
@@ -421,6 +419,7 @@ export function ContratarFreelancer({ onLogout }: { onLogout: () => void }) {
                     onToggle={() =>
                       setAberto((id) => (id === item.profissional.id ? null : item.profissional.id))
                     }
+                    onSelecionar={() => setSelecionado(item)}
                   />
                 ))}
                 {disponiveis.length === 0 && (
@@ -431,29 +430,10 @@ export function ContratarFreelancer({ onLogout }: { onLogout: () => void }) {
                 )}
               </div>
 
-              {incompativeis.length > 0 && (
-                <>
-                  <h2 style={{ marginTop: 22 }}>Incompatíveis com a modalidade</h2>
-                  <p className="muted">O período ou o histórico nesta empresa não cabe na modalidade escolhida.</p>
-                  <div className="cf-list">
-                    {incompativeis.map((item) => (
-                      <PessoaCard
-                        key={item.profissional.id}
-                        item={item}
-                        aberto={aberto === item.profissional.id}
-                        onToggle={() =>
-                          setAberto((id) => (id === item.profissional.id ? null : item.profissional.id))
-                        }
-                      />
-                    ))}
-                  </div>
-                </>
-              )}
-
               {bloqueadosPeriodo.length > 0 && (
                 <>
-                  <h2 style={{ marginTop: 22 }}>Fora deste período</h2>
-                  <p className="muted">Já estão escalados na sua empresa dentro destas datas.</p>
+                  <h2 style={{ marginTop: 22 }}>Fora desta modalidade ou deste período</h2>
+                  <p className="muted">A regra da modalidade pretendida não permite seguir com estas pessoas agora.</p>
                   <div className="cf-list">
                     {bloqueadosPeriodo.map((item) => (
                       <PessoaCard
@@ -468,6 +448,25 @@ export function ContratarFreelancer({ onLogout }: { onLogout: () => void }) {
                   </div>
                 </>
               )}
+
+              {selecionado && modalidade && (
+                <div className="cf-card" style={{ marginTop: 16 }}>
+                  <h2 style={{ marginTop: 0 }}>Formalização, depois da escolha</h2>
+                  <p>
+                    {selecionado.profissional.nome} foi indicado para a necessidade de {cargoLabel(cargoId)},{' '}
+                    {quantidade} profissional{quantidade === 1 ? '' : 'is'}, de {inicio.split('-').reverse().join('/')} a{' '}
+                    {fim.split('-').reverse().join('/')} ({horaInicio}–{horaFim}), em {cidade}.
+                  </p>
+                  <p>
+                    Modalidade pretendida: <strong>{rotuloModalidade(modalidade)}</strong>.
+                  </p>
+                  <p className="muted">{selecionado.situacaoTexto}</p>
+                  <p>
+                    O sistema não gera contrato trabalhista só porque existem data de início e fim. O próximo
+                    passo é a formalização própria dessa modalidade, com os requisitos legais dela.
+                  </p>
+                </div>
+              )}
             </section>
           )}
         </div>
@@ -480,29 +479,29 @@ function PessoaCard({
   item,
   aberto,
   onToggle,
+  onSelecionar,
 }: {
   item: CurriculoAnalisado
   aberto: boolean
   onToggle: () => void
+  onSelecionar?: () => void
 }) {
   const p = item.profissional
   const pill =
-    item.situacao === 'bloqueio' || item.situacao === 'sobreposto'
+    item.situacao === 'bloqueado'
       ? 'cf-pill cf-pill--bad'
       : item.situacao === 'alerta'
         ? 'cf-pill cf-pill--warn'
         : 'cf-pill cf-pill--ok'
   const pillLabel =
-    item.situacao === 'sobreposto'
-      ? 'Período ocupado'
-      : item.situacao === 'bloqueio'
-        ? 'Modalidade incompatível'
-        : item.situacao === 'alerta'
-          ? 'Ver ressalva'
-          : 'Seguir para seleção'
+    item.situacao === 'bloqueado'
+      ? 'Não segue nesta modalidade'
+      : item.situacao === 'alerta'
+        ? 'Atenção na modalidade'
+        : 'Compatível com a modalidade'
 
   return (
-    <article className={`cf-person ${item.situacao === 'sobreposto' || item.situacao === 'bloqueio' ? 'cf-person--block' : ''}`}>
+    <article className={`cf-person ${item.situacao === 'bloqueado' ? 'cf-person--block' : ''}`}>
       <div className="cf-score" aria-label={`Aderência ${item.score}`}>
         {item.score}
         <small>aderência</small>
@@ -544,9 +543,16 @@ function PessoaCard({
             )}
           </div>
         </div>
-        <button type="button" className="cf-open" onClick={onToggle}>
-          {aberto ? 'Ocultar currículo' : 'Ver currículo'}
-        </button>
+        <div className="cf-actions">
+          <button type="button" className="cf-open" onClick={onToggle}>
+            {aberto ? 'Ocultar currículo' : 'Ver currículo'}
+          </button>
+          {onSelecionar && item.situacao !== 'bloqueado' && (
+            <button type="button" className="cf-primary" onClick={onSelecionar}>
+              Selecionar para formalização
+            </button>
+          )}
+        </div>
         {aberto && (
           <div className="cf-cv">
             <span>Telefone {p.telefone}</span>
