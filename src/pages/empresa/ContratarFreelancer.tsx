@@ -314,6 +314,7 @@ export function ContratarFreelancer({ onLogout }: { onLogout: () => void }) {
   const [erro, setErro] = useState('')
   const [analisando, setAnalisando] = useState(false)
   const esperaBusca = useRef<number | null>(null)
+  const resultadosRef = useRef<HTMLElement>(null)
   const [resultados, setResultados] = useState<CurriculoAnalisado[] | null>(null)
   const [analisados, setAnalisados] = useState(0)
   const [aberto, setAberto] = useState<string | null>(null)
@@ -330,6 +331,15 @@ export function ContratarFreelancer({ onLogout }: { onLogout: () => void }) {
       if (esperaBusca.current) window.clearTimeout(esperaBusca.current)
     }
   }, [])
+
+  useEffect(() => {
+    if (analisando || !resultados) return
+    const alvo = resultadosRef.current
+    const painel = alvo?.closest('.cf-main')
+    if (!alvo || !(painel instanceof HTMLElement)) return
+    const topo = alvo.getBoundingClientRect().top - painel.getBoundingClientRect().top + painel.scrollTop
+    painel.scrollTo({ top: Math.max(0, topo - 8), behavior: 'smooth' })
+  }, [analisando, resultados])
 
   useEffect(() => {
     const mq = window.matchMedia('(max-width: 860px)')
@@ -803,7 +813,7 @@ export function ContratarFreelancer({ onLogout }: { onLogout: () => void }) {
           </section>
 
           {resultados && (
-            <section className="cf-results">
+            <section className="cf-results" ref={resultadosRef}>
               <div className="cf-stat-row">
                 <article className="cf-stat cf-stat--dark">
                   <span>Analisados</span>
