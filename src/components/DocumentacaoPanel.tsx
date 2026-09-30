@@ -448,10 +448,10 @@ function TermosPlataforma() {
         <div className="docs-legal">
           <h4>Termos de uso — Doca Livre Mão de Obra</h4>
           <p>
-            A Doca Livre intermedia a contratação de profissionais operacionais para empresas de
-            logística. A plataforma não é empregadora dos prestadores. O contrato de prestação de
-            serviço é firmado entre CONTRATANTE e CONTRATADO, com intermediação e registro digital
-            pela Doca Livre.
+            A Doca Livre Mão de Obra, neste fluxo, atua como empresa de trabalho temporário: contrata o
+            trabalhador e o coloca à disposição da empresa tomadora. Os modelos de contrato exibidos
+            aqui são minutas de controle e devem ser revisados por advogado trabalhista antes de
+            contratação real.
           </p>
           <p>
             As partes devem manter documentação válida (identidade, CNH, NRs, ASO, aptidão GR quando

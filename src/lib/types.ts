@@ -193,6 +193,11 @@ export type Profissional = {
   pix: string
   banco?: string
   status: 'pendente' | 'aprovado' | 'bloqueado'
+  consentimentoPrivacidade?: {
+    politicaEm?: string
+    curriculoEm?: string
+    compartilhamentoEm?: string
+  }
   ganhosMes: number
   saldo: number
 }
@@ -308,8 +313,8 @@ export type DocumentoStatus = 'pendente' | 'em_analise' | 'aprovado' | 'recusado
 export type DocumentoRegistro = {
   id: string
   tipoId: string
-  /** profissional | empresa | plataforma */
-  donoTipo: 'profissional' | 'empresa'
+  /** profissional | empresa tomadora | empresa de trabalho temporário */
+  donoTipo: 'profissional' | 'empresa' | 'ett'
   donoId: string
   status: DocumentoStatus
   arquivoNome?: string
@@ -320,6 +325,50 @@ export type DocumentoRegistro = {
   observacao?: string
   /** metadados extras (ex.: categoria CNH) */
   meta?: Record<string, string>
+}
+
+export type PecaTipo = 'solicitacao' | 'contrato_ett_tomadora' | 'contrato_individual' | 'encerramento'
+
+export type PecaStatus = 'registrada' | 'aguardando_assinatura' | 'concluida' | 'encerrada'
+
+export type AssinaturaPeca = {
+  papel: 'ett' | 'tomadora' | 'trabalhador'
+  nome: string
+  status: 'pendente' | 'assinado'
+  em?: string
+}
+
+export type PecaDocumental = {
+  id: string
+  numero: string
+  tipo: PecaTipo
+  status: PecaStatus
+  demandaId: string
+  empresaId: string
+  profissionalId?: string
+  candidaturaId?: string
+  titulo: string
+  resumo: string[]
+  assinaturas: AssinaturaPeca[]
+  criadoEm: string
+  aviso: string
+  meta?: Record<string, string>
+}
+
+export type CadastroEtt = {
+  razaoSocial: string
+  nomeFantasia: string
+  cnpj: string
+  juntaComercial: string
+  socios: string
+  documentosSocios: string
+  capitalSocial: string
+  cnae: string
+  sede: string
+  registroSirett: string
+  certificadoRegistro: string
+  certificadoDigital: string
+  procuracoes: string
 }
 
 export type AppState = {
@@ -341,5 +390,7 @@ export type AppState = {
   relatorios: RelatorioGerado[]
   contratos: ContratoServico[]
   documentos: DocumentoRegistro[]
+  pecas: PecaDocumental[]
+  cadastroEtt: CadastroEtt
   sessionUserId: string | null
 }

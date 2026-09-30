@@ -131,7 +131,7 @@ export const DOCS_PROFISSIONAL: DocumentDef[] = [
     id: 'aso',
     label: 'ASO — Atestado de Saúde Ocupacional',
     categoria: 'saude',
-    descricao: 'Exame médico admissional/periódico válido para a função.',
+    descricao: 'Atestado emitido pelo serviço de saúde ocupacional. O sistema guarda o documento e a conclusão recebida. Não emite ASO.',
     temValidade: true,
     obrigatorio: 'todos',
   },
@@ -148,9 +148,18 @@ export const DOCS_PROFISSIONAL: DocumentDef[] = [
     id: 'pix_dados',
     label: 'Dados de pagamento (PIX / conta)',
     categoria: 'financeiro',
-    descricao: 'Chave PIX ou dados bancários para repasse da diária.',
+    descricao: 'Chave PIX ou dados bancários para o pagamento da missão.',
     temValidade: false,
     obrigatorio: 'todos',
+  },
+  {
+    id: 'ctps',
+    label: 'CTPS',
+    categoria: 'identidade',
+    descricao: 'Carteira de Trabalho. O sistema controla o documento; a admissão segue o fluxo do contrato temporário.',
+    temValidade: false,
+    obrigatorio: 'todos',
+    opcional: true,
   },
   {
     id: 'mei_cnpj',
@@ -198,10 +207,19 @@ export const DOCS_EMPRESA: DocumentDef[] = [
     obrigatorio: 'empresa',
   },
   {
-    id: 'procuracao',
-    label: 'Procuração (se aplicável)',
+    id: 'dados_bancarios',
+    label: 'Dados bancários',
+    categoria: 'financeiro',
+    descricao: 'Controle interno da plataforma para pagamento à tomadora ou reembolso, quando houver.',
+    temValidade: false,
+    obrigatorio: 'empresa',
+    opcional: true,
+  },
+  {
+    id: 'documentos_adicionais',
+    label: 'Documentos adicionais',
     categoria: 'empresa',
-    descricao: 'Quando o usuário não for o sócio/administrador.',
+    descricao: 'Controle interno. Não é exigência automática de cada contratação temporária.',
     temValidade: false,
     obrigatorio: 'empresa',
     opcional: true,
@@ -252,6 +270,60 @@ export const DOCS_OPERACAO: DocumentDef[] = [
   },
 ]
 
+/** Documentos da empresa de trabalho temporário. O registro no SIRETT é informado, não gerado. */
+export const DOCS_ETT: DocumentDef[] = [
+  {
+    id: 'ett_cnpj',
+    label: 'CNPJ',
+    categoria: 'plataforma',
+    descricao: 'Inscrição da empresa de trabalho temporário.',
+    temValidade: false,
+    obrigatorio: 'empresa',
+  },
+  {
+    id: 'ett_contrato_social',
+    label: 'Contrato social e alterações',
+    categoria: 'plataforma',
+    descricao: 'Ato constitutivo e alterações registradas na Junta Comercial.',
+    temValidade: false,
+    obrigatorio: 'empresa',
+  },
+  {
+    id: 'ett_sede',
+    label: 'Comprovante da sede',
+    categoria: 'plataforma',
+    descricao: 'Comprovante do endereço da sede.',
+    temValidade: false,
+    obrigatorio: 'empresa',
+  },
+  {
+    id: 'ett_sirett',
+    label: 'Certificado de registro no SIRETT',
+    categoria: 'plataforma',
+    descricao: 'Registro da empresa de trabalho temporário no Ministério do Trabalho. O sistema guarda o número informado.',
+    temValidade: true,
+    obrigatorio: 'empresa',
+  },
+  {
+    id: 'ett_certificado_digital',
+    label: 'Certificado digital',
+    categoria: 'plataforma',
+    descricao: 'Certificado usado nas obrigações da empresa de trabalho temporário.',
+    temValidade: true,
+    obrigatorio: 'empresa',
+    opcional: true,
+  },
+  {
+    id: 'ett_procuracao',
+    label: 'Procuração',
+    categoria: 'plataforma',
+    descricao: 'Quando um representante assina pela empresa de trabalho temporário.',
+    temValidade: false,
+    obrigatorio: 'empresa',
+    opcional: true,
+  },
+]
+
 /** Documentos institucionais da plataforma */
 export const DOCS_PLATAFORMA: DocumentDef[] = [
   {
@@ -273,7 +345,7 @@ export const DOCS_PLATAFORMA: DocumentDef[] = [
 ]
 
 export function allDocumentDefs() {
-  return [...DOCS_PROFISSIONAL, ...DOCS_EMPRESA, ...DOCS_OPERACAO, ...DOCS_PLATAFORMA]
+  return [...DOCS_PROFISSIONAL, ...DOCS_EMPRESA, ...DOCS_OPERACAO, ...DOCS_PLATAFORMA, ...DOCS_ETT]
 }
 
 export function docDefById(id: string) {

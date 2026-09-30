@@ -1,9 +1,11 @@
 import { useMemo, useState } from 'react'
 import { AvailabilityToggle } from '../../components/AvailabilityToggle'
+import { BibliotecaDocumental } from '../../components/BibliotecaDocumental'
 import { ContratoViewer } from '../../components/ContratoViewer'
 import { DocumentacaoProfissionalPanel } from '../../components/DocumentacaoPanel'
 import { LevelBadge } from '../../components/LevelBadge'
 import { cargoLabel } from '../../data/categories'
+import { pendenciasParaIniciar } from '../../lib/dossieTemporario'
 import { LOGO_DOCA_LIVRE_SRC } from '../../lib/brandAssets'
 import { useStore } from '../../lib/store'
 
@@ -183,7 +185,7 @@ function OportunidadesTab() {
 }
 
 function AgendaTab() {
-  const { currentProfissional, state, doCheckIn, doCheckOut, addAvaliacao, currentUser, finishDemanda } = useStore()
+  const { currentProfissional, state, doCheckIn, doCheckOut, addAvaliacao, currentUser, registrarEncerramento } = useStore()
   const prof = currentProfissional!
   const [contratoAberto, setContratoAberto] = useState<string | null>(null)
 
@@ -212,6 +214,12 @@ function AgendaTab() {
                   86400000,
               ) + 1
             : 1
+          const faltas = pendenciasParaIniciar({
+            pecas: state.pecas ?? [],
+            documentos: state.documentos,
+            demandaId: dem.id,
+            profissionalId: prof.id,
+          })
           return (
             <li key={c.id} className="opportunity-card">
               <strong>Missão {dem.id.replace('dem_', '#')}</strong>
@@ -220,7 +228,10 @@ function AgendaTab() {
                 {emp?.nomeFantasia} · {dem.data}
                 {dem.dataFim ? ` → ${dem.dataFim}` : ''}
               </p>
-              <p>{encerrada ? 'Encerrada' : 'Em andamento'}</p>
+              <p>{encerrada ? 'Encerrada' : faltas.length ? 'Aguardando admissão' : 'Em andamento'}</p>
+              {faltas.length > 0 && !encerrada && (
+                <p className="muted">Entrada bloqueada até concluir: {faltas.join('; ')}.</p>
+              )}
               {encerrada && (
                 <p className="muted">
                   Dias da missão: {dias}
@@ -233,7 +244,7 @@ function AgendaTab() {
                     Contrato temporário {contrato.numero}
                   </button>
                 )}
-                {!encerrada && !check?.checkInAt && (
+                {!encerrada && !check?.checkInAt && faltas.length === 0 && (
                   <button type="button" className="btn btn-accent" onClick={() => doCheckIn(dem.id, prof.id)}>
                     Registrar entrada
                   </button>
@@ -250,7 +261,20 @@ function AgendaTab() {
                   </span>
                 )}
                 {!encerrada && check?.checkOutAt && (
-                  <button type="button" className="btn btn-ghost" onClick={() => finishDemanda(dem.id)}>
+                  <button
+                    type="button"
+                    className="btn btn-ghost"
+                    onClick={() =>
+                      registrarEncerramento({
+                        demandaId: dem.id,
+                        dataEfetiva: new Date().toISOString().slice(0, 10),
+                        motivo: 'término no prazo',
+                        responsavel: 'ett',
+                        observacoes: 'Encerramento ao fim da jornada registrada.',
+                        profissionalId: prof.id,
+                      })
+                    }
+                  >
                     Encerrar missão
                   </button>
                 )}
@@ -361,6 +385,7 @@ function PerfilTab() {
         </button>
       </div>
       {docsOpen && <DocumentacaoProfissionalPanel profissional={prof} />}
+      <BibliotecaDocumental modo="trabalhador" />
     </div>
   )
 }

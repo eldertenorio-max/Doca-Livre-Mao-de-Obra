@@ -1,4 +1,5 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react'
+import { BibliotecaDocumental } from '../../components/BibliotecaDocumental'
 import { CATEGORIES, cargoLabel } from '../../data/categories'
 import { CIDADES_OPERACAO } from '../../data/cidades'
 import { analisarCurriculos, requisitosDoCargo, rotuloAnos, type CurriculoAnalisado } from '../../lib/analiseCurriculo'
@@ -216,6 +217,7 @@ export function ContratarFreelancer({ onLogout }: { onLogout: () => void }) {
   const [aberto, setAberto] = useState<string | null>(null)
   const [missaoId, setMissaoId] = useState<string | null>(null)
   const [modelo, setModelo] = useState<ModeloMissao | null>(() => lerModelo(empresa.id))
+  const [aba, setAba] = useState<'missao' | 'documentos'>('missao')
   const empresaValidada = empresa.status === 'aprovada'
 
   const dias = diasEntre(inicio, fim)
@@ -399,6 +401,9 @@ export function ContratarFreelancer({ onLogout }: { onLogout: () => void }) {
           </div>
         </div>
         <div className="cf-top-actions">
+          <button type="button" className="cf-ghost" onClick={() => setAba(aba === 'missao' ? 'documentos' : 'missao')}>
+            {aba === 'missao' ? 'Documentação' : 'Missão'}
+          </button>
           <button type="button" className="cf-ghost" onClick={onLogout}>
             Sair
           </button>
@@ -407,6 +412,10 @@ export function ContratarFreelancer({ onLogout }: { onLogout: () => void }) {
 
       <main className="cf-main">
         <div className="cf-wrap">
+          {aba === 'documentos' ? (
+            <BibliotecaDocumental modo="tomadora" empresaId={empresa.id} />
+          ) : (
+          <>
           <div className="cf-intro">
             <h1>Vaga temporária</h1>
             <p>
@@ -680,6 +689,8 @@ export function ContratarFreelancer({ onLogout }: { onLogout: () => void }) {
                 </>
               )}
             </section>
+          )}
+          </>
           )}
         </div>
       </main>

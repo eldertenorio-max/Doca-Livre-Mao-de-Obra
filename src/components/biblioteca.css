@@ -1,0 +1,115 @@
+.bib {
+  display: grid;
+  gap: 16px;
+}
+
+.bib-aviso,
+.bib-alerta {
+  margin: 0;
+  border-radius: 12px;
+  padding: 12px 14px;
+}
+
+.bib-aviso {
+  background: #fff8cc;
+  border: 1px solid #f0d000;
+}
+
+.bib-alerta {
+  background: #fee2e2;
+  border: 1px solid #fecaca;
+}
+
+.bib-pastas {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 10px;
+}
+
+.bib-pastas article,
+.bib-bloco,
+.bib-peca {
+  background: #fff;
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: 14px;
+  padding: 14px;
+}
+
+.bib-pastas strong,
+.bib-peca header strong {
+  display: block;
+}
+
+.bib-pastas span,
+.bib-peca header span {
+  color: #4b5563;
+  font-size: 0.85rem;
+}
+
+.bib-bloco h2 {
+  margin: 0 0 8px;
+  font-size: 1.05rem;
+}
+
+.bib-form {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.bib-form label,
+.bib-check {
+  display: grid;
+  gap: 4px;
+  font-size: 0.88rem;
+}
+
+.bib-check {
+  grid-template-columns: auto 1fr;
+  align-items: start;
+  margin-bottom: 8px;
+}
+
+.bib-form input,
+.bib-form select {
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: 8px;
+  padding: 8px;
+}
+
+.bib-btn {
+  margin-top: 10px;
+  border: none;
+  background: #f5d000;
+  color: #000;
+  font-weight: 800;
+  border-radius: 10px;
+  padding: 10px 14px;
+}
+
+.bib-peca {
+  margin-top: 10px;
+}
+
+.bib-peca header {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.bib-peca ul {
+  margin: 8px 0;
+  padding-left: 18px;
+}
+
+.bib-acoes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+@media (max-width: 720px) {
+  .bib-form {
+    grid-template-columns: 1fr;
+  }
+}

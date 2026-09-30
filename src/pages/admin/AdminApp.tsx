@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { CentralDocumentacaoAdmin } from '../../components/DocumentacaoPanel'
+import { BibliotecaDocumental } from '../../components/BibliotecaDocumental'
 import { LevelBadge } from '../../components/LevelBadge'
 import { cargoLabel } from '../../data/categories'
 import { LOGO_DOCA_LIVRE_SRC } from '../../lib/brandAssets'
@@ -114,7 +115,12 @@ export function AdminApp({
           {section === 'dashboard' && <AdminDashboard />}
           {section === 'empresas' && <EmpresasAdmin />}
           {section === 'profissionais' && <ProfissionaisAdmin />}
-          {section === 'documentacao' && <CentralDocumentacaoAdmin />}
+          {section === 'documentacao' && (
+            <>
+              <BibliotecaDocumental modo="ett" />
+              <CentralDocumentacaoAdmin />
+            </>
+          )}
           {section === 'demandas' && <DemandasAdmin />}
           {section === 'financeiro' && <FinanceiroAdmin />}
           {section === 'auditoria' && <AuditoriaAdmin />}

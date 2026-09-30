@@ -545,6 +545,22 @@ export function createSeedState(): AppState {
     relatorios: [],
     contratos: [],
     documentos,
+    pecas: [],
+    cadastroEtt: {
+      razaoSocial: 'DOCA LIVRE MÃO DE OBRA LTDA',
+      nomeFantasia: 'Doca Livre Mão de Obra',
+      cnpj: '',
+      juntaComercial: '',
+      socios: '',
+      documentosSocios: '',
+      capitalSocial: '',
+      cnae: '',
+      sede: '',
+      registroSirett: '',
+      certificadoRegistro: '',
+      certificadoDigital: '',
+      procuracoes: '',
+    },
     auditLogs: [
       {
         id: 'log_1',

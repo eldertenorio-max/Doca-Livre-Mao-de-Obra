@@ -8,6 +8,13 @@ import {
 } from 'react'
 import { cargoCategoria } from '../data/categories'
 import { buildContratoFromConfirmacao } from './contratoTemplate'
+import {
+  atualizarAssinatura,
+  cadastroEttInicial,
+  criarContratoIndividual,
+  criarEncerramento,
+  criarPecasIniciais,
+} from './dossieTemporario'
 import { matchDemanda } from './matching'
 import { canAccessSistema, isLocalSuperUser } from './portalPermissoes'
 import { nowIso, uid } from './seed'
@@ -73,6 +80,21 @@ type StoreApi = {
   refuseOferta: (demandaId: string, profissionalId: string) => void
   confirmCandidato: (candidaturaId: string) => void
   assinarContrato: (contratoId: string) => void
+  assinarPeca: (pecaId: string, papel: 'ett' | 'tomadora' | 'trabalhador', nome: string) => void
+  marcarEsocial: (pecaId: string) => void
+  registrarEncerramento: (input: {
+    demandaId: string
+    dataEfetiva: string
+    motivo: string
+    responsavel: string
+    observacoes: string
+    profissionalId?: string
+  }) => void
+  atualizarCadastroEtt: (cadastro: AppState['cadastroEtt']) => void
+  registrarConsentimento: (
+    profissionalId: string,
+    campo: 'politica' | 'curriculo' | 'compartilhamento',
+  ) => void
   refuseCandidato: (candidaturaId: string) => void
   doCheckIn: (demandaId: string, profissionalId: string) => void
   doCheckOut: (demandaId: string, profissionalId: string) => void
@@ -85,7 +107,7 @@ type StoreApi = {
   setProfissionalStatus: (id: string, status: Profissional['status']) => void
   enviarDocumento: (data: {
     tipoId: string
-    donoTipo: 'profissional' | 'empresa'
+    donoTipo: 'profissional' | 'empresa' | 'ett'
     donoId: string
     arquivoNome: string
     validade?: string
@@ -111,6 +133,43 @@ function diasDaMissao(demanda: Demanda) {
   const b = new Date(`${demanda.dataFim}T12:00:00`)
   if (Number.isNaN(a.getTime()) || Number.isNaN(b.getTime()) || b < a) return 1
   return Math.round((b.getTime() - a.getTime()) / 86400000) + 1
+}
+
+function finishDemandaState(s: AppState, demandaId: string): AppState {
+  const demanda = s.demandas.find((d) => d.id === demandaId)
+  if (!demanda || demanda.status === 'finalizada') return s
+  const confirmados = s.candidaturas.filter(
+    (c) => c.demandaId === demandaId && c.status === 'confirmada',
+  )
+  const dias = diasDaMissao(demanda)
+  const valor = demanda.valorDiaria * dias
+  const pagamentos: Pagamento[] = confirmados.map((c) => ({
+    id: uid('pag'),
+    demandaId,
+    profissionalId: c.profissionalId,
+    empresaId: demanda.empresaId,
+    valor,
+    comissao: Math.round(valor * 0.12),
+    status: 'pago' as const,
+    createdAt: nowIso(),
+  }))
+  const profIds = new Set(confirmados.map((c) => c.profissionalId))
+  return {
+    ...s,
+    demandas: s.demandas.map((d) =>
+      d.id === demandaId ? { ...d, status: 'finalizada' as const } : d,
+    ),
+    pagamentos: [...pagamentos, ...s.pagamentos],
+    profissionais: s.profissionais.map((p) =>
+      profIds.has(p.id)
+        ? {
+            ...p,
+            saldo: p.saldo + valor,
+            ganhosMes: p.ganhosMes + valor,
+          }
+        : p,
+    ),
+  }
 }
 
 export function StoreProvider({ children }: { children: ReactNode }) {
@@ -550,9 +609,23 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         }
         candidaturaId = cand.id
         const profissional = s.profissionais.find((p) => p.id === input.profissionalId)
+        const demanda = demandas.find((d) => d.id === demandaId)
+        const empresa = demanda ? s.empresas.find((e) => e.id === demanda.empresaId) : undefined
+        const pecasAtuais = s.pecas ?? []
+        const novasPecas =
+          demanda && empresa
+            ? criarPecasIniciais({
+                pecas: pecasAtuais,
+                demanda,
+                empresa,
+                ett: s.cadastroEtt ?? cadastroEttInicial(),
+                signatarioTomadora: empresa.responsavelNome,
+              })
+            : []
         return {
           ...s,
           demandas,
+          pecas: [...novasPecas, ...pecasAtuais],
           candidaturas: [cand, ...s.candidaturas],
           auditLogs: [
             {
@@ -645,12 +718,22 @@ export function StoreProvider({ children }: { children: ReactNode }) {
               ...s.contratos,
             ]
 
+        const individual = criarContratoIndividual({
+          pecas: s.pecas ?? [],
+          demanda,
+          empresa,
+          profissional,
+          ett: s.cadastroEtt ?? cadastroEttInicial(),
+          candidaturaId,
+        })
+
         return {
           ...s,
           candidaturas: nextCands,
           demandas,
           checkIns,
           contratos,
+          pecas: individual ? [individual, ...(s.pecas ?? [])] : s.pecas ?? [],
           auditLogs: [
             {
               id: uid('log'),
@@ -676,6 +759,69 @@ export function StoreProvider({ children }: { children: ReactNode }) {
                 assinaturaProfissionalEm: nowIso(),
               }
             : c,
+        ),
+      }))
+    },
+
+    assinarPeca(pecaId, papel, nome) {
+      update((s) => ({
+        ...s,
+        pecas: (s.pecas ?? []).map((p) => (p.id === pecaId ? atualizarAssinatura(p, papel, nome) : p)),
+      }))
+    },
+
+    marcarEsocial(pecaId) {
+      update((s) => ({
+        ...s,
+        pecas: (s.pecas ?? []).map((p) =>
+          p.id === pecaId ? { ...p, meta: { ...p.meta, esocial: 'informado' } } : p,
+        ),
+      }))
+    },
+
+    registrarEncerramento(input) {
+      update((s) => {
+        const demanda = s.demandas.find((d) => d.id === input.demandaId)
+        if (!demanda) return s
+        const ja = (s.pecas ?? []).some((p) => p.demandaId === demanda.id && p.tipo === 'encerramento')
+        const peca = ja
+          ? null
+          : criarEncerramento({
+              pecas: s.pecas ?? [],
+              demanda,
+              dataEfetiva: input.dataEfetiva,
+              motivo: input.motivo,
+              responsavel: input.responsavel,
+              observacoes: input.observacoes,
+              profissionalId: input.profissionalId,
+            })
+        const encerrada = finishDemandaState(s, demanda.id)
+        return {
+          ...encerrada,
+          pecas: peca ? [peca, ...(encerrada.pecas ?? [])] : encerrada.pecas ?? [],
+        }
+      })
+    },
+
+    atualizarCadastroEtt(cadastro) {
+      update((s) => ({ ...s, cadastroEtt: cadastro }))
+    },
+
+    registrarConsentimento(profissionalId, campo) {
+      const chave =
+        campo === 'politica' ? 'politicaEm' : campo === 'curriculo' ? 'curriculoEm' : 'compartilhamentoEm'
+      update((s) => ({
+        ...s,
+        profissionais: s.profissionais.map((p) =>
+          p.id === profissionalId
+            ? {
+                ...p,
+                consentimentoPrivacidade: {
+                  ...p.consentimentoPrivacidade,
+                  [chave]: nowIso(),
+                },
+              }
+            : p,
         ),
       }))
     },
@@ -853,42 +999,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     },
 
     finishDemanda(demandaId) {
-      update((s) => {
-        const demanda = s.demandas.find((d) => d.id === demandaId)
-        if (!demanda) return s
-        const confirmados = s.candidaturas.filter(
-          (c) => c.demandaId === demandaId && c.status === 'confirmada',
-        )
-        const dias = diasDaMissao(demanda)
-        const valor = demanda.valorDiaria * dias
-        const pagamentos: Pagamento[] = confirmados.map((c) => ({
-          id: uid('pag'),
-          demandaId,
-          profissionalId: c.profissionalId,
-          empresaId: demanda.empresaId,
-          valor,
-          comissao: Math.round(valor * 0.12),
-          status: 'pago' as const,
-          createdAt: nowIso(),
-        }))
-        const profIds = new Set(confirmados.map((c) => c.profissionalId))
-        return {
-          ...s,
-          demandas: s.demandas.map((d) =>
-            d.id === demandaId ? { ...d, status: 'finalizada' as const } : d,
-          ),
-          pagamentos: [...pagamentos, ...s.pagamentos],
-          profissionais: s.profissionais.map((p) =>
-            profIds.has(p.id)
-              ? {
-                  ...p,
-                  saldo: p.saldo + valor,
-                  ganhosMes: p.ganhosMes + valor,
-                }
-              : p,
-          ),
-        }
-      })
+      update((s) => finishDemandaState(s, demandaId))
     },
 
     cancelDemanda(demandaId) {

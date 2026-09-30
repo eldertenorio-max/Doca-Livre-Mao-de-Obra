@@ -1,4 +1,5 @@
 import { createSeedState } from './seed'
+import { cadastroEttInicial } from './dossieTemporario'
 import type { AppState } from './types'
 
 const STORAGE_KEY = 'doca-livre-mao-de-obra-v7'
@@ -14,6 +15,8 @@ export function loadState(): AppState {
     const parsed = JSON.parse(raw) as AppState
     if (!Array.isArray(parsed.contratos)) parsed.contratos = []
     if (!Array.isArray(parsed.documentos)) parsed.documentos = []
+    if (!Array.isArray(parsed.pecas)) parsed.pecas = []
+    if (!parsed.cadastroEtt) parsed.cadastroEtt = cadastroEttInicial()
     return parsed
   } catch {
     const seed = createSeedState()
