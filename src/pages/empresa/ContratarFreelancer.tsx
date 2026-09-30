@@ -474,7 +474,7 @@ export function ContratarFreelancer({ onLogout }: { onLogout: () => void }) {
       setAberto(busca.pessoas[0]?.profissional.id ?? null)
       setAnalisando(false)
       esperaBusca.current = null
-    }, 1600)
+    }, 5000)
   }
 
   function convidar(item: CurriculoAnalisado) {

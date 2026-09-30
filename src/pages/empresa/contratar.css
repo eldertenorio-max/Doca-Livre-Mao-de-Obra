@@ -845,7 +845,7 @@
   width: 108px;
   height: 108px;
   overflow: visible;
-  animation: cf-lupa-busca 1.6s ease-in-out infinite;
+  animation: cf-lupa-busca 2.4s ease-in-out infinite;
 }
 
 .cf-lupa circle,
@@ -900,10 +900,12 @@
 .cf-busca-trilha span {
   display: block;
   height: 100%;
-  width: 40%;
+  width: 100%;
   border-radius: 999px;
   background: linear-gradient(90deg, #f9db00, #111);
-  animation: cf-busca-corre 1.3s ease-in-out infinite;
+  transform: scaleX(0);
+  transform-origin: left center;
+  animation: cf-busca-enche 5s linear forwards;
 }
 
 @keyframes cf-analisando-entra {
@@ -918,12 +920,17 @@
 }
 
 @keyframes cf-lupa-busca {
-  0%,
-  100% {
-    transform: translateX(-6px) rotate(-8deg);
+  0% {
+    transform: translate(-18px, 6px) rotate(-16deg);
   }
-  50% {
-    transform: translateX(8px) rotate(8deg);
+  35% {
+    transform: translate(8px, -8px) rotate(8deg);
+  }
+  70% {
+    transform: translate(20px, 4px) rotate(16deg);
+  }
+  100% {
+    transform: translate(-18px, 6px) rotate(-16deg);
   }
 }
 
@@ -939,12 +946,9 @@
   }
 }
 
-@keyframes cf-busca-corre {
-  0% {
-    transform: translateX(-120%);
-  }
-  100% {
-    transform: translateX(280%);
+@keyframes cf-busca-enche {
+  to {
+    transform: scaleX(1);
   }
 }
 
