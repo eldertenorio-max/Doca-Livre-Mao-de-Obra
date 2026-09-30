@@ -1,0 +1,19 @@
+---
+description: Depois de cada atualização pedida, fazer commit e push na main
+alwaysApply: true
+---
+
+# Subir atualização automaticamente
+
+Quando uma alteração pedida pelo usuário estiver pronta neste repositório, envie para o GitHub sem pedir confirmação de novo.
+
+1. Revise o diff. Não inclua segredo (`.env`, chave, credencial).
+2. Faça commit na `main` com mensagem curta no estilo do histórico.
+3. Rode `git push origin HEAD`.
+4. Avise o hash do commit e que o Render publica a partir desse push.
+
+Não faça commit vazio. Não use `--force`. Não altere `git config`.
+
+Se o Git recusar o commit por falta de nome ou e-mail, use só nesta chamada `git -c user.name` e `git -c user.email` com o autor do último commit. Não grave essa identidade na configuração.
+
+Esta regra vale para este projeto e substitui a espera por um pedido separado de push.
