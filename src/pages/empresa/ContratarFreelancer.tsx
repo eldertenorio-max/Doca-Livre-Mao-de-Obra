@@ -925,7 +925,7 @@ function CartaoAnalise() {
       }
       const lado = Math.sin(decorrido / 240)
       const lupa = lupaRef.current
-      if (lupa) lupa.style.transform = `translateX(${lado * 72}px) rotate(${lado * 16}deg)`
+      if (lupa) lupa.style.transform = `translateX(${lado * 46}px) rotate(${lado * 8}deg)`
       if (decorrido < 5200) quadro = requestAnimationFrame(tick)
     }
     quadro = requestAnimationFrame(tick)
@@ -942,13 +942,13 @@ function CartaoAnalise() {
             <span />
             <span />
             <span />
-          </div>
-          <div className="cf-lupa-move" ref={lupaRef}>
-            <svg className="cf-lupa" viewBox="0 0 88 88">
-              <circle cx="36" cy="36" r="20" />
-              <path d="M50 50.5 68 68" />
-              <path className="cf-ia-estrela" d="M36 28.5 37.6 33.4 42.8 34.1 38.8 37.6 40.1 42.6 36 39.8 31.9 42.6 33.2 37.6 29.2 34.1 34.4 33.4z" />
-            </svg>
+            <div className="cf-lupa-move" ref={lupaRef}>
+              <svg className="cf-lupa" viewBox="0 0 88 88">
+                <circle cx="36" cy="36" r="20" />
+                <path d="M50 50.5 68 68" />
+                <path className="cf-ia-estrela" d="M36 28.5 37.6 33.4 42.8 34.1 38.8 37.6 40.1 42.6 36 39.8 31.9 42.6 33.2 37.6 29.2 34.1 34.4 33.4z" />
+              </svg>
+            </div>
           </div>
           <span className="cf-ia-selo">IA</span>
         </div>

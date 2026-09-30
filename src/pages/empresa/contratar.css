@@ -837,14 +837,14 @@
 .cf-busca {
   position: relative;
   width: 250px;
-  height: 168px;
+  height: 146px;
   margin: 0 auto 8px;
 }
 
 .cf-folha {
   position: absolute;
   left: 50%;
-  bottom: 0;
+  top: 34px;
   z-index: 1;
   width: 176px;
   transform: translateX(-50%);
@@ -854,6 +854,7 @@
   background: #fffdf6;
   box-shadow: 4px 5px 0 #111;
   text-align: left;
+  overflow: visible;
 }
 
 .cf-folha strong {
@@ -891,11 +892,11 @@
 .cf-lupa-move {
   position: absolute;
   z-index: 2;
-  top: 22px;
+  top: 4px;
   left: 50%;
   width: 84px;
   height: 84px;
-  margin-left: -42px;
+  margin-left: -34px;
   transform-origin: 34px 34px;
   filter: drop-shadow(0 8px 6px rgb(0 0 0 / 0.18));
   will-change: transform;
