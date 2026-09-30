@@ -906,18 +906,18 @@ export function ContratarFreelancer({ onLogout }: { onLogout: () => void }) {
       {analisando && (
         <div className="cf-analisando" role="status" aria-live="polite">
           <div className="cf-analisando-card">
-            <div className="cf-radar" aria-hidden>
-              <span />
-              <span />
-              <span />
-              <i />
+            <div className="cf-busca" aria-hidden>
+              <svg className="cf-lupa" viewBox="0 0 88 88">
+                <circle cx="36" cy="36" r="20" />
+                <path d="M50 50.5 68 68" />
+                <path className="cf-ia-estrela" d="M36 28.5 37.6 33.4 42.8 34.1 38.8 37.6 40.1 42.6 36 39.8 31.9 42.6 33.2 37.6 29.2 34.1 34.4 33.4z" />
+              </svg>
+              <span className="cf-ia-selo">IA</span>
             </div>
             <p>Aguarda um momento. A IA está analisando os currículos para trazer os melhores profissionais para você.</p>
-            <ol className="cf-analisando-passos">
-              <li>Lendo os currículos</li>
-              <li>Conferindo os requisitos</li>
-              <li>Separando quem tem encaixe</li>
-            </ol>
+            <div className="cf-busca-trilha" aria-hidden>
+              <span />
+            </div>
           </div>
         </div>
       )}
