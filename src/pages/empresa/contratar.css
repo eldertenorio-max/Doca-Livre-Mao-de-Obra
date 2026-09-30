@@ -836,16 +836,25 @@
 
 .cf-busca {
   position: relative;
-  width: 108px;
-  height: 108px;
-  margin: 0 auto 18px;
+  width: 180px;
+  height: 120px;
+  margin: 0 auto 8px;
+  overflow: visible;
+}
+
+.cf-lupa-move {
+  width: 96px;
+  height: 96px;
+  margin: 0 auto;
+  animation: cf-lupa-busca 1.6s ease-in-out infinite;
+  transform-origin: 36px 36px;
 }
 
 .cf-lupa {
-  width: 108px;
-  height: 108px;
+  display: block;
+  width: 96px;
+  height: 96px;
   overflow: visible;
-  animation: cf-lupa-busca 2.4s ease-in-out infinite;
 }
 
 .cf-lupa circle,
@@ -888,10 +897,23 @@
   box-shadow: 0 8px 18px rgb(0 0 0 / 0.16);
 }
 
-.cf-busca-trilha {
+.cf-busca-linha {
+  display: flex;
+  align-items: center;
+  gap: 10px;
   margin: 18px auto 0;
-  width: min(16rem, 100%);
-  height: 6px;
+  width: min(18rem, 100%);
+}
+
+.cf-busca-linha strong {
+  min-width: 3.2rem;
+  font-size: 0.95rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.cf-busca-trilha {
+  flex: 1;
+  height: 8px;
   border-radius: 999px;
   background: #f3f4f6;
   overflow: hidden;
@@ -900,12 +922,9 @@
 .cf-busca-trilha span {
   display: block;
   height: 100%;
-  width: 100%;
+  width: 0;
   border-radius: 999px;
   background: linear-gradient(90deg, #f9db00, #111);
-  transform: scaleX(0);
-  transform-origin: left center;
-  animation: cf-busca-enche 5s linear forwards;
 }
 
 @keyframes cf-analisando-entra {
@@ -921,16 +940,19 @@
 
 @keyframes cf-lupa-busca {
   0% {
-    transform: translate(-18px, 6px) rotate(-16deg);
+    transform: translate(-34px, 10px) rotate(-18deg);
   }
-  35% {
-    transform: translate(8px, -8px) rotate(8deg);
+  20% {
+    transform: translate(-8px, -12px) rotate(-4deg);
+  }
+  45% {
+    transform: translate(22px, 2px) rotate(12deg);
   }
   70% {
-    transform: translate(20px, 4px) rotate(16deg);
+    transform: translate(36px, 14px) rotate(20deg);
   }
   100% {
-    transform: translate(-18px, 6px) rotate(-16deg);
+    transform: translate(-34px, 10px) rotate(-18deg);
   }
 }
 
@@ -946,17 +968,10 @@
   }
 }
 
-@keyframes cf-busca-enche {
-  to {
-    transform: scaleX(1);
-  }
-}
-
 @media (prefers-reduced-motion: reduce) {
   .cf-analisando-card,
-  .cf-lupa,
-  .cf-ia-estrela,
-  .cf-busca-trilha span {
+  .cf-lupa-move,
+  .cf-ia-estrela {
     animation: none;
   }
 }

@@ -313,6 +313,7 @@ export function ContratarFreelancer({ onLogout }: { onLogout: () => void }) {
   const [observacoes, setObservacoes] = useState('')
   const [erro, setErro] = useState('')
   const [analisando, setAnalisando] = useState(false)
+  const [progresso, setProgresso] = useState(0)
   const esperaBusca = useRef<number | null>(null)
   const [resultados, setResultados] = useState<CurriculoAnalisado[] | null>(null)
   const [analisados, setAnalisados] = useState(0)
@@ -330,6 +331,22 @@ export function ContratarFreelancer({ onLogout }: { onLogout: () => void }) {
       if (esperaBusca.current) window.clearTimeout(esperaBusca.current)
     }
   }, [])
+
+  useEffect(() => {
+    if (!analisando) {
+      setProgresso(0)
+      return
+    }
+    const inicio = performance.now()
+    let quadro = 0
+    const tick = (agora: number) => {
+      const pct = Math.min(100, Math.round(((agora - inicio) / 5000) * 100))
+      setProgresso(pct)
+      if (pct < 100) quadro = requestAnimationFrame(tick)
+    }
+    quadro = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(quadro)
+  }, [analisando])
 
   useEffect(() => {
     const mq = window.matchMedia('(max-width: 860px)')
@@ -907,16 +924,21 @@ export function ContratarFreelancer({ onLogout }: { onLogout: () => void }) {
         <div className="cf-analisando" role="status" aria-live="polite">
           <div className="cf-analisando-card">
             <div className="cf-busca" aria-hidden>
-              <svg className="cf-lupa" viewBox="0 0 88 88">
-                <circle cx="36" cy="36" r="20" />
-                <path d="M50 50.5 68 68" />
-                <path className="cf-ia-estrela" d="M36 28.5 37.6 33.4 42.8 34.1 38.8 37.6 40.1 42.6 36 39.8 31.9 42.6 33.2 37.6 29.2 34.1 34.4 33.4z" />
-              </svg>
+              <div className="cf-lupa-move">
+                <svg className="cf-lupa" viewBox="0 0 88 88">
+                  <circle cx="36" cy="36" r="20" />
+                  <path d="M50 50.5 68 68" />
+                  <path className="cf-ia-estrela" d="M36 28.5 37.6 33.4 42.8 34.1 38.8 37.6 40.1 42.6 36 39.8 31.9 42.6 33.2 37.6 29.2 34.1 34.4 33.4z" />
+                </svg>
+              </div>
               <span className="cf-ia-selo">IA</span>
             </div>
             <p>Aguarda um momento. A IA está analisando os currículos para trazer os melhores profissionais para você.</p>
-            <div className="cf-busca-trilha" aria-hidden>
-              <span />
+            <div className="cf-busca-linha">
+              <div className="cf-busca-trilha" aria-hidden>
+                <span style={{ width: `${progresso}%` }} />
+              </div>
+              <strong>{progresso}%</strong>
             </div>
           </div>
         </div>
