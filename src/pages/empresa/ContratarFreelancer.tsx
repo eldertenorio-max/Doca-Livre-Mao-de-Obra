@@ -1,6 +1,6 @@
 import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'react'
 import { BibliotecaDocumental } from '../../components/BibliotecaDocumental'
-import { CATEGORIES, cargoLabel } from '../../data/categories'
+import { CATEGORIES, allCargos, cargoLabel } from '../../data/categories'
 import { CIDADES_OPERACAO } from '../../data/cidades'
 import { analisarCurriculos, requisitosDoCargo, rotuloAnos, type CurriculoAnalisado } from '../../lib/analiseCurriculo'
 import { abrirCurriculoPdf } from '../../lib/curriculoPdf'
@@ -200,6 +200,7 @@ function valorNumero(texto: string) {
 const ABAS_EMPRESA = [
   { id: 'missao', label: 'Vaga temporária', icon: <IconeVaga /> },
   { id: 'missoes', label: 'Missões', icon: <IconeMissoes /> },
+  { id: 'contratacoes', label: 'Minhas contratações', icon: <IconeContratacoes /> },
   { id: 'documentos', label: 'Documentação', icon: <IconeDocs /> },
   { id: 'dados', label: 'Dados da empresa', icon: <IconeEmpresa /> },
 ] as const
@@ -243,6 +244,15 @@ function IconeMissoes() {
       <path d="M3 16V8h10v8M13 11h4l3 3v2h-7" stroke="currentColor" strokeWidth="1.75" strokeLinejoin="round" />
       <circle cx="7" cy="16.5" r="1.5" stroke="currentColor" strokeWidth="1.75" />
       <circle cx="17" cy="16.5" r="1.5" stroke="currentColor" strokeWidth="1.75" />
+    </IconeBase>
+  )
+}
+
+function IconeContratacoes() {
+  return (
+    <IconeBase>
+      <path d="M7 3.5h10a1.5 1.5 0 0 1 1.5 1.5V20L12 17.2 5.5 20V5A1.5 1.5 0 0 1 7 3.5z" stroke="currentColor" strokeWidth="1.75" strokeLinejoin="round" />
+      <path d="M9 9.5h6M9 13h4" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" />
     </IconeBase>
   )
 }
@@ -588,6 +598,7 @@ export function ContratarFreelancer({ onLogout }: { onLogout: () => void }) {
         <div className="cf-wrap">
           {aba === 'documentos' && <BibliotecaDocumental modo="tomadora" empresaId={empresa.id} />}
           {aba === 'missoes' && <PainelMissoes empresaId={empresa.id} />}
+          {aba === 'contratacoes' && <PainelContratacoes empresaId={empresa.id} />}
           {aba === 'dados' && <PainelDados />}
           {aba === 'missao' && (
           <>
@@ -972,6 +983,122 @@ function PainelMissoes({ empresaId }: { empresaId: string }) {
       </div>
     </section>
   )
+}
+
+function PainelContratacoes({ empresaId }: { empresaId: string }) {
+  const { state } = useStore()
+  const demandas = state.demandas.filter((demanda) => demanda.empresaId === empresaId)
+  const demandasIds = new Set(demandas.map((demanda) => demanda.id))
+  const contratos = state.contratos.filter(
+    (contrato) => contrato.empresaId === empresaId || demandasIds.has(contrato.demandaId),
+  )
+  const confirmadasSemContrato = state.candidaturas.filter(
+    (candidatura) =>
+      demandasIds.has(candidatura.demandaId) &&
+      candidatura.status === 'confirmada' &&
+      !contratos.some((contrato) => contrato.candidaturaId === candidatura.id),
+  )
+  const linhas = [
+    ...contratos.map((contrato) => {
+      const demanda = demandas.find((item) => item.id === contrato.demandaId)
+      const profissional = state.profissionais.find((item) => item.id === contrato.profissionalId)
+      return {
+        id: contrato.id,
+        quando: contrato.createdAt,
+        cargo: demanda?.cargo ?? '',
+        profissional: profissional?.nome ?? 'Trabalhador',
+        cidade: demanda ? `${demanda.endereco.cidade}/${demanda.endereco.estado}` : '',
+        inicio: contrato.inicioEm || demanda?.data || '',
+        fim: contrato.fimEm || demanda?.dataFim || '',
+        jornada: demanda ? `${demanda.horaInicio}–${demanda.horaFim}` : '',
+        motivo: demanda?.motivo ?? '',
+        atividades: demanda?.atividades ?? '',
+        valor: contrato.valor || demanda?.valorDiaria || 0,
+        numero: contrato.numero,
+        status: rotuloContrato(contrato.status),
+        statusClasse: contrato.status === 'rescindido' ? 'cancelada' : contrato.status === 'concluido' ? 'finalizada' : 'em_andamento',
+        servicos: contrato.tiposServico.filter(Boolean),
+      }
+    }),
+    ...confirmadasSemContrato.map((candidatura) => {
+      const demanda = demandas.find((item) => item.id === candidatura.demandaId)
+      const profissional = state.profissionais.find((item) => item.id === candidatura.profissionalId)
+      return {
+        id: candidatura.id,
+        quando: candidatura.createdAt,
+        cargo: demanda?.cargo ?? '',
+        profissional: profissional?.nome ?? 'Trabalhador',
+        cidade: demanda ? `${demanda.endereco.cidade}/${demanda.endereco.estado}` : '',
+        inicio: demanda?.data ?? '',
+        fim: demanda?.dataFim ?? '',
+        jornada: demanda ? `${demanda.horaInicio}–${demanda.horaFim}` : '',
+        motivo: demanda?.motivo ?? '',
+        atividades: demanda?.atividades ?? '',
+        valor: demanda?.valorDiaria ?? 0,
+        numero: '',
+        status: 'Confirmada',
+        statusClasse: 'em_andamento',
+        servicos: [] as string[],
+      }
+    }),
+  ].sort((a, b) => b.quando.localeCompare(a.quando))
+
+  return (
+    <section className="cf-panel">
+      <div className="cf-intro">
+        <h1>Minhas contratações</h1>
+        <p>Contratos temporários já gerados por esta empresa, com o serviço e o profissional de cada um.</p>
+      </div>
+      {linhas.length === 0 && (
+        <div className="cf-card">
+          <strong>Nenhuma contratação ainda.</strong>
+          <p className="muted">Quando um contrato temporário for gerado, ele aparece aqui com o tipo de serviço e o profissional.</p>
+        </div>
+      )}
+      <div className="cf-mission-list">
+        {linhas.map((linha) => (
+          <article key={linha.id} className="cf-card cf-mission">
+            <div className="cf-mission-head">
+              <h2>{linha.cargo ? cargoLabel(linha.cargo) : 'Serviço temporário'}</h2>
+              <span className={`cf-status cf-status--${linha.statusClasse}`}>{linha.status}</span>
+            </div>
+            <p>
+              {linha.servicos.length ? linha.servicos.join(' · ') : rotuloCategoria(linha.cargo)}
+              {linha.numero ? ` · Contrato ${linha.numero}` : ''}
+            </p>
+            <ul className="cf-invite-list">
+              <li>
+                <strong>{linha.profissional}</strong>
+                <span>Profissional</span>
+              </li>
+            </ul>
+            <p>
+              {linha.inicio ? formatarDataBr(linha.inicio.slice(0, 10)) : 'Início não informado'}
+              {linha.fim ? ` a ${formatarDataBr(linha.fim.slice(0, 10))}` : ''}
+              {linha.jornada ? ` · ${linha.jornada}` : ''}
+              {linha.cidade ? ` · ${linha.cidade}` : ''}
+            </p>
+            <p>
+              {linha.valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })} por dia
+              {linha.motivo ? ` · ${rotuloMotivo(linha.motivo)}` : ''}
+            </p>
+            {linha.atividades && <p>{linha.atividades}</p>}
+          </article>
+        ))}
+      </div>
+    </section>
+  )
+}
+
+function rotuloCategoria(cargoId: string) {
+  return allCargos().find((cargo) => cargo.id === cargoId)?.categoriaLabel ?? 'Trabalho temporário'
+}
+
+function rotuloContrato(status: string) {
+  if (status === 'assinado_profissional') return 'Assinado pelo trabalhador'
+  if (status === 'concluido') return 'Concluída'
+  if (status === 'rescindido') return 'Rescindida'
+  return 'Contrato gerado'
 }
 
 function PainelDados() {
