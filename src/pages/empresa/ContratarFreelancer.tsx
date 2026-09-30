@@ -1,4 +1,4 @@
-import { useEffect, useId, useMemo, useRef, useState } from 'react'
+import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'react'
 import { BibliotecaDocumental } from '../../components/BibliotecaDocumental'
 import { CATEGORIES, cargoLabel } from '../../data/categories'
 import { CIDADES_OPERACAO } from '../../data/cidades'
@@ -13,7 +13,7 @@ import {
   validarNecessidade,
   type MotivoTemporario,
 } from '../../lib/modalidadeContratacao'
-import { LOGO_DOCA_LIVRE_SRC } from '../../lib/brandAssets'
+import { BRAND_PRODUCT_NAME, LOGO_DOCA_LIVRE_SRC } from '../../lib/brandAssets'
 import { useStore } from '../../lib/store'
 import './contratar.css'
 
@@ -198,10 +198,10 @@ function valorNumero(texto: string) {
 }
 
 const ABAS_EMPRESA = [
-  { id: 'missao', label: 'Vaga temporária' },
-  { id: 'missoes', label: 'Missões' },
-  { id: 'documentos', label: 'Documentação' },
-  { id: 'dados', label: 'Dados da empresa' },
+  { id: 'missao', label: 'Vaga temporária', icon: <IconeVaga /> },
+  { id: 'missoes', label: 'Missões', icon: <IconeMissoes /> },
+  { id: 'documentos', label: 'Documentação', icon: <IconeDocs /> },
+  { id: 'dados', label: 'Dados da empresa', icon: <IconeEmpresa /> },
 ] as const
 
 type AbaEmpresa = (typeof ABAS_EMPRESA)[number]['id']
@@ -218,6 +218,53 @@ const BENEFICIOS_OPCOES = [
   'Auxílio-creche',
   'Ajuda de custo',
 ] as const
+
+function IconeBase({ children }: { children: ReactNode }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden>
+      {children}
+    </svg>
+  )
+}
+
+function IconeVaga() {
+  return (
+    <IconeBase>
+      <rect x="6" y="3.5" width="12" height="17" rx="2" stroke="currentColor" strokeWidth="1.75" />
+      <path d="M9 3.5h6v2.2a1 1 0 0 1-1 1h-4a1 1 0 0 1-1-1V3.5z" stroke="currentColor" strokeWidth="1.75" />
+      <path d="M9 11h6M9 14.5h4" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" />
+    </IconeBase>
+  )
+}
+
+function IconeMissoes() {
+  return (
+    <IconeBase>
+      <path d="M3 16V8h10v8M13 11h4l3 3v2h-7" stroke="currentColor" strokeWidth="1.75" strokeLinejoin="round" />
+      <circle cx="7" cy="16.5" r="1.5" stroke="currentColor" strokeWidth="1.75" />
+      <circle cx="17" cy="16.5" r="1.5" stroke="currentColor" strokeWidth="1.75" />
+    </IconeBase>
+  )
+}
+
+function IconeDocs() {
+  return (
+    <IconeBase>
+      <path d="M7 3.5h7l4 4V20a1.5 1.5 0 0 1-1.5 1.5h-9.5A1.5 1.5 0 0 1 5.5 20V5A1.5 1.5 0 0 1 7 3.5z" stroke="currentColor" strokeWidth="1.75" strokeLinejoin="round" />
+      <path d="M14 3.8V8h4.2M8.5 12h7M8.5 15.5h5" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" />
+    </IconeBase>
+  )
+}
+
+function IconeEmpresa() {
+  return (
+    <IconeBase>
+      <path d="M4 20V6.5A1.5 1.5 0 0 1 5.5 5H13v15" stroke="currentColor" strokeWidth="1.75" strokeLinejoin="round" />
+      <path d="M13 9h5.5A1.5 1.5 0 0 1 20 10.5V20" stroke="currentColor" strokeWidth="1.75" strokeLinejoin="round" />
+      <path d="M7.5 8.5h2.5M7.5 12h2.5M7.5 15.5h2.5M16 13h1.5M16 16.5h1.5" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" />
+    </IconeBase>
+  )
+}
 
 function beneficiosDoTexto(texto: string) {
   const normal = texto.toLocaleLowerCase('pt-BR')
@@ -263,6 +310,9 @@ export function ContratarFreelancer({ onLogout }: { onLogout: () => void }) {
   const [missaoId, setMissaoId] = useState<string | null>(null)
   const [modelo, setModelo] = useState<ModeloMissao | null>(() => lerModelo(empresa.id))
   const [aba, setAba] = useState<AbaEmpresa>('missao')
+  const [menuFixo, setMenuFixo] = useState(false)
+  const [menuHover, setMenuHover] = useState(false)
+  const [telaEstreita, setTelaEstreita] = useState(false)
   const empresaValidada = empresa.status === 'aprovada'
 
   useEffect(() => {
@@ -270,6 +320,16 @@ export function ContratarFreelancer({ onLogout }: { onLogout: () => void }) {
       if (esperaBusca.current) window.clearTimeout(esperaBusca.current)
     }
   }, [])
+
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 860px)')
+    const atualizar = () => setTelaEstreita(mq.matches)
+    atualizar()
+    mq.addEventListener('change', atualizar)
+    return () => mq.removeEventListener('change', atualizar)
+  }, [])
+
+  const menuAberto = menuFixo || (!telaEstreita && menuHover)
 
   const dias = diasEntre(inicio, fim)
   const avisoPrazo = validarNecessidade('temporario', inicio, fim)
@@ -456,29 +516,73 @@ export function ContratarFreelancer({ onLogout }: { onLogout: () => void }) {
 
   return (
     <div className="cf-shell">
-      <aside className="cf-side">
-        <div className="cf-side-brand">
-          <img src={LOGO_DOCA_LIVRE_SRC} alt="Doca Livre" />
-          <strong>{empresa.nomeFantasia}</strong>
-          <span>Empresa tomadora</span>
+      <header className="cf-topbar">
+        <div className="cf-topbar-left">
+          <button
+            type="button"
+            className="cf-topbar-menu"
+            aria-label={menuFixo ? 'Recolher menu lateral' : 'Fixar menu expandido'}
+            aria-pressed={menuFixo}
+            onClick={() => setMenuFixo((valor) => !valor)}
+          >
+            <span className="cf-topbar-menu-icon" aria-hidden />
+          </button>
+          <div className="cf-topbar-brand">
+            <img src={LOGO_DOCA_LIVRE_SRC} alt="Doca Livre" className="cf-topbar-logo" />
+            <span className="cf-product">{BRAND_PRODUCT_NAME}</span>
+          </div>
         </div>
-        <nav className="cf-side-nav" aria-label="Conta da empresa">
-          {ABAS_EMPRESA.map((item) => (
-            <button
-              key={item.id}
-              type="button"
-              className={`cf-side-link ${aba === item.id ? 'cf-side-link--on' : ''}`}
-              aria-current={aba === item.id ? 'page' : undefined}
-              onClick={() => setAba(item.id)}
-            >
-              {item.label}
-            </button>
-          ))}
-        </nav>
-        <button type="button" className="cf-side-sair" onClick={onLogout}>
-          Sair
-        </button>
-      </aside>
+        <div className="cf-topbar-right">
+          <div className="cf-topbar-user">
+            <span>
+              <strong>{empresa.nomeFantasia}</strong>
+              <small>Empresa tomadora</small>
+            </span>
+            <span className="cf-avatar-topo" aria-hidden>
+              {iniciais(empresa.nomeFantasia)}
+            </span>
+          </div>
+          <button type="button" className="cf-sair" onClick={onLogout}>
+            Sair
+          </button>
+        </div>
+      </header>
+
+      <div className="cf-workspace">
+        {menuHover && !menuFixo && !telaEstreita && <div className="cf-menu-rail" aria-hidden />}
+        {menuFixo && telaEstreita && (
+          <button type="button" className="cf-menu-backdrop" aria-label="Fechar menu" onClick={() => setMenuFixo(false)} />
+        )}
+        <aside
+          className={`cf-menu ${menuAberto ? 'cf-menu--wide' : ''} ${menuHover && !menuFixo ? 'cf-menu--flyout' : ''} ${menuFixo ? 'cf-menu--pinned' : ''}`}
+          onMouseEnter={() => setMenuHover(true)}
+          onMouseLeave={() => setMenuHover(false)}
+        >
+          <nav className="cf-menu-body" aria-label="Conta da empresa">
+            {ABAS_EMPRESA.map((item) => {
+              const ativo = aba === item.id
+              return (
+                <button
+                  key={item.id}
+                  type="button"
+                  className={`cf-menu-link ${ativo ? 'cf-menu-link--on' : ''}`}
+                  aria-current={ativo ? 'page' : undefined}
+                  title={menuAberto ? undefined : item.label}
+                  onClick={() => {
+                    setAba(item.id)
+                    if (telaEstreita) setMenuFixo(false)
+                  }}
+                >
+                  <span className="cf-menu-icon">{item.icon}</span>
+                  <span className="cf-menu-label">{item.label}</span>
+                  <span className="cf-menu-chevron" aria-hidden>
+                    ›
+                  </span>
+                </button>
+              )
+            })}
+          </nav>
+        </aside>
 
       <main className="cf-main">
         <div className="cf-wrap">
@@ -786,6 +890,7 @@ export function ContratarFreelancer({ onLogout }: { onLogout: () => void }) {
           )}
         </div>
       </main>
+      </div>
       {analisando && (
         <div className="cf-analisando" role="status">
           <p>Aguarda um momento. A IA está analisando os currículos para trazer os melhores profissionais para você.</p>
