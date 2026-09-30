@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { AvailabilityToggle } from '../../components/AvailabilityToggle'
 import { BibliotecaDocumental } from '../../components/BibliotecaDocumental'
 import { ContratoViewer } from '../../components/ContratoViewer'
@@ -6,15 +6,16 @@ import { DocumentacaoProfissionalPanel } from '../../components/DocumentacaoPane
 import { LevelBadge } from '../../components/LevelBadge'
 import { cargoLabel } from '../../data/categories'
 import { pendenciasParaIniciar } from '../../lib/dossieTemporario'
-import { LOGO_DOCA_LIVRE_SRC } from '../../lib/brandAssets'
+import { BRAND_PRODUCT_NAME, LOGO_DOCA_LIVRE_SRC } from '../../lib/brandAssets'
 import { useStore } from '../../lib/store'
+import '../empresa/contratar.css'
 
 const TABS = [
-  { id: 'inicio', label: 'Início', icon: '⌂' },
-  { id: 'oportunidades', label: 'Oportunidades', icon: '◎' },
-  { id: 'agenda', label: 'Missões', icon: '▦' },
-  { id: 'financeiro', label: 'Financeiro', icon: '$' },
-  { id: 'perfil', label: 'Perfil', icon: '☺' },
+  { id: 'inicio', label: 'Início', icon: <IconeInicio /> },
+  { id: 'oportunidades', label: 'Oportunidades', icon: <IconeOportunidades /> },
+  { id: 'agenda', label: 'Missões', icon: <IconeMissoes /> },
+  { id: 'financeiro', label: 'Financeiro', icon: <IconeFinanceiro /> },
+  { id: 'perfil', label: 'Perfil', icon: <IconePerfil /> },
 ] as const
 
 type TabId = (typeof TABS)[number]['id']
@@ -23,6 +24,19 @@ export function ProfissionalApp({ onLogout }: { onLogout: () => void }) {
   const store = useStore()
   const prof = store.currentProfissional
   const [tab, setTab] = useState<TabId>('inicio')
+  const [menuFixo, setMenuFixo] = useState(false)
+  const [menuHover, setMenuHover] = useState(false)
+  const [telaEstreita, setTelaEstreita] = useState(false)
+
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 860px)')
+    const atualizar = () => setTelaEstreita(mq.matches)
+    atualizar()
+    mq.addEventListener('change', atualizar)
+    return () => mq.removeEventListener('change', atualizar)
+  }, [])
+
+  const menuAberto = menuFixo || (!telaEstreita && menuHover)
 
   if (!prof) {
     return (
@@ -41,37 +55,148 @@ export function ProfissionalApp({ onLogout }: { onLogout: () => void }) {
   }
 
   return (
-    <div className="mobile-shell">
-      <header className="mobile-header">
-        <img src={LOGO_DOCA_LIVRE_SRC} alt="" className="mobile-logo" />
-        <div>
-          <strong>{prof.nome.split(' ')[0]}</strong>
-          <LevelBadge nivel={prof.nivel} />
-        </div>
-        <button type="button" className="btn btn-ghost" onClick={onLogout}>Sair</button>
-      </header>
-      <main className="mobile-content">
-        {tab === 'inicio' && <HomeTab />}
-        {tab === 'oportunidades' && <OportunidadesTab />}
-        {tab === 'agenda' && <AgendaTab />}
-        {tab === 'financeiro' && <FinanceiroTab />}
-        {tab === 'perfil' && <PerfilTab />}
-      </main>
-      <nav className="bottom-nav">
-        {TABS.map((t) => (
+    <div className="cf-shell">
+      <header className="cf-topbar">
+        <div className="cf-topbar-left">
           <button
-            key={t.id}
             type="button"
-            className={`bottom-nav-item ${tab === t.id ? 'bottom-nav-item--active' : ''}`}
-            onClick={() => setTab(t.id)}
+            className="cf-topbar-menu"
+            aria-label={menuFixo ? 'Recolher menu lateral' : 'Fixar menu expandido'}
+            aria-pressed={menuFixo}
+            onClick={() => setMenuFixo((valor) => !valor)}
           >
-            <span aria-hidden>{t.icon}</span>
-            {t.label}
+            <span className="cf-topbar-menu-icon" aria-hidden />
           </button>
-        ))}
-      </nav>
+          <div className="cf-topbar-brand">
+            <img src={LOGO_DOCA_LIVRE_SRC} alt="Doca Livre" className="cf-topbar-logo" />
+            <span className="cf-product">{BRAND_PRODUCT_NAME}</span>
+          </div>
+        </div>
+        <div className="cf-topbar-right">
+          <div className="cf-topbar-user">
+            <span>
+              <strong>{prof.nome.split(' ')[0]}</strong>
+              <small>Trabalhador</small>
+            </span>
+            <LevelBadge nivel={prof.nivel} />
+            <span className="cf-avatar-topo" aria-hidden>
+              {iniciais(prof.nome)}
+            </span>
+          </div>
+          <button type="button" className="cf-sair" onClick={onLogout}>
+            Sair
+          </button>
+        </div>
+      </header>
+
+      <div className="cf-workspace">
+        {menuHover && !menuFixo && !telaEstreita && <div className="cf-menu-rail" aria-hidden />}
+        {menuFixo && telaEstreita && (
+          <button type="button" className="cf-menu-backdrop" aria-label="Fechar menu" onClick={() => setMenuFixo(false)} />
+        )}
+        <aside
+          className={`cf-menu ${menuAberto ? 'cf-menu--wide' : ''} ${menuHover && !menuFixo ? 'cf-menu--flyout' : ''} ${menuFixo ? 'cf-menu--pinned' : ''}`}
+          onMouseEnter={() => setMenuHover(true)}
+          onMouseLeave={() => setMenuHover(false)}
+        >
+          <nav className="cf-menu-body" aria-label="Conta do trabalhador">
+            {TABS.map((item) => {
+              const ativo = tab === item.id
+              return (
+                <button
+                  key={item.id}
+                  type="button"
+                  className={`cf-menu-link ${ativo ? 'cf-menu-link--on' : ''}`}
+                  aria-current={ativo ? 'page' : undefined}
+                  title={menuAberto ? undefined : item.label}
+                  onClick={() => {
+                    setTab(item.id)
+                    if (telaEstreita) setMenuFixo(false)
+                  }}
+                >
+                  <span className="cf-menu-icon">{item.icon}</span>
+                  <span className="cf-menu-label">{item.label}</span>
+                  <span className="cf-menu-chevron" aria-hidden>
+                    ›
+                  </span>
+                </button>
+              )
+            })}
+          </nav>
+        </aside>
+        <main className="cf-main">
+          <div className="cf-wrap">
+            {tab === 'inicio' && <HomeTab />}
+            {tab === 'oportunidades' && <OportunidadesTab />}
+            {tab === 'agenda' && <AgendaTab />}
+            {tab === 'financeiro' && <FinanceiroTab />}
+            {tab === 'perfil' && <PerfilTab />}
+          </div>
+        </main>
+      </div>
     </div>
   )
+}
+
+function IconeBase({ children }: { children: ReactNode }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden>
+      {children}
+    </svg>
+  )
+}
+
+function IconeInicio() {
+  return (
+    <IconeBase>
+      <path d="M4 11.5 12 4l8 7.5V20a1 1 0 0 1-1 1h-5v-6H10v6H5a1 1 0 0 1-1-1v-8.5z" stroke="currentColor" strokeWidth="1.75" strokeLinejoin="round" />
+    </IconeBase>
+  )
+}
+
+function IconeOportunidades() {
+  return (
+    <IconeBase>
+      <circle cx="11" cy="11" r="6.5" stroke="currentColor" strokeWidth="1.75" />
+      <path d="m16 16 4 4" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" />
+    </IconeBase>
+  )
+}
+
+function IconeMissoes() {
+  return (
+    <IconeBase>
+      <path d="M3 16V8h10v8M13 11h4l3 3v2h-7" stroke="currentColor" strokeWidth="1.75" strokeLinejoin="round" />
+      <circle cx="7" cy="16.5" r="1.5" stroke="currentColor" strokeWidth="1.75" />
+      <circle cx="17" cy="16.5" r="1.5" stroke="currentColor" strokeWidth="1.75" />
+    </IconeBase>
+  )
+}
+
+function IconeFinanceiro() {
+  return (
+    <IconeBase>
+      <rect x="3" y="6" width="18" height="13" rx="2" stroke="currentColor" strokeWidth="1.75" />
+      <path d="M3 10h18" stroke="currentColor" strokeWidth="1.75" />
+      <circle cx="16" cy="14.5" r="1.2" fill="currentColor" />
+    </IconeBase>
+  )
+}
+
+function IconePerfil() {
+  return (
+    <IconeBase>
+      <circle cx="12" cy="8" r="3.2" stroke="currentColor" strokeWidth="1.75" />
+      <path d="M5 19.5c1.2-3 3.6-4.5 7-4.5s5.8 1.5 7 4.5" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" />
+    </IconeBase>
+  )
+}
+
+function iniciais(nome: string) {
+  const partes = nome.trim().split(/\s+/).filter(Boolean)
+  const primeira = partes[0]?.[0] ?? ''
+  const ultima = partes.length > 1 ? partes[partes.length - 1]?.[0] ?? '' : ''
+  return `${primeira}${ultima}`.toUpperCase()
 }
 
 function HomeTab() {
