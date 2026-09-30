@@ -196,7 +196,18 @@ function valorNumero(texto: string) {
   return match ? Number(match[0]) : 0
 }
 
-const BENEFICIOS_OPCOES = ['Vale-transporte', 'Refeição no local'] as const
+const BENEFICIOS_OPCOES = [
+  'Vale-transporte',
+  'Vale-refeição',
+  'Vale-alimentação',
+  'Refeição no local',
+  'Cesta básica',
+  'Plano de saúde',
+  'Plano odontológico',
+  'Seguro de vida',
+  'Auxílio-creche',
+  'Ajuda de custo',
+] as const
 
 function beneficiosDoTexto(texto: string) {
   const normal = texto.toLocaleLowerCase('pt-BR')
