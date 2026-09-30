@@ -1,7 +1,16 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import { CATEGORIES, cargoLabel } from '../../data/categories'
 import { CIDADES_OPERACAO } from '../../data/cidades'
-import { analisarCurriculos, requisitosDoCargo, type CurriculoAnalisado } from '../../lib/analiseCurriculo'
+import {
+  analisarCurriculos,
+  AVISO_PERIODO,
+  bloqueioDoPedido,
+  MODALIDADES,
+  requisitosDoCargo,
+  textoModalidade,
+  type CurriculoAnalisado,
+  type ModalidadePretendida,
+} from '../../lib/analiseCurriculo'
 import { LOGO_DOCA_LIVRE_SRC } from '../../lib/brandAssets'
 import { useStore } from '../../lib/store'
 import './contratar.css'
@@ -146,6 +155,11 @@ export function ContratarFreelancer({ onLogout }: { onLogout: () => void }) {
   const [requisitos, setRequisitos] = useState<string[]>(() => requisitosDoCargo('empilhadeira').padrao)
   const [inicio, setInicio] = useState(dataLocal(1))
   const [fim, setFim] = useState(dataLocal(5))
+  const [quantidade, setQuantidade] = useState(1)
+  const [horaInicio, setHoraInicio] = useState('08:00')
+  const [horaFim, setHoraFim] = useState('18:00')
+  const [modalidade, setModalidade] = useState<ModalidadePretendida | ''>('')
+  const [prorrogacao, setProrrogacao] = useState(false)
   const [cidade, setCidade] = useState(empresa.endereco.cidade)
   const [observacoes, setObservacoes] = useState('')
   const [erro, setErro] = useState('')
@@ -178,20 +192,36 @@ export function ContratarFreelancer({ onLogout }: { onLogout: () => void }) {
       setErro('Escolha o tipo de profissional.')
       return
     }
-    if (!inicio || !fim || dias < 1) {
-      setErro('O fim do contrato precisa ser no mesmo dia ou depois do início.')
+    if (!modalidade) {
+      setErro('Escolha a modalidade pretendida. As datas sozinhas não definem o tipo de contrato.')
+      return
+    }
+    if (quantidade < 1) {
+      setErro('Informe quantos profissionais a operação precisa.')
+      return
+    }
+    const pedido = {
+      cargoId,
+      requisitos,
+      inicio,
+      fim,
+      cidade,
+      observacoes,
+      quantidade,
+      horaInicio,
+      horaFim,
+      modalidade,
+      prorrogacao: modalidade === 'temporario' && prorrogacao,
+    }
+    const bloqueio = bloqueioDoPedido(pedido)
+    if (bloqueio) {
+      setErro(bloqueio)
+      setResultados(null)
       return
     }
     setErro('')
     const lista = analisarCurriculos({
-      pedido: {
-        cargoId,
-        requisitos,
-        inicio,
-        fim,
-        cidade,
-        observacoes,
-      },
+      pedido,
       empresa,
       profissionais: state.profissionais,
       documentos: state.documentos,
@@ -202,7 +232,8 @@ export function ContratarFreelancer({ onLogout }: { onLogout: () => void }) {
     setAberto(lista[0]?.profissional.id ?? null)
   }
 
-  const disponiveis = resultados?.filter((r) => r.situacao !== 'sobreposto') ?? []
+  const disponiveis = resultados?.filter((r) => r.situacao === 'compativel' || r.situacao === 'alerta') ?? []
+  const incompativeis = resultados?.filter((r) => r.situacao === 'bloqueio') ?? []
   const bloqueadosPeriodo = resultados?.filter((r) => r.situacao === 'sobreposto') ?? []
 
   return (
@@ -212,7 +243,7 @@ export function ContratarFreelancer({ onLogout }: { onLogout: () => void }) {
           <img src={LOGO_DOCA_LIVRE_SRC} alt="Doca Livre" />
           <div>
             <strong>{empresa.nomeFantasia}</strong>
-            <span>Contratação de freelancer</span>
+            <span>Pedido de mão de obra</span>
           </div>
         </div>
         <div className="cf-top-actions">
@@ -225,11 +256,11 @@ export function ContratarFreelancer({ onLogout }: { onLogout: () => void }) {
       <main className="cf-main">
         <div className="cf-wrap">
           <div className="cf-intro">
-            <h1>Quem você precisa contratar</h1>
+            <h1>Necessidade de mão de obra</h1>
             <p>
-              Defina o cargo, o que a pessoa precisa comprovar, o período do contrato e o que mais
-              importa na operação. A busca lê os currículos de quem já se cadastrou procurando trabalho
-              e ordena quem mais se aproxima do pedido. Hoje há {base} currículos aprovados na base.
+              Descreva o cargo, o período em que a operação precisa de gente e a modalidade pretendida.
+              As datas não geram contrato. A busca só ordena os currículos. A formalização vem depois
+              da escolha. Hoje há {base} currículos aprovados na base.
             </p>
           </div>
 
@@ -237,7 +268,7 @@ export function ContratarFreelancer({ onLogout }: { onLogout: () => void }) {
             <div className="cf-grid">
               <div>
                 <label className="cf-field">
-                  <span>Tipo de profissional</span>
+                  <span>Cargo</span>
                   <select value={cargoId} onChange={(e) => aoMudarCargo(e.target.value)}>
                     {CATEGORIES.map((cat) => (
                       <optgroup key={cat.id} label={cat.label}>
@@ -279,10 +310,20 @@ export function ContratarFreelancer({ onLogout }: { onLogout: () => void }) {
                     ...state.enderecosEmpresa.map((e) => e.cidade),
                   ]}
                 />
+
+                <label className="cf-field">
+                  <span>Quantidade de profissionais</span>
+                  <input
+                    type="number"
+                    min={1}
+                    value={quantidade}
+                    onChange={(e) => setQuantidade(Number(e.target.value))}
+                  />
+                </label>
               </div>
 
               <div>
-                <p className="cf-label">Tempo de contrato</p>
+                <p className="cf-label">Período da necessidade</p>
                 <div className="cf-dates">
                   <label className="cf-field">
                     <span>Início</span>
@@ -293,23 +334,62 @@ export function ContratarFreelancer({ onLogout }: { onLogout: () => void }) {
                     <input type="date" value={fim} onChange={(e) => setFim(e.target.value)} />
                   </label>
                 </div>
-                <div className="cf-rule">
-                  {dias >= 1
-                    ? `Este pedido cobre ${dias} dia${dias === 1 ? '' : 's'}. `
-                    : 'Informe um período válido. '}
-                  Cada contrato tem começo e fim. A pessoa pode pegar outro contrato na mesma empresa
-                  em seguida, quando o anterior já tiver terminado. Dois contratos ao mesmo tempo, no
-                  mesmo período e na mesma empresa, não são oferecidos.
+                <p className="muted" style={{ marginTop: -6, marginBottom: 12 }}>
+                  {dias >= 1 ? `Duração: ${dias} dia${dias === 1 ? '' : 's'}.` : 'Informe um período válido.'}
+                </p>
+
+                <p className="cf-label">Jornada / turno</p>
+                <div className="cf-dates">
+                  <label className="cf-field">
+                    <span>Entrada</span>
+                    <input type="time" value={horaInicio} onChange={(e) => setHoraInicio(e.target.value)} />
+                  </label>
+                  <label className="cf-field">
+                    <span>Saída</span>
+                    <input type="time" value={horaFim} onChange={(e) => setHoraFim(e.target.value)} />
+                  </label>
                 </div>
 
                 <label className="cf-field">
-                  <span>Observações da operação</span>
+                  <span>Modalidade pretendida</span>
+                  <select
+                    value={modalidade}
+                    onChange={(e) => {
+                      const valor = e.target.value as ModalidadePretendida | ''
+                      setModalidade(valor)
+                      if (valor !== 'temporario') setProrrogacao(false)
+                      setResultados(null)
+                    }}
+                  >
+                    <option value="">Selecione</option>
+                    {MODALIDADES.map((item) => (
+                      <option key={item.id} value={item.id}>
+                        {item.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                {modalidade === 'temporario' && (
+                  <label className="cf-check">
+                    <input
+                      type="checkbox"
+                      checked={prorrogacao}
+                      onChange={(e) => setProrrogacao(e.target.checked)}
+                    />
+                    Este pedido é prorrogação do mesmo contrato temporário, não uma contratação nova
+                  </label>
+                )}
+                {modalidade && <p className="muted">{textoModalidade(modalidade)}</p>}
+
+                <label className="cf-field">
+                  <span>Observações</span>
                   <textarea
                     value={observacoes}
                     onChange={(e) => setObservacoes(e.target.value)}
-                    placeholder="Ex.: turno da noite, câmara fria, experiência com rota SP-Campinas, EAR."
+                    placeholder="Ex.: turno da noite, câmara fria, experiência com rota SP-Campinas."
                   />
                 </label>
+                <div className="cf-rule">{AVISO_PERIODO}</div>
               </div>
             </div>
 
@@ -328,8 +408,8 @@ export function ContratarFreelancer({ onLogout }: { onLogout: () => void }) {
                 {disponiveis.length} {disponiveis.length === 1 ? 'pessoa acompanha' : 'pessoas acompanham'} este pedido
               </h2>
               <p className="muted">
-                Cargo {cargoLabel(cargoId)}
-                {requisitos.length ? ` · ${requisitos.join(', ')}` : ''} · {dias} dia{dias === 1 ? '' : 's'} em {cidade || empresa.endereco.cidade}
+                {cargoLabel(cargoId)} · {quantidade} profissional{quantidade === 1 ? '' : 'is'} · {dias} dia{dias === 1 ? '' : 's'} · {horaInicio}–{horaFim} · {cidade || empresa.endereco.cidade}
+                {modalidade ? ` · ${MODALIDADES.find((m) => m.id === modalidade)?.label}` : ''}
               </p>
 
               <div className="cf-list">
@@ -351,10 +431,29 @@ export function ContratarFreelancer({ onLogout }: { onLogout: () => void }) {
                 )}
               </div>
 
+              {incompativeis.length > 0 && (
+                <>
+                  <h2 style={{ marginTop: 22 }}>Incompatíveis com a modalidade</h2>
+                  <p className="muted">O período ou o histórico nesta empresa não cabe na modalidade escolhida.</p>
+                  <div className="cf-list">
+                    {incompativeis.map((item) => (
+                      <PessoaCard
+                        key={item.profissional.id}
+                        item={item}
+                        aberto={aberto === item.profissional.id}
+                        onToggle={() =>
+                          setAberto((id) => (id === item.profissional.id ? null : item.profissional.id))
+                        }
+                      />
+                    ))}
+                  </div>
+                </>
+              )}
+
               {bloqueadosPeriodo.length > 0 && (
                 <>
                   <h2 style={{ marginTop: 22 }}>Fora deste período</h2>
-                  <p className="muted">Já têm contrato com a sua empresa nas mesmas datas.</p>
+                  <p className="muted">Já estão escalados na sua empresa dentro destas datas.</p>
                   <div className="cf-list">
                     {bloqueadosPeriodo.map((item) => (
                       <PessoaCard
@@ -388,12 +487,22 @@ function PessoaCard({
 }) {
   const p = item.profissional
   const pill =
-    item.situacao === 'sobreposto' ? 'cf-pill cf-pill--bad' : item.situacao === 'seguido' ? 'cf-pill cf-pill--warn' : 'cf-pill cf-pill--ok'
+    item.situacao === 'bloqueio' || item.situacao === 'sobreposto'
+      ? 'cf-pill cf-pill--bad'
+      : item.situacao === 'alerta'
+        ? 'cf-pill cf-pill--warn'
+        : 'cf-pill cf-pill--ok'
   const pillLabel =
-    item.situacao === 'sobreposto' ? 'Período ocupado' : item.situacao === 'seguido' ? 'Contrato seguido' : 'Pode contratar'
+    item.situacao === 'sobreposto'
+      ? 'Período ocupado'
+      : item.situacao === 'bloqueio'
+        ? 'Modalidade incompatível'
+        : item.situacao === 'alerta'
+          ? 'Ver ressalva'
+          : 'Seguir para seleção'
 
   return (
-    <article className={`cf-person ${item.situacao === 'sobreposto' ? 'cf-person--block' : ''}`}>
+    <article className={`cf-person ${item.situacao === 'sobreposto' || item.situacao === 'bloqueio' ? 'cf-person--block' : ''}`}>
       <div className="cf-score" aria-label={`Aderência ${item.score}`}>
         {item.score}
         <small>aderência</small>
