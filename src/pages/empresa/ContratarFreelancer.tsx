@@ -176,6 +176,21 @@ function gravarModelo(empresaId: string, modelo: ModeloMissao) {
   localStorage.setItem(chaveModelo(empresaId), JSON.stringify(modelo))
 }
 
+function formatarMoeda(entrada: string) {
+  const semSimbolo = entrada.replace(/R\$\s?/gi, '').trim()
+  if (!semSimbolo) return ''
+  const semMilhar = semSimbolo.replace(/\./g, '')
+  const [inteiroRaw, decimalRaw] = semMilhar.split(',')
+  let inteiro = (inteiroRaw || '').replace(/\D/g, '')
+  const decimal = (decimalRaw || '').replace(/\D/g, '')
+  if (decimal.length > 2) inteiro += decimal.slice(2)
+  if (!inteiro) return ''
+  const centavos = (decimal.length > 2 ? decimal.slice(0, 2) : decimal).padEnd(2, '0').slice(0, 2)
+  const numero = Number(`${Number(inteiro)}.${centavos}`)
+  if (!Number.isFinite(numero)) return ''
+  return numero.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+}
+
 function valorNumero(texto: string) {
   const match = texto.replace(/\./g, '').replace(',', '.').match(/\d+(?:\.\d+)?/)
   return match ? Number(match[0]) : 0
@@ -262,7 +277,7 @@ export function ContratarFreelancer({ onLogout }: { onLogout: () => void }) {
     setObservacoes(modelo.observacoes)
     setMotivo(modelo.motivo)
     setAtividades(modelo.atividades)
-    setRemuneracao(modelo.remuneracao)
+    setRemuneracao(formatarMoeda(modelo.remuneracao))
     setBeneficios(modelo.beneficios)
     setQuantidade(modelo.quantidade)
     setResultados(null)
@@ -576,9 +591,10 @@ export function ContratarFreelancer({ onLogout }: { onLogout: () => void }) {
                 <label className="cf-field">
                   <span>Remuneração prevista (R$)</span>
                   <input
+                    inputMode="decimal"
                     value={remuneracao}
-                    onChange={(e) => setRemuneracao(e.target.value)}
-                    placeholder="Ex.: 180 por dia"
+                    onChange={(e) => setRemuneracao(formatarMoeda(e.target.value))}
+                    placeholder="R$ 0,00"
                   />
                 </label>
 
