@@ -892,8 +892,21 @@ export function ContratarFreelancer({ onLogout }: { onLogout: () => void }) {
       </main>
       </div>
       {analisando && (
-        <div className="cf-analisando" role="status">
-          <p>Aguarda um momento. A IA está analisando os currículos para trazer os melhores profissionais para você.</p>
+        <div className="cf-analisando" role="status" aria-live="polite">
+          <div className="cf-analisando-card">
+            <div className="cf-radar" aria-hidden>
+              <span />
+              <span />
+              <span />
+              <i />
+            </div>
+            <p>Aguarda um momento. A IA está analisando os currículos para trazer os melhores profissionais para você.</p>
+            <ol className="cf-analisando-passos">
+              <li>Lendo os currículos</li>
+              <li>Conferindo os requisitos</li>
+              <li>Separando quem tem encaixe</li>
+            </ol>
+          </div>
         </div>
       )}
     </div>

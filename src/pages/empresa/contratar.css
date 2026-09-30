@@ -773,24 +773,135 @@
 .cf-analisando {
   position: fixed;
   inset: 0;
-  z-index: 40;
+  z-index: 120;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 24px;
-  background: rgba(0, 0, 0, 0.55);
+  background: rgb(0 0 0 / 0.42);
+  backdrop-filter: blur(3px);
 }
 
-.cf-analisando p {
-  max-width: 34rem;
+.cf-analisando-card {
+  width: min(32rem, 100%);
   margin: 0;
-  padding: 28px 26px;
-  border-radius: 18px;
-  background: #000;
-  color: #fff;
-  font-size: 1.2rem;
-  line-height: 1.45;
+  padding: 28px 26px 22px;
+  border-radius: 24px;
+  background: #fff;
+  color: #111;
   text-align: center;
+  box-shadow: 0 24px 70px rgb(0 0 0 / 0.28);
+  animation: cf-analisando-entra 0.35s ease;
+}
+
+.cf-analisando-card p {
+  margin: 0;
+  font-size: 1.15rem;
+  line-height: 1.45;
+  font-weight: 700;
+}
+
+.cf-radar {
+  position: relative;
+  width: 92px;
+  height: 92px;
+  margin: 0 auto 18px;
+}
+
+.cf-radar span {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 3px solid var(--brand-yellow);
+  animation: cf-radar-pulso 1.8s ease-out infinite;
+}
+
+.cf-radar span:nth-child(2) {
+  animation-delay: 0.45s;
+}
+
+.cf-radar span:nth-child(3) {
+  animation-delay: 0.9s;
+}
+
+.cf-radar i {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #000;
+  transform: translate(-50%, -50%);
+  box-shadow: 0 0 0 7px var(--brand-yellow);
+}
+
+.cf-analisando-passos {
+  list-style: none;
+  margin: 18px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.cf-analisando-passos li {
+  border-radius: 999px;
+  padding: 8px 12px;
+  background: #f3f4f6;
+  color: #5c6670;
+  font-size: 0.86rem;
+  font-weight: 800;
+  animation: cf-analisando-passo 2.4s ease-in-out infinite;
+}
+
+.cf-analisando-passos li:nth-child(2) {
+  animation-delay: 0.8s;
+}
+
+.cf-analisando-passos li:nth-child(3) {
+  animation-delay: 1.6s;
+}
+
+@keyframes cf-analisando-entra {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes cf-radar-pulso {
+  0% {
+    transform: scale(0.28);
+    opacity: 0.95;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 0;
+  }
+}
+
+@keyframes cf-analisando-passo {
+  0%,
+  100% {
+    background: #f3f4f6;
+    color: #5c6670;
+  }
+  35% {
+    background: var(--brand-yellow);
+    color: #000;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cf-analisando-card,
+  .cf-radar span,
+  .cf-analisando-passos li {
+    animation: none;
+  }
 }
 
 .cf-meta,
