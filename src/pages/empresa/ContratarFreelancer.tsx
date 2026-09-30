@@ -197,6 +197,15 @@ function valorNumero(texto: string) {
   return match ? Number(match[0]) : 0
 }
 
+const ABAS_EMPRESA = [
+  { id: 'missao', label: 'Vaga temporária' },
+  { id: 'missoes', label: 'Missões' },
+  { id: 'documentos', label: 'Documentação' },
+  { id: 'dados', label: 'Dados da empresa' },
+] as const
+
+type AbaEmpresa = (typeof ABAS_EMPRESA)[number]['id']
+
 const BENEFICIOS_OPCOES = [
   'Vale-transporte',
   'Vale-refeição',
@@ -253,7 +262,7 @@ export function ContratarFreelancer({ onLogout }: { onLogout: () => void }) {
   const [aberto, setAberto] = useState<string | null>(null)
   const [missaoId, setMissaoId] = useState<string | null>(null)
   const [modelo, setModelo] = useState<ModeloMissao | null>(() => lerModelo(empresa.id))
-  const [aba, setAba] = useState<'missao' | 'documentos'>('missao')
+  const [aba, setAba] = useState<AbaEmpresa>('missao')
   const empresaValidada = empresa.status === 'aprovada'
 
   useEffect(() => {
@@ -447,29 +456,36 @@ export function ContratarFreelancer({ onLogout }: { onLogout: () => void }) {
 
   return (
     <div className="cf-shell">
-      <header className="cf-top">
-        <div className="cf-brand">
+      <aside className="cf-side">
+        <div className="cf-side-brand">
           <img src={LOGO_DOCA_LIVRE_SRC} alt="Doca Livre" />
-          <div>
-            <strong>{empresa.nomeFantasia}</strong>
-            <span>Empresa tomadora</span>
-          </div>
+          <strong>{empresa.nomeFantasia}</strong>
+          <span>Empresa tomadora</span>
         </div>
-        <div className="cf-top-actions">
-          <button type="button" className="cf-ghost" onClick={() => setAba(aba === 'missao' ? 'documentos' : 'missao')}>
-            {aba === 'missao' ? 'Documentação' : 'Missão'}
-          </button>
-          <button type="button" className="cf-ghost" onClick={onLogout}>
-            Sair
-          </button>
-        </div>
-      </header>
+        <nav className="cf-side-nav" aria-label="Conta da empresa">
+          {ABAS_EMPRESA.map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              className={`cf-side-link ${aba === item.id ? 'cf-side-link--on' : ''}`}
+              aria-current={aba === item.id ? 'page' : undefined}
+              onClick={() => setAba(item.id)}
+            >
+              {item.label}
+            </button>
+          ))}
+        </nav>
+        <button type="button" className="cf-side-sair" onClick={onLogout}>
+          Sair
+        </button>
+      </aside>
 
       <main className="cf-main">
         <div className="cf-wrap">
-          {aba === 'documentos' ? (
-            <BibliotecaDocumental modo="tomadora" empresaId={empresa.id} />
-          ) : (
+          {aba === 'documentos' && <BibliotecaDocumental modo="tomadora" empresaId={empresa.id} />}
+          {aba === 'missoes' && <PainelMissoes empresaId={empresa.id} />}
+          {aba === 'dados' && <PainelDados />}
+          {aba === 'missao' && (
           <>
           <div className="cf-intro">
             <h1>Vaga temporária</h1>
@@ -777,6 +793,112 @@ export function ContratarFreelancer({ onLogout }: { onLogout: () => void }) {
       )}
     </div>
   )
+}
+
+function PainelMissoes({ empresaId }: { empresaId: string }) {
+  const { state } = useStore()
+  const missoes = state.demandas
+    .filter((demanda) => demanda.empresaId === empresaId)
+    .slice()
+    .sort((a, b) => b.data.localeCompare(a.data))
+
+  return (
+    <section className="cf-panel">
+      <div className="cf-intro">
+        <h1>Missões</h1>
+        <p>Vagas temporárias desta empresa e o andamento de cada convite.</p>
+      </div>
+      {missoes.length === 0 && (
+        <div className="cf-card">
+          <strong>Nenhuma missão ainda.</strong>
+          <p className="muted">A vaga nasce quando a empresa convida um profissional.</p>
+        </div>
+      )}
+      <div className="cf-mission-list">
+        {missoes.map((missao) => {
+          const convites = state.candidaturas.filter((c) => c.demandaId === missao.id)
+          return (
+            <article key={missao.id} className="cf-card cf-mission">
+              <div className="cf-mission-head">
+                <h2>{cargoLabel(missao.cargo)}</h2>
+                <span className={`cf-status cf-status--${missao.status}`}>{rotuloStatusMissao(missao.status)}</span>
+              </div>
+              <p>
+                {formatarDataBr(missao.data)}
+                {missao.dataFim ? ` a ${formatarDataBr(missao.dataFim)}` : ''} · {missao.horaInicio}–{missao.horaFim} ·{' '}
+                {missao.endereco.cidade}/{missao.endereco.estado}
+              </p>
+              <p>
+                {missao.quantidade} trabalhador{missao.quantidade === 1 ? '' : 'es'} ·{' '}
+                {missao.valorDiaria.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })} por dia
+              </p>
+              {convites.length === 0 ? (
+                <p className="muted">Nenhum convite nesta missão.</p>
+              ) : (
+                <ul className="cf-invite-list">
+                  {convites.map((convite) => {
+                    const nome = state.profissionais.find((p) => p.id === convite.profissionalId)?.nome ?? 'Trabalhador'
+                    return (
+                      <li key={convite.id}>
+                        <strong>{nome}</strong>
+                        <span>{rotuloConvite(convite.status)}</span>
+                      </li>
+                    )
+                  })}
+                </ul>
+              )}
+            </article>
+          )
+        })}
+      </div>
+    </section>
+  )
+}
+
+function PainelDados() {
+  const empresa = useStore().currentEmpresa!
+  const endereco = empresa.endereco
+  const campos = [
+    ['Nome fantasia', empresa.nomeFantasia],
+    ['Razão social', empresa.razaoSocial],
+    ['CNPJ', empresa.cnpj],
+    ['Responsável', `${empresa.responsavelNome} · ${empresa.responsavelCargo}`],
+    ['Telefone', empresa.telefone],
+    ['Endereço', `${endereco.rua}, ${endereco.numero} · ${endereco.cidade}/${endereco.estado}`],
+    ['Situação', empresa.status === 'aprovada' ? 'Validada' : empresa.status === 'bloqueada' ? 'Bloqueada' : 'Aguardando validação'],
+  ]
+
+  return (
+    <section className="cf-panel">
+      <div className="cf-intro">
+        <h1>Dados da empresa</h1>
+        <p>Cadastro da empresa tomadora usado nas missões temporárias.</p>
+      </div>
+      <dl className="cf-dados">
+        {campos.map(([rotulo, valor]) => (
+          <div key={rotulo}>
+            <dt>{rotulo}</dt>
+            <dd>{valor}</dd>
+          </div>
+        ))}
+      </dl>
+    </section>
+  )
+}
+
+function rotuloStatusMissao(status: string) {
+  if (status === 'em_andamento') return 'Em andamento'
+  if (status === 'finalizada') return 'Encerrada'
+  if (status === 'cancelada') return 'Cancelada'
+  return 'Aberta'
+}
+
+function rotuloConvite(status: string) {
+  if (status === 'aceita') return 'Tem interesse'
+  if (status === 'confirmada') return 'Contrato gerado'
+  if (status === 'recusada') return 'Sem interesse'
+  if (status === 'cancelada') return 'Cancelado'
+  return 'Convite enviado'
 }
 
 function PessoaCard({
