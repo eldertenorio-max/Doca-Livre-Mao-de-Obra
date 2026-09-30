@@ -624,12 +624,6 @@ export function ContratarFreelancer({ onLogout }: { onLogout: () => void }) {
             </div>
           </section>
 
-          {analisando && (
-            <section className="cf-analisando" role="status">
-              <p>Aguarda um momento. A IA está analisando os currículos para trazer os melhores profissionais para você.</p>
-            </section>
-          )}
-
           {resultados && (
             <section className="cf-results">
               <div className="cf-summary">
@@ -715,6 +709,11 @@ export function ContratarFreelancer({ onLogout }: { onLogout: () => void }) {
           )}
         </div>
       </main>
+      {analisando && (
+        <div className="cf-analisando" role="status">
+          <p>Aguarda um momento. A IA está analisando os currículos para trazer os melhores profissionais para você.</p>
+        </div>
+      )}
     </div>
   )
 }
