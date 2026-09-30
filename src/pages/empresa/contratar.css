@@ -836,24 +836,75 @@
 
 .cf-busca {
   position: relative;
-  width: 180px;
-  height: 120px;
+  width: 250px;
+  height: 168px;
   margin: 0 auto 8px;
-  overflow: visible;
+}
+
+.cf-folha {
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  z-index: 1;
+  width: 176px;
+  transform: translateX(-50%);
+  padding: 12px 14px 14px;
+  border: 1.5px solid #111;
+  border-radius: 12px;
+  background: #fffdf6;
+  box-shadow: 4px 5px 0 #111;
+  text-align: left;
+}
+
+.cf-folha strong {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 0.84rem;
+  font-weight: 800;
+}
+
+.cf-folha span {
+  display: block;
+  height: 6px;
+  margin-top: 7px;
+  border-radius: 999px;
+  background: #ece7d6;
+}
+
+.cf-folha span:nth-child(2) {
+  width: 72%;
+  background: #f9db00;
+}
+
+.cf-folha span:nth-child(3) {
+  width: 100%;
+}
+
+.cf-folha span:nth-child(4) {
+  width: 86%;
+}
+
+.cf-folha span:nth-child(5) {
+  width: 54%;
 }
 
 .cf-lupa-move {
-  width: 96px;
-  height: 96px;
-  margin: 0 auto;
-  animation: cf-lupa-busca 1.6s ease-in-out infinite;
-  transform-origin: 36px 36px;
+  position: absolute;
+  z-index: 2;
+  top: 22px;
+  left: 50%;
+  width: 84px;
+  height: 84px;
+  margin-left: -42px;
+  transform-origin: 34px 34px;
+  filter: drop-shadow(0 8px 6px rgb(0 0 0 / 0.18));
+  will-change: transform;
 }
 
 .cf-lupa {
   display: block;
-  width: 96px;
-  height: 96px;
+  width: 84px;
+  height: 84px;
   overflow: visible;
 }
 
@@ -880,8 +931,9 @@
 
 .cf-ia-selo {
   position: absolute;
-  right: 2px;
-  top: 8px;
+  z-index: 3;
+  right: 0;
+  top: 0;
   min-width: 34px;
   height: 34px;
   padding: 0 8px;
@@ -938,24 +990,6 @@
   }
 }
 
-@keyframes cf-lupa-busca {
-  0% {
-    transform: translate(-34px, 10px) rotate(-18deg);
-  }
-  20% {
-    transform: translate(-8px, -12px) rotate(-4deg);
-  }
-  45% {
-    transform: translate(22px, 2px) rotate(12deg);
-  }
-  70% {
-    transform: translate(36px, 14px) rotate(20deg);
-  }
-  100% {
-    transform: translate(-34px, 10px) rotate(-18deg);
-  }
-}
-
 @keyframes cf-ia-pulsa {
   0%,
   100% {
@@ -970,7 +1004,6 @@
 
 @media (prefers-reduced-motion: reduce) {
   .cf-analisando-card,
-  .cf-lupa-move,
   .cf-ia-estrela {
     animation: none;
   }
