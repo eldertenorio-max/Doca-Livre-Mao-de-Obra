@@ -4,10 +4,10 @@ import { CIDADES_OPERACAO } from '../../data/cidades'
 import { analisarCurriculos, requisitosDoCargo, type CurriculoAnalisado } from '../../lib/analiseCurriculo'
 import {
   AVISO_FORMALIZACAO,
-  MODALIDADES,
-  rotuloModalidade,
+  MOTIVOS_TEMPORARIOS,
+  rotuloMotivo,
   validarNecessidade,
-  type Modalidade,
+  type MotivoTemporario,
 } from '../../lib/modalidadeContratacao'
 import { LOGO_DOCA_LIVRE_SRC } from '../../lib/brandAssets'
 import { useStore } from '../../lib/store'
@@ -139,6 +139,12 @@ function CampoCidade({
   )
 }
 
+function formatarDataBr(iso: string) {
+  const [y, m, d] = iso.split('-')
+  if (!y || !m || !d) return iso
+  return `${d}/${m}/${y}`
+}
+
 function diasEntre(inicio: string, fim: string) {
   const a = new Date(`${inicio}T12:00:00`)
   const b = new Date(`${fim}T12:00:00`)
@@ -156,7 +162,10 @@ export function ContratarFreelancer({ onLogout }: { onLogout: () => void }) {
   const [horaInicio, setHoraInicio] = useState('08:00')
   const [horaFim, setHoraFim] = useState('18:00')
   const [quantidade, setQuantidade] = useState(1)
-  const [modalidade, setModalidade] = useState<Modalidade | ''>('')
+  const [motivo, setMotivo] = useState<MotivoTemporario | ''>('')
+  const [atividades, setAtividades] = useState('')
+  const [remuneracao, setRemuneracao] = useState('')
+  const [beneficios, setBeneficios] = useState('')
   const [cidade, setCidade] = useState(empresa.endereco.cidade)
   const [observacoes, setObservacoes] = useState('')
   const [erro, setErro] = useState('')
@@ -165,7 +174,7 @@ export function ContratarFreelancer({ onLogout }: { onLogout: () => void }) {
   const [selecionado, setSelecionado] = useState<CurriculoAnalisado | null>(null)
 
   const dias = diasEntre(inicio, fim)
-  const avisoModalidade = modalidade ? validarNecessidade(modalidade, inicio, fim) : null
+  const avisoPrazo = validarNecessidade('temporario', inicio, fim)
   const base = state.profissionais.filter((p) => p.status === 'aprovado').length
 
   const cargoAtual = useMemo(
@@ -191,19 +200,27 @@ export function ContratarFreelancer({ onLogout }: { onLogout: () => void }) {
       setErro('Escolha o cargo.')
       return
     }
-    if (!modalidade) {
-      setErro('Escolha a modalidade pretendida. As datas sozinhas não definem o tipo de contratação.')
+    if (!motivo) {
+      setErro('Informe o motivo da contratação temporária. Sem isso a missão não pode ser publicada.')
+      return
+    }
+    if (!atividades.trim()) {
+      setErro('Descreva as atividades que serão realizadas.')
+      return
+    }
+    if (!remuneracao.trim()) {
+      setErro('Informe a remuneração prevista. Ela entra no contrato com a empresa tomadora.')
       return
     }
     if (quantidade < 1) {
-      setErro('Informe quantos profissionais a operação precisa.')
+      setErro('Informe quantos trabalhadores a missão precisa.')
       return
     }
     if (!horaInicio || !horaFim) {
       setErro('Informe a jornada.')
       return
     }
-    const aviso = validarNecessidade(modalidade, inicio, fim)
+    const aviso = validarNecessidade('temporario', inicio, fim)
     if (aviso.nivel === 'bloqueio') {
       setErro(aviso.texto)
       return
@@ -218,10 +235,14 @@ export function ContratarFreelancer({ onLogout }: { onLogout: () => void }) {
         fim,
         cidade,
         observacoes,
-        modalidade,
+        modalidade: 'temporario',
         quantidade,
         horaInicio,
         horaFim,
+        motivo,
+        atividades,
+        remuneracao,
+        beneficios,
       },
       empresa,
       profissionais: state.profissionais,
@@ -243,7 +264,7 @@ export function ContratarFreelancer({ onLogout }: { onLogout: () => void }) {
           <img src={LOGO_DOCA_LIVRE_SRC} alt="Doca Livre" />
           <div>
             <strong>{empresa.nomeFantasia}</strong>
-            <span>Pedido de mão de obra</span>
+            <span>Empresa tomadora</span>
           </div>
         </div>
         <div className="cf-top-actions">
@@ -256,11 +277,11 @@ export function ContratarFreelancer({ onLogout }: { onLogout: () => void }) {
       <main className="cf-main">
         <div className="cf-wrap">
           <div className="cf-intro">
-            <h1>Necessidade de mão de obra</h1>
+            <h1>Preciso de trabalhadores temporários</h1>
             <p>
-              Informe o cargo, o local, o período, a jornada e a modalidade pretendida. As datas
-              descrevem a necessidade da operação. A contratação só é formalizada depois que você
-              escolhe a pessoa. Hoje há {base} currículos aprovados na base.
+              {empresa.nomeFantasia} pede a missão. A Doca Livre Mão de Obra, como empresa de trabalho
+              temporário, recruta o trabalhador e o coloca à disposição da tomadora. Hoje há {base}{' '}
+              currículos aprovados na base.
             </p>
           </div>
 
@@ -268,7 +289,7 @@ export function ContratarFreelancer({ onLogout }: { onLogout: () => void }) {
             <div className="cf-grid">
               <div>
                 <label className="cf-field">
-                  <span>Tipo de profissional</span>
+                  <span>Cargo / função</span>
                   <select value={cargoId} onChange={(e) => aoMudarCargo(e.target.value)}>
                     {CATEGORIES.map((cat) => (
                       <optgroup key={cat.id} label={cat.label}>
@@ -314,26 +335,7 @@ export function ContratarFreelancer({ onLogout }: { onLogout: () => void }) {
 
               <div>
                 <label className="cf-field">
-                  <span>Modalidade pretendida</span>
-                  <select
-                    value={modalidade}
-                    onChange={(e) => {
-                      setModalidade(e.target.value as Modalidade | '')
-                      setResultados(null)
-                      setSelecionado(null)
-                    }}
-                  >
-                    <option value="">Selecione</option>
-                    {MODALIDADES.map((item) => (
-                      <option key={item.id} value={item.id}>
-                        {item.label}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-
-                <label className="cf-field">
-                  <span>Quantidade de profissionais</span>
+                  <span>Quantidade de trabalhadores</span>
                   <input
                     type="number"
                     min={1}
@@ -342,20 +344,26 @@ export function ContratarFreelancer({ onLogout }: { onLogout: () => void }) {
                   />
                 </label>
 
-                <p className="cf-label">Período da necessidade</p>
+                <p className="cf-label">Período da missão temporária</p>
                 <div className="cf-dates">
                   <label className="cf-field">
                     <span>Início</span>
                     <input type="date" value={inicio} onChange={(e) => setInicio(e.target.value)} />
                   </label>
                   <label className="cf-field">
-                    <span>Fim</span>
+                    <span>Término previsto</span>
                     <input type="date" value={fim} onChange={(e) => setFim(e.target.value)} />
                   </label>
                 </div>
-                <p className="muted" style={{ marginTop: -6 }}>
-                  {dias >= 1 ? `Duração: ${dias} dia${dias === 1 ? '' : 's'}.` : 'Informe um período válido.'}
-                </p>
+                <div className={`cf-rule ${avisoPrazo.nivel === 'bloqueio' ? 'cf-rule--block' : ''}`}>
+                  <p>
+                    Período solicitado: {formatarDataBr(inicio)} a {formatarDataBr(fim)}
+                  </p>
+                  <p>Duração: {dias >= 1 ? `${dias} dia${dias === 1 ? '' : 's'}` : 'período inválido'}</p>
+                  <p>Limite legal: até 180 dias, consecutivos ou não.</p>
+                  <p>Prorrogação: até 90 dias, desde que permaneçam as condições que justificaram o trabalho temporário.</p>
+                  {avisoPrazo.nivel !== 'ok' && <p>{avisoPrazo.texto}</p>}
+                </div>
 
                 <p className="cf-label">Jornada / turno</p>
                 <div className="cf-dates">
@@ -369,10 +377,47 @@ export function ContratarFreelancer({ onLogout }: { onLogout: () => void }) {
                   </label>
                 </div>
 
-                <div className={`cf-rule ${avisoModalidade?.nivel === 'bloqueio' ? 'cf-rule--block' : ''}`}>
-                  <p>{AVISO_FORMALIZACAO}</p>
-                  {avisoModalidade && <p>{avisoModalidade.texto}</p>}
+                <p className="cf-label">Motivo da contratação temporária</p>
+                <div className="cf-checks">
+                  {MOTIVOS_TEMPORARIOS.map((item) => (
+                    <label key={item.id} className="cf-check">
+                      <input
+                        type="radio"
+                        name="motivo-temporario"
+                        checked={motivo === item.id}
+                        onChange={() => setMotivo(item.id)}
+                      />
+                      <span>{item.label}</span>
+                    </label>
+                  ))}
                 </div>
+
+                <label className="cf-field">
+                  <span>Atividades que serão realizadas</span>
+                  <textarea
+                    value={atividades}
+                    onChange={(e) => setAtividades(e.target.value)}
+                    placeholder="Descreva o que o trabalhador fará na tomadora durante a missão."
+                  />
+                </label>
+
+                <label className="cf-field">
+                  <span>Remuneração prevista (R$)</span>
+                  <input
+                    value={remuneracao}
+                    onChange={(e) => setRemuneracao(e.target.value)}
+                    placeholder="Ex.: 180 por dia"
+                  />
+                </label>
+
+                <label className="cf-field">
+                  <span>Benefícios</span>
+                  <input
+                    value={beneficios}
+                    onChange={(e) => setBeneficios(e.target.value)}
+                    placeholder="Ex.: vale-transporte, refeição no local"
+                  />
+                </label>
 
                 <label className="cf-field">
                   <span>Observações da operação</span>
@@ -385,28 +430,31 @@ export function ContratarFreelancer({ onLogout }: { onLogout: () => void }) {
               </div>
             </div>
 
+            <div className="cf-rule">
+              <p>{AVISO_FORMALIZACAO}</p>
+            </div>
             {erro && <p className="error">{erro}</p>}
             <div className="cf-actions">
               <button
                 type="button"
                 className="cf-primary"
                 onClick={analisar}
-                disabled={avisoModalidade?.nivel === 'bloqueio'}
+                disabled={avisoPrazo.nivel === 'bloqueio' || !motivo}
               >
-                Analisar currículos
+                Buscar para a missão
               </button>
-              <span className="muted">A ordem compara o pedido com cada currículo. A formalização vem depois.</span>
+              <span className="muted">Sem o motivo da temporariedade, a missão não segue.</span>
             </div>
           </section>
 
           {resultados && (
             <section className="cf-results">
               <h2>
-                {disponiveis.length} {disponiveis.length === 1 ? 'pessoa acompanha' : 'pessoas acompanham'} esta necessidade
+                {disponiveis.length} {disponiveis.length === 1 ? 'pessoa acompanha' : 'pessoas acompanham'} esta missão
               </h2>
               <p className="muted">
-                {cargoLabel(cargoId)} · {quantidade} profissional{quantidade === 1 ? '' : 'is'} · {dias} dia{dias === 1 ? '' : 's'} · {horaInicio}–{horaFim} · {cidade || empresa.endereco.cidade}
-                {modalidade ? ` · ${rotuloModalidade(modalidade)}` : ''}
+                {quantidade} {cargoLabel(cargoId)} · {dias} dia{dias === 1 ? '' : 's'} · {horaInicio}–{horaFim} · {cidade || empresa.endereco.cidade}
+                {motivo ? ` · ${rotuloMotivo(motivo)}` : ''}
                 {requisitos.length ? ` · ${requisitos.join(', ')}` : ''}
               </p>
 
@@ -432,8 +480,8 @@ export function ContratarFreelancer({ onLogout }: { onLogout: () => void }) {
 
               {bloqueadosPeriodo.length > 0 && (
                 <>
-                  <h2 style={{ marginTop: 22 }}>Fora desta modalidade ou deste período</h2>
-                  <p className="muted">A regra da modalidade pretendida não permite seguir com estas pessoas agora.</p>
+                  <h2 style={{ marginTop: 22 }}>Fora deste ciclo temporário</h2>
+                  <p className="muted">O prazo de 180 dias, a prorrogação de 90 ou a carência de 90 dias não permite nova missão agora.</p>
                   <div className="cf-list">
                     {bloqueadosPeriodo.map((item) => (
                       <PessoaCard
@@ -449,21 +497,24 @@ export function ContratarFreelancer({ onLogout }: { onLogout: () => void }) {
                 </>
               )}
 
-              {selecionado && modalidade && (
+              {selecionado && motivo && (
                 <div className="cf-card" style={{ marginTop: 16 }}>
-                  <h2 style={{ marginTop: 0 }}>Formalização, depois da escolha</h2>
+                  <h2 style={{ marginTop: 0 }}>Indicação para a missão temporária</h2>
                   <p>
-                    {selecionado.profissional.nome} foi indicado para a necessidade de {cargoLabel(cargoId)},{' '}
-                    {quantidade} profissional{quantidade === 1 ? '' : 'is'}, de {inicio.split('-').reverse().join('/')} a{' '}
-                    {fim.split('-').reverse().join('/')} ({horaInicio}–{horaFim}), em {cidade}.
+                    {selecionado.profissional.nome} pode ser colocado à disposição de {empresa.nomeFantasia} como
+                    trabalhador temporário: {cargoLabel(cargoId)}, {formatarDataBr(inicio)} a {formatarDataBr(fim)},{' '}
+                    {horaInicio}–{horaFim}, em {cidade}. Remuneração prevista: {remuneracao}.
                   </p>
                   <p>
-                    Modalidade pretendida: <strong>{rotuloModalidade(modalidade)}</strong>.
+                    Motivo: <strong>{rotuloMotivo(motivo)}</strong>.
                   </p>
+                  <p>{atividades}</p>
+                  {beneficios.trim() && <p>Benefícios: {beneficios}</p>}
                   <p className="muted">{selecionado.situacaoTexto}</p>
                   <p>
-                    O sistema não gera contrato trabalhista só porque existem data de início e fim. O próximo
-                    passo é a formalização própria dessa modalidade, com os requisitos legais dela.
+                    Quem contrata o trabalhador é a empresa de trabalho temporário. A tomadora recebe a pessoa
+                    pelo prazo e pelo motivo desta missão. O próximo passo é o contrato escrito entre as duas
+                    empresas e o contrato de trabalho temporário.
                   </p>
                 </div>
               )}
@@ -495,10 +546,10 @@ function PessoaCard({
         : 'cf-pill cf-pill--ok'
   const pillLabel =
     item.situacao === 'bloqueado'
-      ? 'Não segue nesta modalidade'
+      ? 'Fora do prazo temporário'
       : item.situacao === 'alerta'
-        ? 'Atenção na modalidade'
-        : 'Compatível com a modalidade'
+        ? 'Cabe só como prorrogação'
+        : 'Dentro dos 180 dias'
 
   return (
     <article className={`cf-person ${item.situacao === 'bloqueado' ? 'cf-person--block' : ''}`}>
@@ -549,7 +600,7 @@ function PessoaCard({
           </button>
           {onSelecionar && item.situacao !== 'bloqueado' && (
             <button type="button" className="cf-primary" onClick={onSelecionar}>
-              Selecionar para formalização
+              Indicar para a missão temporária
             </button>
           )}
         </div>

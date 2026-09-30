@@ -110,6 +110,10 @@ export type PedidoContratacao = {
   quantidade: number
   horaInicio: string
   horaFim: string
+  motivo: string
+  atividades: string
+  remuneracao: string
+  beneficios: string
 }
 
 export type CurriculoAnalisado = {
@@ -366,7 +370,7 @@ export function analisarCurriculos(params: {
       expRelacionada
         ? `No currículo: ${expRelacionada.cargo} na ${expRelacionada.empresa}, ${expRelacionada.descricao}.`
         : '',
-      `Necessidade de ${diasPedido} dia${diasPedido === 1 ? '' : 's'} (${formatarData(pedido.inicio)} a ${formatarData(pedido.fim)}), das ${pedido.horaInicio} às ${pedido.horaFim}.`,
+      `Missão temporária de ${diasPedido} dia${diasPedido === 1 ? '' : 's'} (${formatarData(pedido.inicio)} a ${formatarData(pedido.fim)}), das ${pedido.horaInicio} às ${pedido.horaFim}.`,
       seq.texto,
     ]
       .filter(Boolean)

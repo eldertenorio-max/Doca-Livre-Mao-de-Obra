@@ -25,8 +25,21 @@ export type AvisoModalidade = {
   texto: string
 }
 
+export const MOTIVOS_TEMPORARIOS = [
+  { id: 'substituicao', label: 'Substituição temporária de empregado' },
+  { id: 'complementar_imprevisivel', label: 'Demanda complementar imprevisível' },
+  { id: 'complementar_sazonal', label: 'Demanda complementar sazonal' },
+  { id: 'complementar_periodica', label: 'Demanda complementar periódica/intermitente' },
+] as const
+
+export type MotivoTemporario = (typeof MOTIVOS_TEMPORARIOS)[number]['id']
+
+export function rotuloMotivo(id: string) {
+  return MOTIVOS_TEMPORARIOS.find((m) => m.id === id)?.label ?? id
+}
+
 export const AVISO_FORMALIZACAO =
-  'Atenção: o período informado representa a necessidade da operação. A modalidade e a formalização da contratação devem observar a legislação trabalhista aplicável.'
+  'A Doca Livre Mão de Obra, neste fluxo, atua como empresa de trabalho temporário: recruta o trabalhador e o coloca à disposição da empresa tomadora. Essa atividade exige registro no Ministério do Trabalho, pelo SIRETT. O contrato com a tomadora é escrito e precisa trazer o motivo, o prazo, o valor da prestação e as regras de segurança e saúde.'
 
 export function diasInclusivos(inicio: string, fim: string) {
   const a = new Date(`${inicio}T12:00:00`)
