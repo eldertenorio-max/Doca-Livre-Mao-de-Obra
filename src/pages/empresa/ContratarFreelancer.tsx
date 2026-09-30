@@ -663,6 +663,29 @@ export function ContratarFreelancer({ onLogout }: { onLogout: () => void }) {
                     ...state.enderecosEmpresa.map((e) => e.cidade),
                   ]}
                 />
+
+                <p className="cf-label">Benefícios</p>
+                <div className="cf-checks cf-checks--duo">
+                  {BENEFICIOS_OPCOES.map((item) => (
+                    <label key={item} className="cf-check">
+                      <input
+                        type="checkbox"
+                        checked={beneficios.includes(item)}
+                        onChange={() => alternarBeneficio(item)}
+                      />
+                      <span>{item}</span>
+                    </label>
+                  ))}
+                </div>
+
+                <label className="cf-field">
+                  <span>Observações da operação</span>
+                  <textarea
+                    value={observacoes}
+                    onChange={(e) => setObservacoes(e.target.value)}
+                    placeholder="Ex.: turno da noite, câmara fria, experiência com rota SP-Campinas, EAR."
+                  />
+                </label>
               </div>
 
               <div>
@@ -743,28 +766,6 @@ export function ContratarFreelancer({ onLogout }: { onLogout: () => void }) {
                   />
                 </label>
 
-                <p className="cf-label">Benefícios</p>
-                <div className="cf-checks">
-                  {BENEFICIOS_OPCOES.map((item) => (
-                    <label key={item} className="cf-check">
-                      <input
-                        type="checkbox"
-                        checked={beneficios.includes(item)}
-                        onChange={() => alternarBeneficio(item)}
-                      />
-                      <span>{item}</span>
-                    </label>
-                  ))}
-                </div>
-
-                <label className="cf-field">
-                  <span>Observações da operação</span>
-                  <textarea
-                    value={observacoes}
-                    onChange={(e) => setObservacoes(e.target.value)}
-                    placeholder="Ex.: turno da noite, câmara fria, experiência com rota SP-Campinas, EAR."
-                  />
-                </label>
               </div>
             </div>
 

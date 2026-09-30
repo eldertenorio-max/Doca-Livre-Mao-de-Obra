@@ -400,6 +400,7 @@
   grid-template-columns: 1fr 1fr;
   gap: 28px 40px;
   width: 100%;
+  align-items: start;
 }
 
 .cf-field {
@@ -487,6 +488,12 @@
   flex-direction: column;
   gap: 8px;
   margin: 8px 0 14px;
+}
+
+.cf-checks--duo {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px 16px;
 }
 
 .cf-check {
@@ -1125,6 +1132,7 @@
 
   .cf-dados,
   .cf-grid,
+  .cf-checks--duo,
   .cf-dates,
   .cf-stat-row,
   .cf-gallery,
