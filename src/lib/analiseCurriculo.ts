@@ -20,6 +20,71 @@ export const REQUISITOS_BUSCA = [
   'GR',
 ] as const
 
+/** Opções e seleção inicial de cada cargo. A lista muda junto com o tipo. */
+const REQUISITOS_POR_CARGO: Record<string, { opcoes: string[]; padrao: string[] }> = {
+  motorista_cnh_b: { opcoes: ['CNH', 'EAR'], padrao: ['CNH'] },
+  motorista_vuc: { opcoes: ['CNH', 'EAR'], padrao: ['CNH'] },
+  motorista_toco: { opcoes: ['CNH', 'EAR', 'MOPP'], padrao: ['CNH'] },
+  motorista_truck: { opcoes: ['CNH', 'EAR', 'MOPP', 'GR'], padrao: ['CNH', 'GR'] },
+  carreteiro: { opcoes: ['CNH', 'EAR', 'MOPP', 'GR'], padrao: ['CNH', 'GR'] },
+  bitrem: { opcoes: ['CNH', 'EAR', 'MOPP', 'GR'], padrao: ['CNH', 'GR'] },
+  rodotrem: { opcoes: ['CNH', 'EAR', 'MOPP', 'GR'], padrao: ['CNH', 'GR'] },
+  mopp: { opcoes: ['CNH', 'EAR', 'MOPP', 'GR'], padrao: ['CNH', 'MOPP'] },
+  munck: { opcoes: ['CNH', 'Munck', 'NR11', 'NR35'], padrao: ['CNH', 'Munck'] },
+  auxiliar_logistica: { opcoes: ['Experiência em armazém', 'Turno noturno'], padrao: ['Experiência em armazém'] },
+  conferente: { opcoes: ['Experiência em conferência', 'Turno noturno'], padrao: ['Experiência em conferência'] },
+  separador: { opcoes: ['Experiência em separação', 'Turno noturno'], padrao: ['Experiência em separação'] },
+  estoquista: { opcoes: ['Experiência em estoque', 'Turno noturno'], padrao: ['Experiência em estoque'] },
+  expedidor: { opcoes: ['Experiência em expedição', 'Turno noturno'], padrao: ['Experiência em expedição'] },
+  recebimento: { opcoes: ['Experiência em recebimento', 'Turno noturno'], padrao: ['Experiência em recebimento'] },
+  inventarista: { opcoes: ['Experiência em inventário', 'Experiência em estoque'], padrao: ['Experiência em inventário'] },
+  empilhadeira: { opcoes: ['NR11', 'NR35'], padrao: ['NR11'] },
+  paleteira: { opcoes: ['NR11'], padrao: ['NR11'] },
+  ponte_rolante: { opcoes: ['Ponte Rolante', 'NR11', 'NR35'], padrao: ['Ponte Rolante'] },
+  guindaste: { opcoes: ['NR11', 'NR35', 'CNH'], padrao: ['NR11'] },
+  reach_stacker: { opcoes: ['NR11', 'NR35'], padrao: ['NR11'] },
+  ajudante_carga: { opcoes: ['Experiência em carga e descarga', 'Turno noturno'], padrao: ['Experiência em carga e descarga'] },
+  embalador: { opcoes: ['Experiência em embalagem'], padrao: ['Experiência em embalagem'] },
+  mecanico_diesel: { opcoes: ['Experiência em diesel', 'NR12'], padrao: ['Experiência em diesel'] },
+  eletricista: { opcoes: ['NR10', 'Experiência em elétrica'], padrao: ['NR10'] },
+  soldador: { opcoes: ['Experiência em solda', 'NR18'], padrao: ['Experiência em solda'] },
+  borracheiro: { opcoes: ['Experiência em pneus'], padrao: ['Experiência em pneus'] },
+  lavador_frota: { opcoes: ['Experiência em lavagem de frota'], padrao: ['Experiência em lavagem de frota'] },
+  analista_transporte: { opcoes: ['Experiência em transporte', 'TMS', 'Excel'], padrao: ['Experiência em transporte'] },
+  torre_controle: { opcoes: ['Experiência em torre de controle', 'TMS'], padrao: ['Experiência em torre de controle'] },
+  monitor_frota: { opcoes: ['Experiência em monitoramento de frota', 'CNH'], padrao: ['Experiência em monitoramento de frota'] },
+  controlador_patio: { opcoes: ['Experiência em pátio', 'NR11'], padrao: ['Experiência em pátio'] },
+}
+
+const CHAVES_REQUISITO: Record<string, string[]> = {
+  'Experiência em armazém': ['armazem', 'logistica', 'estoque'],
+  'Experiência em conferência': ['conferenc', 'conferente'],
+  'Experiência em separação': ['separac', 'separador', 'picker'],
+  'Experiência em estoque': ['estoque', 'estoquista'],
+  'Experiência em expedição': ['expedic', 'expedidor'],
+  'Experiência em recebimento': ['recebimento'],
+  'Experiência em inventário': ['inventar'],
+  'Experiência em carga e descarga': ['carga', 'descarga', 'ajudante'],
+  'Experiência em embalagem': ['embalag', 'embalador'],
+  'Experiência em diesel': ['diesel', 'mecanico'],
+  'Experiência em elétrica': ['eletric'],
+  'Experiência em solda': ['solda', 'soldador'],
+  'Experiência em pneus': ['pneu', 'borrache'],
+  'Experiência em lavagem de frota': ['lavagem', 'lavador', 'frota'],
+  'Experiência em transporte': ['transporte', 'frota', 'rota'],
+  TMS: ['tms'],
+  Excel: ['excel', 'planilha'],
+  'Experiência em torre de controle': ['torre', 'controle'],
+  'Experiência em monitoramento de frota': ['monitor', 'frota'],
+  'Experiência em pátio': ['patio', 'patío'],
+  NR12: ['nr12', 'nr-12'],
+  NR18: ['nr18', 'nr-18'],
+}
+
+export function requisitosDoCargo(cargoId: string) {
+  return REQUISITOS_POR_CARGO[cargoId] ?? { opcoes: [...REQUISITOS_BUSCA], padrao: [] }
+}
+
 const DOC_DO_REQUISITO: Record<string, string> = {
   CNH: 'cnh',
   EAR: 'cnh',
@@ -120,11 +185,27 @@ function documentoAprovado(documentos: DocumentoRegistro[], profissionalId: stri
   return true
 }
 
+function textoCurriculo(profissional: Profissional) {
+  return semAcento(
+    [
+      profissional.profissoes.map(cargoLabel).join(' '),
+      profissional.experiencia.map((e) => `${e.cargo} ${e.empresa} ${e.descricao}`).join(' '),
+      profissional.certificados.map((c) => c.tipo).join(' '),
+    ].join(' '),
+  )
+}
+
 function requisitoAtendido(
   profissional: Profissional,
   documentos: DocumentoRegistro[],
   requisito: string,
 ) {
+  if (requisito === 'Turno noturno') return profissional.disponibilidade.noturno
+  const chaves = CHAVES_REQUISITO[requisito]
+  if (chaves) {
+    const texto = textoCurriculo(profissional)
+    if (chaves.some((chave) => texto.includes(semAcento(chave)))) return true
+  }
   if (requisito === 'CNH') {
     const dias = daysUntil(profissional.cnhValidade)
     const cnhVigente = Boolean(profissional.cnhCategoria) && (dias === null || dias >= 0)

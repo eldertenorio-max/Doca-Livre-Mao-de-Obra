@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { CATEGORIES, cargoLabel } from '../../data/categories'
-import { analisarCurriculos, REQUISITOS_BUSCA, type CurriculoAnalisado } from '../../lib/analiseCurriculo'
+import { analisarCurriculos, requisitosDoCargo, type CurriculoAnalisado } from '../../lib/analiseCurriculo'
 import { LOGO_DOCA_LIVRE_SRC } from '../../lib/brandAssets'
 import { useStore } from '../../lib/store'
 import './contratar.css'
@@ -23,7 +23,7 @@ export function ContratarFreelancer({ onLogout }: { onLogout: () => void }) {
   const { currentEmpresa, state } = useStore()
   const empresa = currentEmpresa!
   const [cargoId, setCargoId] = useState('empilhadeira')
-  const [requisitos, setRequisitos] = useState<string[]>(['NR11'])
+  const [requisitos, setRequisitos] = useState<string[]>(() => requisitosDoCargo('empilhadeira').padrao)
   const [inicio, setInicio] = useState(dataLocal(1))
   const [fim, setFim] = useState(dataLocal(5))
   const [cidade, setCidade] = useState(empresa.endereco.cidade)
@@ -39,11 +39,11 @@ export function ContratarFreelancer({ onLogout }: { onLogout: () => void }) {
     () => CATEGORIES.flatMap((c) => c.cargos).find((c) => c.id === cargoId),
     [cargoId],
   )
+  const opcoesRequisito = requisitosDoCargo(cargoId).opcoes
 
   function aoMudarCargo(id: string) {
     setCargoId(id)
-    const cargo = CATEGORIES.flatMap((c) => c.cargos).find((c) => c.id === id)
-    setRequisitos(cargo?.requisitos ?? [])
+    setRequisitos(requisitosDoCargo(id).padrao)
     setResultados(null)
   }
 
@@ -133,11 +133,11 @@ export function ContratarFreelancer({ onLogout }: { onLogout: () => void }) {
 
                 <p className="cf-label">Requisitos que a pessoa deve ter</p>
                 <p className="muted">
-                  Sugestão do cargo{cargoAtual ? ` (${cargoAtual.label})` : ''}. Inclua ou retire o que
-                  esta operação exige.
+                  Requisitos de {cargoAtual?.label ?? 'este cargo'}. Os marcados já vêm com o tipo.
+                  Inclua ou retire o que esta operação exige.
                 </p>
                 <div className="cf-chips" style={{ margin: '8px 0 14px' }}>
-                  {REQUISITOS_BUSCA.map((req) => (
+                  {opcoesRequisito.map((req) => (
                     <button
                       key={req}
                       type="button"
