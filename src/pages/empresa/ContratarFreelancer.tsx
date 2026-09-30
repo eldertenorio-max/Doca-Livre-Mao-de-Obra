@@ -1063,7 +1063,13 @@ function PessoaCard({
           <h3>{p.nome}</h3>
           <p>{p.profissoes.map(cargoLabel).join(' · ')}</p>
         </div>
-        <span className={`cf-badge ${seloClasse}`}>{selo}</span>
+        <div className="cf-pro-marks">
+          <span className={`cf-badge ${seloClasse}`}>{selo}</span>
+          <span className="cf-nota" title="Quanto este profissional atende a vaga">
+            {item.score}
+            <small>/100</small>
+          </span>
+        </div>
       </div>
 
       <div className="cf-meta">
