@@ -19,9 +19,50 @@
 }
 
 .mapa-lado > p {
-  margin: 6px 0 14px;
+  margin: 6px 0 12px;
   color: #4b5563;
   font-weight: 700;
+}
+
+.mapa-filtros {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.mapa-raio {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 800;
+}
+
+.mapa-raio input {
+  width: 5.2rem;
+  padding: 8px 12px;
+  border: 1.5px solid #111;
+  border-radius: 999px;
+  font: inherit;
+  font-weight: 800;
+}
+
+.mapa-opcoes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.mapa-opcoes button {
+  padding: 6px 10px;
+  border: 1.5px solid #111;
+  border-radius: 999px;
+  background: #fff;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.mapa-opcoes button.on {
+  background: #f9db00;
 }
 
 .mapa-canvas {

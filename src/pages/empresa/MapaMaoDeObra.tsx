@@ -7,6 +7,8 @@ import type { Disponibilidade, Empresa, Profissional } from '../../lib/types'
 import 'leaflet/dist/leaflet.css'
 import './mapa.css'
 
+const RAIOS = [10, 25, 50, 100]
+
 const TURNOS: { key: keyof Disponibilidade; label: string }[] = [
   { key: 'hoje', label: 'Hoje' },
   { key: 'amanha', label: 'Amanhã' },
@@ -25,7 +27,9 @@ export function MapaMaoDeObra({ empresa }: { empresa: Empresa }) {
   const cardRef = useRef<HTMLDivElement>(null)
   const mapaRef = useRef<L.Map | null>(null)
   const marcasRef = useRef(new Map<string, L.Marker>())
+  const circuloRef = useRef<L.Circle | null>(null)
   const [selecionadoId, setSelecionadoId] = useState<string | null>(null)
+  const [raio, setRaio] = useState<number | null>(null)
 
   const pessoas = useMemo(() => {
     const bloqueados = new Set(empresa.bloqueados)
@@ -35,7 +39,12 @@ export function MapaMaoDeObra({ empresa }: { empresa: Empresa }) {
       .sort((a, b) => distanciaKm(empresa.endereco, a.endereco) - distanciaKm(empresa.endereco, b.endereco))
   }, [empresa.bloqueados, empresa.endereco, state.profissionais])
 
-  const selecionado = pessoas.find((pessoa) => pessoa.id === selecionadoId) ?? null
+  const visiveis = useMemo(() => {
+    if (raio == null) return pessoas
+    return pessoas.filter((pessoa) => distanciaKm(empresa.endereco, pessoa.endereco) <= raio)
+  }, [empresa.endereco, pessoas, raio])
+
+  const selecionado = visiveis.find((pessoa) => pessoa.id === selecionadoId) ?? null
 
   useEffect(() => {
     const el = telaRef.current
@@ -82,7 +91,7 @@ export function MapaMaoDeObra({ empresa }: { empresa: Empresa }) {
       limites.extend(sede.getLatLng())
     }
 
-    for (const pessoa of pessoas) {
+    for (const pessoa of visiveis) {
       const marca = L.marker([pessoa.endereco.lat, pessoa.endereco.lng], {
         icon: pinPessoa(pessoa.nome, false),
         title: pessoa.nome,
@@ -99,20 +108,41 @@ export function MapaMaoDeObra({ empresa }: { empresa: Empresa }) {
       limites.extend(marca.getLatLng())
     }
 
-    if (limites.isValid()) mapa.fitBounds(limites.pad(0.28), { padding: [28, 28], maxZoom: 12 })
-  }, [empresa, pessoas])
+    if (raio == null && limites.isValid()) mapa.fitBounds(limites.pad(0.28), { padding: [28, 28], maxZoom: 12 })
+  }, [empresa, raio, visiveis])
 
   useEffect(() => {
     const mapa = mapaRef.current
     if (!mapa) return
-    for (const pessoa of pessoas) {
+    circuloRef.current?.remove()
+    circuloRef.current = null
+    if (raio == null || !coordenadaEmpresa(empresa)) return
+    const circulo = L.circle([empresa.endereco.lat, empresa.endereco.lng], {
+      radius: raio * 1000,
+      color: '#111',
+      weight: 2,
+      fillColor: '#f9db00',
+      fillOpacity: 0.14,
+    }).addTo(mapa)
+    circuloRef.current = circulo
+    mapa.fitBounds(circulo.getBounds(), { padding: [24, 24] })
+    return () => {
+      circulo.remove()
+      if (circuloRef.current === circulo) circuloRef.current = null
+    }
+  }, [empresa, raio])
+
+  useEffect(() => {
+    const mapa = mapaRef.current
+    if (!mapa) return
+    for (const pessoa of visiveis) {
       const marca = marcasRef.current.get(pessoa.id)
       if (!marca) continue
       const ativo = pessoa.id === selecionadoId
       marca.setIcon(pinPessoa(pessoa.nome, ativo))
       marca.setZIndexOffset(ativo ? 800 : 0)
     }
-  }, [pessoas, selecionadoId])
+  }, [selecionadoId, visiveis])
 
   useLayoutEffect(() => {
     const mapa = mapaRef.current
@@ -144,10 +174,40 @@ export function MapaMaoDeObra({ empresa }: { empresa: Empresa }) {
       <aside className="mapa-lado">
         <h1>Mapa Mão de Obra</h1>
         <p>
-          {pessoas.length} {pessoas.length === 1 ? 'profissional aprovado' : 'profissionais aprovados'} no mapa.
+          {visiveis.length} {visiveis.length === 1 ? 'profissional' : 'profissionais'}
+          {raio == null ? ' no mapa' : ` em até ${raio} km`}.
         </p>
+        <div className="mapa-filtros">
+          <label className="mapa-raio">
+            <span>Raio</span>
+            <input
+              type="number"
+              min={1}
+              max={500}
+              inputMode="numeric"
+              value={raio ?? ''}
+              placeholder="km"
+              aria-label="Raio em quilômetros"
+              onChange={(event) => {
+                const valor = Number(event.target.value)
+                setRaio(event.target.value === '' || !Number.isFinite(valor) || valor <= 0 ? null : Math.min(500, valor))
+              }}
+            />
+            <span>km</span>
+          </label>
+          <div className="mapa-opcoes">
+            {RAIOS.map((km) => (
+              <button key={km} type="button" className={raio === km ? 'on' : ''} onClick={() => setRaio(km)}>
+                {km} km
+              </button>
+            ))}
+            <button type="button" className={raio == null ? 'on' : ''} onClick={() => setRaio(null)}>
+              Todos
+            </button>
+          </div>
+        </div>
         <ul className="mapa-lista">
-          {pessoas.map((pessoa) => (
+          {visiveis.map((pessoa) => (
             <li key={pessoa.id}>
               <button
                 type="button"
@@ -157,12 +217,12 @@ export function MapaMaoDeObra({ empresa }: { empresa: Empresa }) {
                 <strong>{pessoa.nome}</strong>
                 <span>
                   {pessoa.profissoes[0] ? cargoLabel(pessoa.profissoes[0]) : 'Trabalhador'} · {pessoa.endereco.cidade}/
-                  {pessoa.endereco.estado}
+                  {pessoa.endereco.estado} · {formatarDistancia(distanciaKm(empresa.endereco, pessoa.endereco))}
                 </span>
               </button>
             </li>
           ))}
-          {pessoas.length === 0 && <li className="mapa-vazio">Nenhum profissional com localização neste momento.</li>}
+          {visiveis.length === 0 && <li className="mapa-vazio">Nenhum profissional neste raio.</li>}
         </ul>
       </aside>
       <div className="mapa-palco">
