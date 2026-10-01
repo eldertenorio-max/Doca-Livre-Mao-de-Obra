@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import * as L from 'leaflet'
 import { cargoLabel } from '../../data/categories'
 import { abrirCurriculoPdf } from '../../lib/curriculoPdf'
@@ -22,6 +22,7 @@ const TURNOS: { key: keyof Disponibilidade; label: string }[] = [
 export function MapaMaoDeObra({ empresa }: { empresa: Empresa }) {
   const { state } = useStore()
   const telaRef = useRef<HTMLDivElement>(null)
+  const cardRef = useRef<HTMLDivElement>(null)
   const mapaRef = useRef<L.Map | null>(null)
   const marcasRef = useRef(new Map<string, L.Marker>())
   const [selecionadoId, setSelecionadoId] = useState<string | null>(null)
@@ -44,6 +45,11 @@ export function MapaMaoDeObra({ empresa }: { empresa: Empresa }) {
       maxZoom: 19,
       attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
     }).addTo(mapa)
+    mapa.on('click', (evento) => {
+      const alvo = (evento as L.LeafletMouseEvent).originalEvent?.target
+      if (alvo instanceof Element && alvo.closest('.mapa-pin')) return
+      setSelecionadoId(null)
+    })
     mapaRef.current = mapa
     const ajustar = () => mapa.invalidateSize()
     const quadro = window.requestAnimationFrame(ajustar)
@@ -83,7 +89,11 @@ export function MapaMaoDeObra({ empresa }: { empresa: Empresa }) {
         keyboard: true,
       })
       marca.bindTooltip(pessoa.nome, { direction: 'top', offset: [0, -16] })
-      marca.on('click', () => setSelecionadoId(pessoa.id))
+      marca.on('click', (evento) => {
+        const original = (evento as L.LeafletMouseEvent).originalEvent
+        if (original) L.DomEvent.stopPropagation(original)
+        setSelecionadoId(pessoa.id)
+      })
       marca.addTo(mapa)
       marcasRef.current.set(pessoa.id, marca)
       limites.extend(marca.getLatLng())
@@ -102,12 +112,32 @@ export function MapaMaoDeObra({ empresa }: { empresa: Empresa }) {
       marca.setIcon(pinPessoa(pessoa.nome, ativo))
       marca.setZIndexOffset(ativo ? 800 : 0)
     }
-    if (!selecionado) return
-    const destino: L.LatLngExpression = [selecionado.endereco.lat, selecionado.endereco.lng]
-    const reduzir = window.matchMedia('(prefers-reduced-motion: reduce)').matches
-    if (reduzir) mapa.setView(destino, Math.max(mapa.getZoom(), 12))
-    else mapa.flyTo(destino, Math.max(mapa.getZoom(), 12), { duration: 0.55 })
-  }, [pessoas, selecionado, selecionadoId])
+  }, [pessoas, selecionadoId])
+
+  useLayoutEffect(() => {
+    const mapa = mapaRef.current
+    const el = cardRef.current
+    if (!mapa || !el || !selecionado) return
+    const latlng = L.latLng(selecionado.endereco.lat, selecionado.endereco.lng)
+    const colocar = () => {
+      const ponto = mapa.latLngToContainerPoint(latlng)
+      const acima = ponto.y > 220
+      el.style.left = `${ponto.x}px`
+      el.style.top = `${ponto.y}px`
+      el.style.transform = acima ? 'translate(-50%, calc(-100% - 16px))' : 'translate(-50%, 22px)'
+      el.classList.toggle('mapa-flutuante--baixo', !acima)
+    }
+    const ponto = mapa.latLngToContainerPoint(latlng)
+    const tamanho = mapa.getSize()
+    const dx = ponto.x < 160 ? ponto.x - 160 : ponto.x > tamanho.x - 160 ? ponto.x - (tamanho.x - 160) : 0
+    const dy = ponto.y < 250 ? ponto.y - 250 : 0
+    if (dx !== 0 || dy !== 0) mapa.panBy([dx, dy], { animate: true })
+    colocar()
+    mapa.on('move zoom resize', colocar)
+    return () => {
+      mapa.off('move zoom resize', colocar)
+    }
+  }, [selecionado])
 
   return (
     <div className="mapa-page">
@@ -116,30 +146,37 @@ export function MapaMaoDeObra({ empresa }: { empresa: Empresa }) {
         <p>
           {pessoas.length} {pessoas.length === 1 ? 'profissional aprovado' : 'profissionais aprovados'} no mapa.
         </p>
-        {selecionado ? (
-          <FichaPessoa
-            pessoa={selecionado}
-            distancia={distanciaKm(empresa.endereco, selecionado.endereco)}
-            onFechar={() => setSelecionadoId(null)}
-          />
-        ) : (
-          <ul className="mapa-lista">
-            {pessoas.map((pessoa) => (
-              <li key={pessoa.id}>
-                <button type="button" onClick={() => setSelecionadoId(pessoa.id)}>
-                  <strong>{pessoa.nome}</strong>
-                  <span>
-                    {pessoa.profissoes[0] ? cargoLabel(pessoa.profissoes[0]) : 'Trabalhador'} · {pessoa.endereco.cidade}/
-                    {pessoa.endereco.estado}
-                  </span>
-                </button>
-              </li>
-            ))}
-            {pessoas.length === 0 && <li className="mapa-vazio">Nenhum profissional com localização neste momento.</li>}
-          </ul>
-        )}
+        <ul className="mapa-lista">
+          {pessoas.map((pessoa) => (
+            <li key={pessoa.id}>
+              <button
+                type="button"
+                className={pessoa.id === selecionadoId ? 'mapa-lista--on' : ''}
+                onClick={() => setSelecionadoId(pessoa.id)}
+              >
+                <strong>{pessoa.nome}</strong>
+                <span>
+                  {pessoa.profissoes[0] ? cargoLabel(pessoa.profissoes[0]) : 'Trabalhador'} · {pessoa.endereco.cidade}/
+                  {pessoa.endereco.estado}
+                </span>
+              </button>
+            </li>
+          ))}
+          {pessoas.length === 0 && <li className="mapa-vazio">Nenhum profissional com localização neste momento.</li>}
+        </ul>
       </aside>
-      <div className="mapa-canvas" ref={telaRef} />
+      <div className="mapa-palco">
+        <div className="mapa-canvas" ref={telaRef} />
+        {selecionado && (
+          <div className="mapa-flutuante" ref={cardRef}>
+            <FichaPessoa
+              pessoa={selecionado}
+              distancia={distanciaKm(empresa.endereco, selecionado.endereco)}
+              onFechar={() => setSelecionadoId(null)}
+            />
+          </div>
+        )}
+      </div>
     </div>
   )
 }
