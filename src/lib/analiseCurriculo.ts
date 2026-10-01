@@ -120,6 +120,9 @@ export type PedidoContratacao = {
   inicio: string
   fim: string
   cidade: string
+  estado?: string
+  raioKm?: number | null
+  origem?: { lat: number; lng: number }
   observacoes: string
   modalidade: Modalidade
   quantidade: number
@@ -348,6 +351,9 @@ export function analisarCurriculos(params: {
   const diasPedido = diasInclusivos(pedido.inicio, pedido.fim)
   const chavesObs = palavras(pedido.observacoes)
   const cidadePedida = semAcento(pedido.cidade.trim())
+  const estadoPedido = (pedido.estado ?? '').trim().toUpperCase()
+  const origem = pedido.origem ?? empresa.endereco
+  const limitePerto = pedido.raioKm != null && pedido.raioKm > 0 ? pedido.raioKm : 40
 
   const lista: CurriculoAnalisado[] = []
   let analisados = 0
@@ -355,6 +361,14 @@ export function analisarCurriculos(params: {
   for (const profissional of profissionais) {
     if (profissional.status !== 'aprovado') continue
     if (empresa.bloqueados.includes(profissional.id)) continue
+    if (estadoPedido && profissional.endereco.estado.toUpperCase() !== estadoPedido) continue
+
+    const mesmaCidade = cidadePedida
+      ? semAcento(profissional.endereco.cidade) === cidadePedida
+      : semAcento(profissional.endereco.cidade) === semAcento(empresa.endereco.cidade)
+    const distancia = haversineKm(origem, profissional.endereco)
+    if (pedido.raioKm != null && pedido.raioKm > 0 && !mesmaCidade && distancia > pedido.raioKm) continue
+
     analisados += 1
 
     const aderencias: string[] = []
@@ -419,18 +433,14 @@ export function analisarCurriculos(params: {
       falhas.push('Currículo sem experiência descrita.')
     }
 
-    const mesmaCidade = cidadePedida
-      ? semAcento(profissional.endereco.cidade) === cidadePedida
-      : semAcento(profissional.endereco.cidade) === semAcento(empresa.endereco.cidade)
-    const distancia = haversineKm(empresa.endereco, profissional.endereco)
     if (mesmaCidade) {
       score += 10
-      aderencias.push(`Mora em ${profissional.endereco.cidade}, a cidade pedida.`)
-    } else if (distancia <= 40) {
+      aderencias.push(`Mora em ${profissional.endereco.cidade}/${profissional.endereco.estado}, a cidade pedida.`)
+    } else if (distancia <= limitePerto) {
       score += 6
-      aderencias.push(`Mora em ${profissional.endereco.cidade}, a cerca de ${Math.round(distancia)} km.`)
+      aderencias.push(`Mora em ${profissional.endereco.cidade}/${profissional.endereco.estado}, a cerca de ${Math.round(distancia)} km.`)
     } else {
-      falhas.push(`Mora em ${profissional.endereco.cidade}, a cerca de ${Math.round(distancia)} km.`)
+      falhas.push(`Mora em ${profissional.endereco.cidade}/${profissional.endereco.estado}, a cerca de ${Math.round(distancia)} km.`)
     }
 
     const resumoDocs = resumoDocumental(
@@ -458,7 +468,7 @@ export function analisarCurriculos(params: {
         : 'Não atende requisito obrigatório',
       experiencia: expRelacionada || acertosObs.length ? 'Alta correspondência' : profissional.experiencia.length ? 'Correspondência parcial' : 'Sem experiência descrita',
       disponibilidade: disponivel ? 'Compatível' : 'Sem disponibilidade marcada',
-      localizacao: mesmaCidade || distancia <= 40 ? 'Compatível' : 'Distante da operação',
+      localizacao: mesmaCidade || distancia <= limitePerto ? 'Compatível' : 'Distante da operação',
       certificacoes: certsPedidas.length === 0 ? 'Nenhuma certificação exigida' : certsOk.length === certsPedidas.length ? 'Compatível' : 'Falta certificação',
     }
     const porque = obrigatoriosOk

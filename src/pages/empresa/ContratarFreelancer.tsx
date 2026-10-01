@@ -1,7 +1,7 @@
 import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'react'
 import { BibliotecaDocumental } from '../../components/BibliotecaDocumental'
 import { CATEGORIES, allCargos, cargoLabel } from '../../data/categories'
-import { CIDADES_OPERACAO } from '../../data/cidades'
+import { LOCAIS_OPERACAO } from '../../data/cidades'
 import { analisarCurriculos, requisitosDoCargo, rotuloAnos, type CurriculoAnalisado } from '../../lib/analiseCurriculo'
 import { abrirCurriculoPdf } from '../../lib/curriculoPdf'
 import { MapaMaoDeObra } from './MapaMaoDeObra'
@@ -18,6 +18,27 @@ import { BRAND_PRODUCT_NAME, LOGO_DOCA_LIVRE_SRC } from '../../lib/brandAssets'
 import { useStore } from '../../lib/store'
 import './contratar.css'
 
+function pontoOperacao(
+  cidade: string,
+  estado: string,
+  empresa: { endereco: { cidade: string; estado: string; lat: number; lng: number } },
+  locais: { cidade: string; estado: string; lat: number; lng: number }[],
+) {
+  const mesmaEmpresa =
+    semAcento(cidade || empresa.endereco.cidade) === semAcento(empresa.endereco.cidade) &&
+    (!estado || estado.toUpperCase() === empresa.endereco.estado.toUpperCase())
+  if (mesmaEmpresa && Number.isFinite(empresa.endereco.lat)) {
+    return { lat: empresa.endereco.lat, lng: empresa.endereco.lng }
+  }
+  const achou = locais.find((local) => {
+    const mesmaCidade = semAcento(local.cidade) === semAcento(cidade)
+    const mesmoEstado = !estado || local.estado.toUpperCase() === estado.toUpperCase()
+    return mesmaCidade && mesmoEstado && Number.isFinite(local.lat) && Number.isFinite(local.lng)
+  })
+  if (achou) return { lat: achou.lat, lng: achou.lng }
+  return { lat: empresa.endereco.lat, lng: empresa.endereco.lng }
+}
+
 function dataLocal(offsetDias = 0) {
   const d = new Date()
   d.setDate(d.getDate() + offsetDias)
@@ -29,35 +50,55 @@ function semAcento(value: string) {
   return value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
 }
 
+type LocalBusca = { cidade: string; estado: string }
+
+const RAIOS_BUSCA = [10, 25, 50, 100]
+
 function CampoCidade({
-  value,
+  cidade,
+  estado,
   onChange,
-  cidades,
+  locais,
 }: {
-  value: string
-  onChange: (cidade: string) => void
-  cidades: string[]
+  cidade: string
+  estado: string
+  onChange: (cidade: string, estado: string) => void
+  locais: LocalBusca[]
 }) {
   const listaId = useId()
   const caixa = useRef<HTMLDivElement>(null)
   const [aberta, setAberta] = useState(false)
   const [consulta, setConsulta] = useState('')
   const [destaque, setDestaque] = useState(0)
+  const texto = cidade ? `${cidade}${estado ? `/${estado}` : ''}` : ''
 
   const opcoes = useMemo(() => {
-    const unicas = [...new Set(cidades.map((c) => c.trim()).filter(Boolean))]
-    unicas.sort((a, b) => a.localeCompare(b, 'pt-BR'))
+    const unicas = new Map<string, LocalBusca>()
+    for (const local of locais) {
+      const nome = local.cidade.trim()
+      const uf = local.estado.trim().toUpperCase()
+      if (!nome || !uf) continue
+      if (estado && uf !== estado) continue
+      unicas.set(`${semAcento(nome)}|${uf}`, { cidade: nome, estado: uf })
+    }
+    const lista = [...unicas.values()]
     const termo = semAcento(consulta.trim())
-    if (!termo) return unicas
-    return unicas
-      .filter((cidade) => semAcento(cidade).includes(termo))
-      .sort((a, b) => {
-        const aComeca = semAcento(a).startsWith(termo) ? 0 : 1
-        const bComeca = semAcento(b).startsWith(termo) ? 0 : 1
+    const filtradas = termo
+      ? lista.filter((local) => {
+          const rotulo = semAcento(`${local.cidade}/${local.estado}`)
+          return rotulo.includes(termo) || semAcento(local.estado).startsWith(termo)
+        })
+      : lista
+    return filtradas.sort((a, b) => {
+      if (termo) {
+        const aComeca = semAcento(a.cidade).startsWith(termo) ? 0 : 1
+        const bComeca = semAcento(b.cidade).startsWith(termo) ? 0 : 1
         if (aComeca !== bComeca) return aComeca - bComeca
-        return a.localeCompare(b, 'pt-BR')
-      })
-  }, [cidades, consulta])
+      }
+      const porCidade = a.cidade.localeCompare(b.cidade, 'pt-BR')
+      return porCidade || a.estado.localeCompare(b.estado, 'pt-BR')
+    })
+  }, [consulta, estado, locais])
 
   useEffect(() => {
     setDestaque(0)
@@ -72,8 +113,8 @@ function CampoCidade({
     return () => document.removeEventListener('mousedown', fecharAoClicarFora)
   }, [aberta])
 
-  function escolher(cidade: string) {
-    onChange(cidade)
+  function escolher(local: LocalBusca) {
+    onChange(local.cidade, local.estado)
     setConsulta('')
     setAberta(false)
   }
@@ -87,8 +128,8 @@ function CampoCidade({
         aria-controls={listaId}
         aria-labelledby={`${listaId}-label`}
         aria-autocomplete="list"
-        value={aberta && consulta !== '' ? consulta : value}
-        placeholder="Clique para ver as cidades ou digite o nome"
+        value={aberta && consulta !== '' ? consulta : texto}
+        placeholder="Cidade ou cidade/estado"
         onClick={() => setAberta(true)}
         onFocus={(e) => {
           setConsulta('')
@@ -97,7 +138,6 @@ function CampoCidade({
         }}
         onChange={(e) => {
           setConsulta(e.target.value)
-          onChange(e.target.value)
           setAberta(true)
         }}
         onKeyDown={(e) => {
@@ -123,8 +163,8 @@ function CampoCidade({
       {aberta && (
         <ul className="cf-city-list" id={listaId} role="listbox">
           {opcoes.length === 0 && <li className="cf-city-empty muted">Nenhuma cidade com esse nome.</li>}
-          {opcoes.map((cidade, indice) => (
-            <li key={cidade}>
+          {opcoes.map((local, indice) => (
+            <li key={`${local.cidade}-${local.estado}`}>
               <button
                 type="button"
                 role="option"
@@ -132,9 +172,9 @@ function CampoCidade({
                 className={indice === destaque ? 'cf-city-list--on' : undefined}
                 onMouseEnter={() => setDestaque(indice)}
                 onMouseDown={(e) => e.preventDefault()}
-                onClick={() => escolher(cidade)}
+                onClick={() => escolher(local)}
               >
-                {cidade}
+                {local.cidade}/{local.estado}
               </button>
             </li>
           ))}
@@ -150,6 +190,8 @@ type ModeloMissao = {
   requisitos: string[]
   diferenciais: string[]
   cidade: string
+  estado?: string
+  raioKm?: number | null
   horaInicio: string
   horaFim: string
   observacoes: string
@@ -321,6 +363,20 @@ export function ContratarFreelancer({ onLogout }: { onLogout: () => void }) {
   const [remuneracao, setRemuneracao] = useState('')
   const [beneficios, setBeneficios] = useState<string[]>([])
   const [cidade, setCidade] = useState(empresa.endereco.cidade)
+  const [estado, setEstado] = useState(empresa.endereco.estado)
+  const [raioKm, setRaioKm] = useState<number | null>(null)
+  const locaisBusca = useMemo(() => {
+    const extras: LocalBusca[] = [
+      ...state.profissionais.map((pessoa) => ({ cidade: pessoa.endereco.cidade, estado: pessoa.endereco.estado })),
+      ...state.empresas.map((item) => ({ cidade: item.endereco.cidade, estado: item.endereco.estado })),
+      ...state.enderecosEmpresa.map((item) => ({ cidade: item.cidade, estado: item.uf })),
+    ]
+    return [...LOCAIS_OPERACAO, ...extras]
+  }, [state.enderecosEmpresa, state.empresas, state.profissionais])
+  const ufs = useMemo(
+    () => [...new Set(locaisBusca.map((local) => local.estado.toUpperCase()).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'pt-BR')),
+    [locaisBusca],
+  )
   const [observacoes, setObservacoes] = useState('')
   const [erro, setErro] = useState('')
   const [analisando, setAnalisando] = useState(false)
@@ -391,6 +447,8 @@ export function ContratarFreelancer({ onLogout }: { onLogout: () => void }) {
     setRequisitos(modelo.requisitos)
     setDiferenciais(modelo.diferenciais)
     setCidade(modelo.cidade)
+    setEstado(modelo.estado || empresa.endereco.estado)
+    setRaioKm(modelo.raioKm ?? null)
     setHoraInicio(modelo.horaInicio)
     setHoraFim(modelo.horaFim)
     setObservacoes(modelo.observacoes)
@@ -445,11 +503,13 @@ export function ContratarFreelancer({ onLogout }: { onLogout: () => void }) {
     }
     setErro('')
     const salvo: ModeloMissao = {
-      titulo: `${cargoLabel(cargoId)} — ${cidade || empresa.endereco.cidade}`,
+      titulo: `${cargoLabel(cargoId)} — ${cidade || empresa.endereco.cidade}${estado ? `/${estado}` : ''}`,
       cargoId,
       requisitos,
       diferenciais,
       cidade,
+      estado,
+      raioKm,
       horaInicio,
       horaFim,
       observacoes,
@@ -474,6 +534,12 @@ export function ContratarFreelancer({ onLogout }: { onLogout: () => void }) {
         inicio,
         fim,
         cidade,
+        estado,
+        raioKm,
+        origem: pontoOperacao(cidade, estado, empresa, [
+          ...state.empresas.map((item) => item.endereco),
+          ...state.profissionais.map((item) => item.endereco),
+        ]),
         observacoes,
         modalidade: 'temporario',
         quantidade,
@@ -515,7 +581,15 @@ export function ContratarFreelancer({ onLogout }: { onLogout: () => void }) {
             dataFim: fim,
             horaInicio,
             horaFim,
-            endereco: { ...empresa.endereco, cidade: cidadeMissao },
+            endereco: {
+              ...empresa.endereco,
+              cidade: cidadeMissao,
+              estado: estado || empresa.endereco.estado,
+              ...pontoOperacao(cidadeMissao, estado, empresa, [
+                ...state.empresas.map((item) => item.endereco),
+                ...state.profissionais.map((item) => item.endereco),
+              ]),
+            },
             valorDiaria: valorNumero(remuneracao),
             descricao: atividades,
             epis: beneficiosTexto,
@@ -686,16 +760,71 @@ export function ContratarFreelancer({ onLogout }: { onLogout: () => void }) {
                   ))}
                 </div>
 
-                <CampoCidade
-                  value={cidade}
-                  onChange={setCidade}
-                  cidades={[
-                    ...CIDADES_OPERACAO,
-                    ...state.profissionais.map((p) => p.endereco.cidade),
-                    ...state.empresas.map((e) => e.endereco.cidade),
-                    ...state.enderecosEmpresa.map((e) => e.cidade),
-                  ]}
-                />
+                <div className="cf-local">
+                  <label className="cf-field">
+                    <span>Estado</span>
+                    <select
+                      value={estado}
+                      onChange={(event) => {
+                        const uf = event.target.value
+                        setEstado(uf)
+                        if (uf) {
+                          const cabe = locaisBusca.some(
+                            (local) => semAcento(local.cidade) === semAcento(cidade) && local.estado.toUpperCase() === uf,
+                          )
+                          if (!cabe) setCidade('')
+                        }
+                      }}
+                    >
+                      <option value="">Todos</option>
+                      {ufs.map((uf) => (
+                        <option key={uf} value={uf}>
+                          {uf}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <CampoCidade
+                    cidade={cidade}
+                    estado={estado}
+                    onChange={(proximaCidade, proximoEstado) => {
+                      setCidade(proximaCidade)
+                      setEstado(proximoEstado)
+                    }}
+                    locais={locaisBusca}
+                  />
+                  <div className="cf-raio">
+                    <label className="cf-field">
+                      <span>Raio de busca</span>
+                      <span className="cf-raio-linha">
+                        <input
+                          type="number"
+                          min={1}
+                          max={500}
+                          inputMode="numeric"
+                          value={raioKm ?? ''}
+                          placeholder="km"
+                          aria-label="Raio de busca em quilômetros"
+                          onChange={(event) => {
+                            const valor = Number(event.target.value)
+                            setRaioKm(event.target.value === '' || !Number.isFinite(valor) || valor <= 0 ? null : Math.min(500, valor))
+                          }}
+                        />
+                        <span>km</span>
+                      </span>
+                    </label>
+                    <div className="cf-opcoes">
+                      {RAIOS_BUSCA.map((km) => (
+                        <button key={km} type="button" className={raioKm === km ? 'on' : ''} onClick={() => setRaioKm(km)}>
+                          {km} km
+                        </button>
+                      ))}
+                      <button type="button" className={raioKm == null ? 'on' : ''} onClick={() => setRaioKm(null)}>
+                        Todos
+                      </button>
+                    </div>
+                  </div>
+                </div>
 
                 <p className="cf-label">Benefícios</p>
                 <div className="cf-checks cf-checks--duo">
@@ -849,7 +978,8 @@ export function ContratarFreelancer({ onLogout }: { onLogout: () => void }) {
                 </article>
               </div>
               <p className="cf-mission-chip">
-                {quantidade} {cargoLabel(cargoId)} · {dias} dia{dias === 1 ? '' : 's'} · {horaInicio}–{horaFim} · {cidade || empresa.endereco.cidade}
+                {quantidade} {cargoLabel(cargoId)} · {dias} dia{dias === 1 ? '' : 's'} · {horaInicio}–{horaFim} · {cidade || empresa.endereco.cidade}{estado ? `/${estado}` : ''}
+                {raioKm != null ? ` · até ${raioKm} km` : ''}
                 {motivo ? ` · ${rotuloMotivo(motivo)}` : ''}
               </p>
 

@@ -431,8 +431,51 @@
   resize: vertical;
 }
 
-.cf-city {
+.cf-local {
+  display: grid;
+  grid-template-columns: 7.5rem minmax(0, 1fr);
+  gap: 12px 16px;
+  align-items: start;
+}
+
+.cf-local .cf-city {
   position: relative;
+  margin-bottom: 0;
+}
+
+.cf-raio {
+  grid-column: 1 / -1;
+}
+
+.cf-raio-linha {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 800;
+}
+
+.cf-raio-linha input {
+  width: 5.4rem;
+}
+
+.cf-opcoes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.cf-opcoes button {
+  padding: 6px 10px;
+  border: 1.5px solid #111;
+  border-radius: 999px;
+  background: #fff;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.cf-opcoes button.on {
+  background: #f9db00;
 }
 
 .cf-city-list {
@@ -1249,5 +1292,9 @@
 
   .cf-main {
     padding: 18px 14px 40px;
+  }
+
+  .cf-local {
+    grid-template-columns: 1fr;
   }
 }
