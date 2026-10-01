@@ -1,4 +1,4 @@
-import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type ChangeEvent, type ReactNode } from 'react'
 import { BibliotecaDocumental } from '../../components/BibliotecaDocumental'
 import { CATEGORIES, allCargos, cargoLabel } from '../../data/categories'
 import { LOCAIS_OPERACAO } from '../../data/cidades'
@@ -220,19 +220,42 @@ function gravarModelo(empresaId: string, modelo: ModeloMissao) {
   localStorage.setItem(chaveModelo(empresaId), JSON.stringify(modelo))
 }
 
-function formatarMoeda(entrada: string) {
-  const semSimbolo = entrada.replace(/R\$\s?/gi, '').trim()
-  if (!semSimbolo) return ''
-  const semMilhar = semSimbolo.replace(/\./g, '')
-  const [inteiroRaw, decimalRaw] = semMilhar.split(',')
-  let inteiro = (inteiroRaw || '').replace(/\D/g, '')
-  const decimal = (decimalRaw || '').replace(/\D/g, '')
-  if (decimal.length > 2) inteiro += decimal.slice(2)
-  if (!inteiro) return ''
-  const centavos = (decimal.length > 2 ? decimal.slice(0, 2) : decimal).padEnd(2, '0').slice(0, 2)
-  const numero = Number(`${Number(inteiro)}.${centavos}`)
+function formatarMoedaDigitando(entrada: string) {
+  const limpo = entrada.replace(/R\$\s?/gi, '').replace(/[^\d,]/g, '')
+  if (!limpo) return ''
+  const temVirgula = limpo.includes(',')
+  const [inteiroRaw, ...resto] = limpo.split(',')
+  const inteiro = inteiroRaw.replace(/\D/g, '').replace(/^0+(?=\d)/, '')
+  const decimal = resto.join('').replace(/\D/g, '').slice(0, 2)
+  if (!inteiro && !temVirgula) return ''
+  const inteiroFmt = (inteiro || '0').replace(/\B(?=(\d{3})+(?!\d))/g, '.')
+  if (!temVirgula) return `R$ ${inteiroFmt}`
+  return `R$ ${inteiroFmt},${decimal}`
+}
+
+function finalizarMoeda(entrada: string) {
+  const parcial = formatarMoedaDigitando(entrada)
+  if (!parcial) return ''
+  const semSimbolo = parcial.replace(/R\$\s?/g, '')
+  const [inteiroRaw, decimalRaw = ''] = semSimbolo.split(',')
+  const inteiro = inteiroRaw.replace(/\./g, '') || '0'
+  const centavos = decimalRaw.padEnd(2, '0').slice(0, 2)
+  const numero = Number(`${inteiro}.${centavos}`)
   if (!Number.isFinite(numero)) return ''
   return numero.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+}
+
+function posicaoAposDigitos(texto: string, digitos: number) {
+  if (digitos <= 0) return texto.startsWith('R$') ? 3 : 0
+  let vistos = 0
+  for (let i = 0; i < texto.length; i++) {
+    const codigo = texto.charCodeAt(i)
+    if (codigo >= 48 && codigo <= 57) {
+      vistos += 1
+      if (vistos === digitos) return i + 1
+    }
+  }
+  return texto.length
 }
 
 function valorNumero(texto: string) {
@@ -361,6 +384,8 @@ export function ContratarFreelancer({ onLogout }: { onLogout: () => void }) {
   const [motivo, setMotivo] = useState<MotivoTemporario | ''>('')
   const [atividades, setAtividades] = useState('')
   const [remuneracao, setRemuneracao] = useState('')
+  const remuneracaoRef = useRef<HTMLInputElement>(null)
+  const cursorRemuneracao = useRef<number | null>(null)
   const [beneficios, setBeneficios] = useState<string[]>([])
   const [cidade, setCidade] = useState(empresa.endereco.cidade)
   const [estado, setEstado] = useState(empresa.endereco.estado)
@@ -416,6 +441,35 @@ export function ContratarFreelancer({ onLogout }: { onLogout: () => void }) {
     return () => mq.removeEventListener('change', atualizar)
   }, [])
 
+  useLayoutEffect(() => {
+    const el = remuneracaoRef.current
+    const pos = cursorRemuneracao.current
+    if (!el || pos == null || document.activeElement !== el) return
+    cursorRemuneracao.current = null
+    el.setSelectionRange(pos, pos)
+  }, [remuneracao])
+
+  function aoDigitarRemuneracao(event: ChangeEvent<HTMLInputElement>) {
+    const bruto = event.target.value
+    const cursor = event.target.selectionStart ?? bruto.length
+    const decimalAnterior = remuneracao.includes(',') ? (remuneracao.split(',')[1] ?? '') : ''
+    const apagouVirgula =
+      decimalAnterior.length > 0 &&
+      !bruto.includes(',') &&
+      bruto.replace(/\D/g, '') === remuneracao.replace(/\D/g, '')
+    const formatado = formatarMoedaDigitando(apagouVirgula ? remuneracao : bruto)
+    const digitosAntes = bruto.slice(0, cursor).replace(/\D/g, '').length
+    const virgula = formatado.indexOf(',')
+    const pos = apagouVirgula && virgula >= 0 ? virgula + 1 : posicaoAposDigitos(formatado, digitosAntes)
+    if (formatado === remuneracao) {
+      event.target.value = formatado
+      event.target.setSelectionRange(pos, pos)
+      return
+    }
+    cursorRemuneracao.current = pos
+    setRemuneracao(formatado)
+  }
+
   const menuAberto = menuFixo || (!telaEstreita && menuHover)
 
   const dias = diasEntre(inicio, fim)
@@ -454,7 +508,7 @@ export function ContratarFreelancer({ onLogout }: { onLogout: () => void }) {
     setObservacoes(modelo.observacoes)
     setMotivo(modelo.motivo)
     setAtividades(modelo.atividades)
-    setRemuneracao(formatarMoeda(modelo.remuneracao))
+    setRemuneracao(finalizarMoeda(modelo.remuneracao))
     setBeneficios(beneficiosDoTexto(modelo.beneficios))
     setQuantidade(modelo.quantidade)
     setResultados(null)
@@ -484,10 +538,12 @@ export function ContratarFreelancer({ onLogout }: { onLogout: () => void }) {
       setErro('Descreva as atividades que serão realizadas.')
       return
     }
-    if (!remuneracao.trim()) {
+    const remuneracaoFinal = finalizarMoeda(remuneracao)
+    if (!remuneracaoFinal) {
       setErro('Informe a remuneração prevista. Ela entra no contrato com a empresa tomadora.')
       return
     }
+    setRemuneracao(remuneracaoFinal)
     if (quantidade < 1) {
       setErro('Informe quantos trabalhadores a missão precisa.')
       return
@@ -515,7 +571,7 @@ export function ContratarFreelancer({ onLogout }: { onLogout: () => void }) {
       observacoes,
       motivo,
       atividades,
-      remuneracao,
+      remuneracao: remuneracaoFinal,
       beneficios: beneficiosTexto,
       quantidade,
     }
@@ -547,7 +603,7 @@ export function ContratarFreelancer({ onLogout }: { onLogout: () => void }) {
         horaFim,
         motivo,
         atividades,
-        remuneracao,
+        remuneracao: remuneracaoFinal,
         beneficios: beneficiosTexto,
       },
       empresa,
@@ -590,7 +646,7 @@ export function ContratarFreelancer({ onLogout }: { onLogout: () => void }) {
                 ...state.profissionais.map((item) => item.endereco),
               ]),
             },
-            valorDiaria: valorNumero(remuneracao),
+            valorDiaria: valorNumero(finalizarMoeda(remuneracao)),
             descricao: atividades,
             epis: beneficiosTexto,
             observacoes,
@@ -921,9 +977,11 @@ export function ContratarFreelancer({ onLogout }: { onLogout: () => void }) {
                 <label className="cf-field">
                   <span>Remuneração prevista (R$)</span>
                   <input
+                    ref={remuneracaoRef}
                     inputMode="decimal"
                     value={remuneracao}
-                    onChange={(e) => setRemuneracao(formatarMoeda(e.target.value))}
+                    onChange={aoDigitarRemuneracao}
+                    onBlur={() => setRemuneracao((atual) => finalizarMoeda(atual))}
                     placeholder="R$ 0,00"
                   />
                 </label>
