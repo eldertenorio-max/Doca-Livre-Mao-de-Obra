@@ -97,7 +97,7 @@ export function MapaMaoDeObra({ empresa }: { empresa: Empresa }) {
         title: pessoa.nome,
         keyboard: true,
       })
-      marca.bindTooltip(pessoa.nome, { direction: 'top', offset: [0, -16] })
+      marca.bindTooltip(pessoa.nome, { direction: 'top', offset: [0, -22] })
       marca.on('click', (evento) => {
         const original = (evento as L.LeafletMouseEvent).originalEvent
         if (original) L.DomEvent.stopPropagation(original)
@@ -356,15 +356,18 @@ function escapar(texto: string) {
 }
 
 function pinPessoa(nome: string, ativo: boolean, foto?: string) {
-  const miolo = foto
-    ? `<img src="${escapar(foto)}" alt="" />`
-    : `<span>${escapar(iniciaisDe(nome))}</span>`
+  const retrato = foto ? ` style="background-image:url('${urlCss(foto)}')"` : ''
+  const miolo = foto ? '' : `<span>${escapar(iniciaisDe(nome))}</span>`
   return L.divIcon({
     className: 'mapa-pin-wrap',
-    html: `<div class="mapa-pin${ativo ? ' mapa-pin--on' : ''}">${miolo}</div>`,
-    iconSize: [48, 48],
-    iconAnchor: [24, 24],
+    html: `<div class="mapa-pin${ativo ? ' mapa-pin--on' : ''}"${retrato}>${miolo}</div>`,
+    iconSize: [56, 56],
+    iconAnchor: [28, 28],
   })
+}
+
+function urlCss(valor: string) {
+  return valor.replace(/['"\\()\s]/g, '')
 }
 
 function pinSede() {
