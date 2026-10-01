@@ -4,6 +4,7 @@ import { CATEGORIES, allCargos, cargoLabel } from '../../data/categories'
 import { CIDADES_OPERACAO } from '../../data/cidades'
 import { analisarCurriculos, requisitosDoCargo, rotuloAnos, type CurriculoAnalisado } from '../../lib/analiseCurriculo'
 import { abrirCurriculoPdf } from '../../lib/curriculoPdf'
+import { MapaMaoDeObra } from './MapaMaoDeObra'
 import { checklistProfissional, resumoDocumental } from '../../lib/documentos'
 import type { DocumentoRegistro } from '../../lib/types'
 import {
@@ -200,6 +201,7 @@ function valorNumero(texto: string) {
 const ABAS_EMPRESA = [
   { id: 'missao', label: 'Vaga temporária', icon: <IconeVaga /> },
   { id: 'missoes', label: 'Missões', icon: <IconeMissoes /> },
+  { id: 'mapa', label: 'Mapa Mão de Obra', icon: <IconeMapa /> },
   { id: 'contratacoes', label: 'Minhas contratações', icon: <IconeContratacoes /> },
   { id: 'documentos', label: 'Documentação', icon: <IconeDocs /> },
   { id: 'dados', label: 'Dados da empresa', icon: <IconeEmpresa /> },
@@ -244,6 +246,15 @@ function IconeMissoes() {
       <path d="M3 16V8h10v8M13 11h4l3 3v2h-7" stroke="currentColor" strokeWidth="1.75" strokeLinejoin="round" />
       <circle cx="7" cy="16.5" r="1.5" stroke="currentColor" strokeWidth="1.75" />
       <circle cx="17" cy="16.5" r="1.5" stroke="currentColor" strokeWidth="1.75" />
+    </IconeBase>
+  )
+}
+
+function IconeMapa() {
+  return (
+    <IconeBase>
+      <path d="M12 21s6.5-5.6 6.5-10.2a6.5 6.5 0 1 0-13 0C5.5 15.4 12 21 12 21z" stroke="currentColor" strokeWidth="1.75" />
+      <circle cx="12" cy="10.6" r="2.1" stroke="currentColor" strokeWidth="1.75" />
     </IconeBase>
   )
 }
@@ -608,6 +619,7 @@ export function ContratarFreelancer({ onLogout }: { onLogout: () => void }) {
         <div className="cf-wrap">
           {aba === 'documentos' && <BibliotecaDocumental modo="tomadora" empresaId={empresa.id} />}
           {aba === 'missoes' && <PainelMissoes empresaId={empresa.id} />}
+          {aba === 'mapa' && <MapaMaoDeObra empresa={empresa} />}
           {aba === 'contratacoes' && <PainelContratacoes empresaId={empresa.id} />}
           {aba === 'dados' && <PainelDados />}
           {aba === 'missao' && (
