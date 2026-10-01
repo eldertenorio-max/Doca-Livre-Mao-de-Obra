@@ -390,9 +390,9 @@ function urlCss(valor: string) {
 function pinSede() {
   return L.divIcon({
     className: 'mapa-pin-wrap',
-    html: '<div class="mapa-sede"></div>',
-    iconSize: [16, 16],
-    iconAnchor: [8, 8],
+    html: `<div class="mapa-sede" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="M4 20V6.5A1.5 1.5 0 0 1 5.5 5H13v15" stroke="currentColor" stroke-width="1.75" stroke-linejoin="round"/><path d="M13 9h5.5A1.5 1.5 0 0 1 20 10.5V20" stroke="currentColor" stroke-width="1.75" stroke-linejoin="round"/><path d="M7.5 8.5h2.5M7.5 12h2.5M7.5 15.5h2.5M16 13h1.5M16 16.5h1.5M3 20h18" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"/></svg></div>`,
+    iconSize: [36, 36],
+    iconAnchor: [18, 18],
   })
 }
 

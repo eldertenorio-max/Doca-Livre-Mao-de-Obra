@@ -296,12 +296,23 @@
 }
 
 .mapa-sede {
-  width: 16px;
-  height: 16px;
-  border-radius: 4px;
-  background: #111;
-  border: 2px solid #f9db00;
-  box-shadow: 0 4px 10px rgb(0 0 0 / 0.25);
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  display: grid;
+  place-items: center;
+  background: #f9db00;
+  color: #111;
+  border: 2px solid #111;
+  box-shadow: 0 6px 14px rgb(0 0 0 / 0.28);
+}
+
+.mapa-sede svg {
+  width: 22px;
+  height: 22px;
+  max-width: 22px;
+  max-height: 22px;
+  display: block;
 }
 
 @media (max-width: 860px) {
