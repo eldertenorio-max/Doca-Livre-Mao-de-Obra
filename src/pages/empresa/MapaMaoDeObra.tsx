@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import * as L from 'leaflet'
 import { cargoLabel } from '../../data/categories'
 import { abrirCurriculoPdf } from '../../lib/curriculoPdf'
+import { PerfilColaborador } from './PerfilColaborador'
 import { useStore } from '../../lib/store'
 import type { Disponibilidade, Empresa, Profissional } from '../../lib/types'
 import 'leaflet/dist/leaflet.css'
@@ -251,6 +252,7 @@ function FichaPessoa({
   onFechar: () => void
 }) {
   const turnos = TURNOS.filter((item) => pessoa.disponibilidade[item.key])
+  const [perfilAberto, setPerfilAberto] = useState(false)
   return (
     <article className="mapa-ficha">
       <header>
@@ -268,6 +270,14 @@ function FichaPessoa({
           ×
         </button>
       </header>
+      <div className="mapa-acoes">
+        <button type="button" className="cf-btn cf-btn--dark" onClick={() => setPerfilAberto(true)}>
+          Ver perfil
+        </button>
+        <button type="button" className="cf-btn cf-btn--yellow" onClick={() => abrirCurriculoPdf(pessoa)}>
+          Ver currículo
+        </button>
+      </div>
       <p className="mapa-nota">
         Avaliação {pessoa.avaliacaoMedia.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} ·{' '}
         {pessoa.taxaComparecimento}% de comparecimento
@@ -306,9 +316,9 @@ function FichaPessoa({
           ))}
         </div>
       )}
-      <button type="button" className="cf-btn cf-btn--yellow" onClick={() => abrirCurriculoPdf(pessoa)}>
-        Ver currículo
-      </button>
+      {perfilAberto && (
+        <PerfilColaborador pessoa={pessoa} distancia={distancia} onFechar={() => setPerfilAberto(false)} />
+      )}
     </article>
   )
 }

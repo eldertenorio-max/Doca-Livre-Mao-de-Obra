@@ -1,0 +1,156 @@
+.pc-fundo {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: grid;
+  place-items: center;
+  padding: 24px 16px;
+  background: rgb(17 17 17 / 0.45);
+}
+
+.pc-folha {
+  width: min(440px, 100%);
+  max-height: min(860px, 92dvh);
+  overflow: auto;
+  border-radius: 22px;
+  background: #fff;
+  box-shadow: 0 24px 50px rgb(0 0 0 / 0.28);
+}
+
+.pc-capa {
+  position: relative;
+  height: 240px;
+  display: grid;
+  place-items: center;
+  background: #f9db00;
+  color: #111;
+  font-size: 3rem;
+  font-weight: 800;
+}
+
+.pc-capa img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  display: block;
+}
+
+.pc-fechar {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 36px;
+  height: 36px;
+  border: 0;
+  border-radius: 50%;
+  background: #fff;
+  color: #111;
+  font-size: 1.4rem;
+  line-height: 1;
+  cursor: pointer;
+  box-shadow: 0 6px 14px rgb(0 0 0 / 0.18);
+}
+
+.pc-corpo {
+  display: grid;
+  gap: 14px;
+  padding: 16px 18px 20px;
+}
+
+.pc-topo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.pc-topo h2 {
+  margin: 0;
+  font-size: 1.45rem;
+  letter-spacing: -0.03em;
+}
+
+.pc-topo h2 span {
+  font-weight: 650;
+  color: #4b5563;
+}
+
+.pc-lugar {
+  margin: -8px 0 0;
+  color: #374151;
+  font-weight: 700;
+}
+
+.pc-fatos {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.pc-fatos li {
+  background: #f3f4f6;
+  border-radius: 999px;
+  padding: 5px 10px;
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.pc-corpo h3 {
+  margin: 0 0 8px;
+  font-size: 0.95rem;
+}
+
+.pc-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.pc-chips span {
+  background: #111;
+  color: #fff;
+  border-radius: 999px;
+  padding: 5px 10px;
+  font-size: 0.8rem;
+  font-weight: 800;
+}
+
+.pc-chips--soft span {
+  background: #fff;
+  color: #111;
+  border: 1px solid #d1d5db;
+}
+
+.pc-exp {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 8px;
+}
+
+.pc-exp strong,
+.pc-exp span {
+  display: block;
+}
+
+.pc-exp span {
+  color: #4b5563;
+  font-size: 0.88rem;
+  font-weight: 700;
+}
+
+.pc-curriculo {
+  justify-self: start;
+  border: 0;
+  border-radius: 999px;
+  padding: 10px 16px;
+  background: #f9db00;
+  color: #111;
+  font-weight: 800;
+  cursor: pointer;
+}

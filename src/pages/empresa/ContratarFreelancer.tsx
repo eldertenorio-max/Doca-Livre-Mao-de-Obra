@@ -5,6 +5,7 @@ import { LOCAIS_OPERACAO } from '../../data/cidades'
 import { analisarCurriculos, requisitosDoCargo, rotuloAnos, type CurriculoAnalisado } from '../../lib/analiseCurriculo'
 import { abrirCurriculoPdf } from '../../lib/curriculoPdf'
 import { MapaMaoDeObra } from './MapaMaoDeObra'
+import { PerfilColaborador } from './PerfilColaborador'
 import { checklistProfissional, resumoDocumental } from '../../lib/documentos'
 import type { DocumentoRegistro } from '../../lib/types'
 import {
@@ -1416,6 +1417,7 @@ function PessoaCard({
   requisitos: string[]
 }) {
   const p = item.profissional
+  const [perfilAberto, setPerfilAberto] = useState(false)
   const docs = resumoDocumental(checklistProfissional(p, documentos, requisitos))
   const podeContrato = convite?.status === 'aceita' && docs.completo
   const bloqueado = item.situacao === 'bloqueado'
@@ -1484,6 +1486,9 @@ function PessoaCard({
       </div>
 
       <div className="cf-actions">
+        <button type="button" className="cf-btn cf-btn--dark" onClick={() => setPerfilAberto(true)}>
+          Ver perfil
+        </button>
         <button type="button" className="cf-btn cf-btn--dark" onClick={onToggle}>
           {aberto ? 'Ocultar currículo' : 'Ver currículo'}
         </button>
@@ -1512,6 +1517,13 @@ function PessoaCard({
         {convite?.status === 'recusada' && <span className="cf-note">O trabalhador não tem interesse nesta missão.</span>}
         {convite?.contratoNumero && <span className="cf-note">Contrato temporário {convite.contratoNumero} gerado.</span>}
       </div>
+      {perfilAberto && (
+        <PerfilColaborador
+          pessoa={p}
+          distancia={item.distanciaKm}
+          onFechar={() => setPerfilAberto(false)}
+        />
+      )}
       {aberto && (
         <div className="cf-cv">
           <strong>Currículo estruturado</strong>
