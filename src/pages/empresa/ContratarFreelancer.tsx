@@ -1486,7 +1486,14 @@ function PessoaCard({
       </div>
 
       <div className="cf-actions">
-        <button type="button" className="cf-btn cf-btn--dark" onClick={() => setPerfilAberto(true)}>
+        <button
+          type="button"
+          className="cf-btn cf-btn--dark"
+          onClick={(event) => {
+            event.stopPropagation()
+            setPerfilAberto(true)
+          }}
+        >
           Ver perfil
         </button>
         <button type="button" className="cf-btn cf-btn--dark" onClick={onToggle}>

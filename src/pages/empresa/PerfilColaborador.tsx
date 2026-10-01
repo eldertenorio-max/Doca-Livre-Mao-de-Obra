@@ -42,7 +42,13 @@ export function PerfilColaborador({
   }, [onFechar])
 
   return createPortal(
-    <div className="pc-fundo" role="presentation" onClick={onFechar}>
+    <div
+      className="pc-fundo"
+      role="presentation"
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget) onFechar()
+      }}
+    >
       <article
         className="pc-folha"
         role="dialog"
