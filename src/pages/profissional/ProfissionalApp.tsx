@@ -5,10 +5,11 @@ import { ContratoViewer } from '../../components/ContratoViewer'
 import { DocumentacaoProfissionalPanel } from '../../components/DocumentacaoPanel'
 import { LevelBadge } from '../../components/LevelBadge'
 import { cargoLabel } from '../../data/categories'
+import { checklistProfissional, resumoDocumental } from '../../lib/documentos'
 import { pendenciasParaIniciar } from '../../lib/dossieTemporario'
 import { BRAND_PRODUCT_NAME, LOGO_DOCA_LIVRE_SRC } from '../../lib/brandAssets'
 import { useStore } from '../../lib/store'
-import type { Disponibilidade } from '../../lib/types'
+import type { CandidaturaStatus, Disponibilidade } from '../../lib/types'
 import '../empresa/contratar.css'
 import './perfil.css'
 
@@ -128,7 +129,7 @@ export function ProfissionalApp({ onLogout }: { onLogout: () => void }) {
         </aside>
         <main className="cf-main">
           <div className="cf-wrap">
-            {tab === 'inicio' && <HomeTab />}
+            {tab === 'inicio' && <HomeTab onIr={setTab} />}
             {tab === 'oportunidades' && <OportunidadesTab />}
             {tab === 'agenda' && <AgendaTab />}
             {tab === 'financeiro' && <FinanceiroTab />}
@@ -201,48 +202,186 @@ function iniciais(nome: string) {
   return `${primeira}${ultima}`.toUpperCase()
 }
 
-function HomeTab() {
+function moeda(valor: number) {
+  return valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+}
+
+function dataCurta(iso: string) {
+  const [ano, mes, dia] = iso.split('-')
+  if (!ano || !mes || !dia) return iso
+  return `${dia}/${mes}`
+}
+
+function rotuloFila(status: CandidaturaStatus) {
+  if (status === 'confirmada') return 'Missão confirmada'
+  if (status === 'aceita') return 'Interesse registrado'
+  return 'Nova oferta'
+}
+
+function HomeTab({ onIr }: { onIr: (aba: TabId) => void }) {
   const { currentProfissional, state, updateDisponibilidade } = useStore()
   const prof = currentProfissional!
   const ofertas = state.candidaturas.filter(
     (c) => c.profissionalId === prof.id && c.status === 'pendente',
   ).length
-  const agenda = state.candidaturas.filter(
+  const interesses = state.candidaturas.filter(
+    (c) => c.profissionalId === prof.id && c.status === 'aceita',
+  ).length
+  const missoes = state.candidaturas.filter(
     (c) => c.profissionalId === prof.id && c.status === 'confirmada',
   ).length
+  const fila = useMemo(() => {
+    return state.candidaturas
+      .filter((c) => c.profissionalId === prof.id && (c.status === 'pendente' || c.status === 'aceita' || c.status === 'confirmada'))
+      .map((c) => {
+        const dem = state.demandas.find((d) => d.id === c.demandaId)
+        const emp = dem ? state.empresas.find((e) => e.id === dem.empresaId) : null
+        return { c, dem, emp }
+      })
+      .filter((item) => item.dem && (item.c.status === 'confirmada' || item.dem.status === 'aberta'))
+      .sort((a, b) => Number(a.c.status !== 'pendente') - Number(b.c.status !== 'pendente'))
+      .slice(0, 3)
+  }, [prof.id, state.candidaturas, state.demandas, state.empresas])
+  const docs = resumoDocumental(checklistProfissional(prof, state.documentos))
+  const cargo = prof.profissoes[0] ? cargoLabel(prof.profissoes[0]) : 'Trabalhador'
+  const nota = prof.avaliacaoMedia.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })
+  const saudacao =
+    ofertas === 1
+      ? 'Há 1 oferta esperando a sua resposta.'
+      : ofertas > 1
+        ? `Há ${ofertas} ofertas esperando a sua resposta.`
+        : interesses > 0
+          ? 'Seu interesse já está registrado. A missão segue para validação.'
+          : 'Seu perfil está visível para as empresas tomadoras.'
 
   return (
-    <div className="panel panel--mobile">
-      <h2>Olá, {prof.nome.split(' ')[0]}</h2>
-      <div className="stat-grid">
-        <div className="stat-card">
-          <span className="muted">Ganhos do mês</span>
-          <strong>R$ {prof.ganhosMes}</strong>
+    <div className="td-home">
+      <section className="td-home-hero">
+        <div className="td-home-foto" aria-hidden>
+          {prof.foto ? <img src={prof.foto} alt="" /> : <span>{iniciais(prof.nome)}</span>}
         </div>
-        <div className="stat-card">
-          <span className="muted">Avaliação</span>
-          <strong>★ {prof.avaliacaoMedia.toFixed(1)}</strong>
+        <div>
+          <p className="td-home-kicker">Início</p>
+          <h2>Olá, {prof.nome.split(' ')[0]}</h2>
+          <p className="td-home-cargo">
+            {cargo} · {prof.endereco.cidade}/{prof.endereco.estado}
+          </p>
+          <p className="td-home-saudacao">{saudacao}</p>
+          <div className="td-home-meta">
+            <LevelBadge nivel={prof.nivel} />
+            <span className="td-home-pill">
+              ★ <b>{nota}</b>
+            </span>
+            <span className="td-home-pill td-home-pill--claro">{prof.taxaComparecimento}% de comparecimento</span>
+          </div>
         </div>
-        <div className="stat-card">
-          <span className="muted">Ofertas</span>
+      </section>
+
+      {prof.status === 'pendente' && <p className="warning-banner">Seu cadastro aguarda aprovação do admin.</p>}
+
+      <section className="td-home-stats">
+        <button type="button" className="td-home-stat td-home-stat--dark" onClick={() => onIr('financeiro')}>
+          <span>Ganhos do mês</span>
+          <strong>{moeda(prof.ganhosMes)}</strong>
+          <small>Saldo {moeda(prof.saldo)}</small>
+        </button>
+        <button type="button" className="td-home-stat" onClick={() => onIr('perfil')}>
+          <span>Avaliação</span>
+          <strong>★ {nota}</strong>
+          <small>Responde em {prof.tempoRespostaMin} min</small>
+        </button>
+        <button type="button" className="td-home-stat" onClick={() => onIr('oportunidades')}>
+          <span>Ofertas</span>
           <strong>{ofertas}</strong>
-        </div>
-        <div className="stat-card">
-          <span className="muted">Agenda</span>
-          <strong>{agenda}</strong>
-        </div>
+          <small>{ofertas === 1 ? 'Aguardando você' : 'Na sua fila'}</small>
+        </button>
+        <button type="button" className="td-home-stat" onClick={() => onIr('agenda')}>
+          <span>Missões</span>
+          <strong>{missoes}</strong>
+          <small>{missoes === 1 ? 'Confirmada' : 'Confirmadas'}</small>
+        </button>
+      </section>
+
+      <div className="td-home-grid">
+        <section className="td-home-card">
+          <header>
+            <h3>Para você agora</h3>
+            <button type="button" className="td-home-link" onClick={() => onIr('oportunidades')}>
+              Ver todas
+            </button>
+          </header>
+          {fila.map(({ c, dem, emp }) => (
+            <button
+              key={c.id}
+              type="button"
+              className="td-home-oferta"
+              onClick={() => onIr(c.status === 'confirmada' ? 'agenda' : 'oportunidades')}
+            >
+              <span>
+                <small>{rotuloFila(c.status)}</small>
+                <strong>{cargoLabel(dem!.cargo)}</strong>
+                <em>
+                  {emp?.nomeFantasia ?? 'Empresa tomadora'} · {dem!.endereco.cidade} · {dataCurta(dem!.data)}
+                  {dem!.dataFim ? ` a ${dataCurta(dem!.dataFim)}` : ''}
+                </em>
+              </span>
+              <b>{dem!.valorDiaria ? moeda(dem!.valorDiaria) : 'A combinar'}</b>
+            </button>
+          ))}
+          {fila.length === 0 && (
+            <p className="td-home-vazio">Nenhuma oferta ou missão agora. Mantenha a disponibilidade atualizada.</p>
+          )}
+        </section>
+
+        <section className="td-home-card">
+          <header>
+            <h3>Seu perfil</h3>
+            <button type="button" className="td-home-link" onClick={() => onIr('perfil')}>
+              Abrir
+            </button>
+          </header>
+          <div className="td-home-chips">
+            {prof.profissoes.map((id) => (
+              <span key={id} className="td-home-chip">
+                {cargoLabel(id)}
+              </span>
+            ))}
+            {prof.certificados.map((item) => (
+              <span key={`${item.tipo}-${item.validade ?? ''}`} className="td-home-chip td-home-chip--soft">
+                {item.tipo}
+                {item.validade ? ` · ${dataCurta(item.validade)}` : ''}
+              </span>
+            ))}
+            {prof.cnhCategoria && <span className="td-home-chip td-home-chip--soft">CNH {prof.cnhCategoria}</span>}
+          </div>
+          <ul className="td-home-facts">
+            <li>Atende até {prof.raioKm} km de {prof.endereco.cidade}</li>
+            <li>
+              {prof.experiencia.length} {prof.experiencia.length === 1 ? 'experiência' : 'experiências'} no currículo
+            </li>
+          </ul>
+          <div className="td-home-docs">
+            <div>
+              <span>Documentos obrigatórios</span>
+              <strong>{docs.pct}%</strong>
+            </div>
+            <div className="td-home-bar" aria-hidden>
+              <span style={{ width: `${docs.pct}%` }} />
+            </div>
+            <p>
+              {docs.completo
+                ? 'Documentação obrigatória em dia.'
+                : `${docs.ok} de ${docs.total} documentos obrigatórios ok.`}
+            </p>
+          </div>
+        </section>
       </div>
 
-      <h3>Disponível para missões temporárias</h3>
-      <p className="muted">A empresa tomadora vê quem pode ser colocado em uma missão.</p>
-      <AvailabilityToggle
-        value={prof.disponibilidade}
-        onChange={(d) => updateDisponibilidade(prof.id, d)}
-      />
-
-      {prof.status === 'pendente' && (
-        <p className="warning-banner">Seu cadastro aguarda aprovação do admin.</p>
-      )}
+      <section className="td-home-card">
+        <h3>Disponível para missões temporárias</h3>
+        <p className="td-home-nota">A empresa tomadora vê quem pode ser colocado em uma missão.</p>
+        <AvailabilityToggle value={prof.disponibilidade} onChange={(d) => updateDisponibilidade(prof.id, d)} />
+      </section>
     </div>
   )
 }
