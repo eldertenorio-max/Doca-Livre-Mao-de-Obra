@@ -190,9 +190,16 @@
   border-radius: 50%;
   display: grid;
   place-items: center;
+  overflow: hidden;
   background: #f9db00;
   color: #111;
   font-weight: 800;
+}
+
+.mapa-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .mapa-fechar {
@@ -260,11 +267,12 @@
 
 .mapa-pin {
   box-sizing: border-box;
-  width: 42px;
-  height: 42px;
+  width: 48px;
+  height: 48px;
   border-radius: 50%;
   display: grid;
   place-items: center;
+  overflow: hidden;
   background: #f9db00;
   color: #111;
   border: 2px solid #111;
@@ -273,9 +281,15 @@
   font-size: 12px;
 }
 
+.mapa-pin img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
 .mapa-pin--on {
-  background: #111;
-  color: #f9db00;
+  box-shadow: 0 0 0 3px #f9db00, 0 8px 16px rgb(0 0 0 / 0.22);
   transform: scale(1.08);
 }
 

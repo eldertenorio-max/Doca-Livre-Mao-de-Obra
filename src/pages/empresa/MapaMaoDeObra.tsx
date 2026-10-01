@@ -93,7 +93,7 @@ export function MapaMaoDeObra({ empresa }: { empresa: Empresa }) {
 
     for (const pessoa of visiveis) {
       const marca = L.marker([pessoa.endereco.lat, pessoa.endereco.lng], {
-        icon: pinPessoa(pessoa.nome, false),
+        icon: pinPessoa(pessoa.nome, false, pessoa.foto),
         title: pessoa.nome,
         keyboard: true,
       })
@@ -139,7 +139,7 @@ export function MapaMaoDeObra({ empresa }: { empresa: Empresa }) {
       const marca = marcasRef.current.get(pessoa.id)
       if (!marca) continue
       const ativo = pessoa.id === selecionadoId
-      marca.setIcon(pinPessoa(pessoa.nome, ativo))
+      marca.setIcon(pinPessoa(pessoa.nome, ativo, pessoa.foto))
       marca.setZIndexOffset(ativo ? 800 : 0)
     }
   }, [selecionadoId, visiveis])
@@ -255,7 +255,7 @@ function FichaPessoa({
     <article className="mapa-ficha">
       <header>
         <span className="mapa-avatar" aria-hidden>
-          {iniciaisDe(pessoa.nome)}
+          {pessoa.foto ? <img src={pessoa.foto} alt="" /> : iniciaisDe(pessoa.nome)}
         </span>
         <div>
           <strong>{pessoa.nome}</strong>
@@ -355,12 +355,15 @@ function escapar(texto: string) {
   })
 }
 
-function pinPessoa(nome: string, ativo: boolean) {
+function pinPessoa(nome: string, ativo: boolean, foto?: string) {
+  const miolo = foto
+    ? `<img src="${escapar(foto)}" alt="" />`
+    : `<span>${escapar(iniciaisDe(nome))}</span>`
   return L.divIcon({
     className: 'mapa-pin-wrap',
-    html: `<div class="mapa-pin${ativo ? ' mapa-pin--on' : ''}"><span>${escapar(iniciaisDe(nome))}</span></div>`,
-    iconSize: [42, 42],
-    iconAnchor: [21, 21],
+    html: `<div class="mapa-pin${ativo ? ' mapa-pin--on' : ''}">${miolo}</div>`,
+    iconSize: [48, 48],
+    iconAnchor: [24, 24],
   })
 }
 

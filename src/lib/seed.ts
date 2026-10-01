@@ -207,7 +207,7 @@ export function createSeedState(): AppState {
   const profissionais: Profissional[] = [
     {
       id: 'prof_1', userId: 'user_p1', nome: 'João Silva', cpf: '111.111.111-11', rg: '11.111.111-1',
-      nascimento: '1988-03-12', telefone: '(11) 91111-1111',
+      nascimento: '1988-03-12', telefone: '(11) 91111-1111', foto: '/avatares/prof_1.jpg',
       profissoes: ['motorista_truck', 'carreteiro', 'mopp'],
       experiencia: [{ cargo: 'Motorista Truck', empresa: 'TransBrasil', inicio: '2018-01', fim: '2024-06', descricao: 'Rotas SP-MG' }],
       certificados: [{ tipo: 'MOPP', validade: '2027-01-01', valido: true }],
@@ -219,7 +219,7 @@ export function createSeedState(): AppState {
     },
     {
       id: 'prof_2', userId: 'user_p2', nome: 'Carlos Mendes', cpf: '222.222.222-22', rg: '22.222.222-2',
-      nascimento: '1990-07-22', telefone: '(11) 92222-2222',
+      nascimento: '1990-07-22', telefone: '(11) 92222-2222', foto: '/avatares/prof_2.jpg',
       profissoes: ['empilhadeira', 'paleteira'],
       experiencia: [{ cargo: 'Operador de empilhadeira', empresa: 'CD Atacado', inicio: '2019-03', fim: '2025-01', descricao: 'NR11' }],
       certificados: [{ tipo: 'NR11', validade: '2026-12-01', valido: true }],
@@ -230,7 +230,7 @@ export function createSeedState(): AppState {
     },
     {
       id: 'prof_3', userId: 'user_p3', nome: 'Maria Oliveira', cpf: '333.333.333-33', rg: '33.333.333-3',
-      nascimento: '1995-01-08', telefone: '(11) 93333-3333',
+      nascimento: '1995-01-08', telefone: '(11) 93333-3333', foto: '/avatares/prof_3.jpg',
       profissoes: ['conferente', 'separador', 'auxiliar_logistica'],
       experiencia: [{ cargo: 'Conferente', empresa: 'Magazine Log', inicio: '2020-02', fim: '2025-12', descricao: 'Conferência de NF' }],
       certificados: [],
@@ -241,7 +241,7 @@ export function createSeedState(): AppState {
     },
     {
       id: 'prof_4', userId: 'user_p4', nome: 'Pedro Santos', cpf: '444.444.444-44', rg: '44.444.444-4',
-      nascimento: '1985-11-30', telefone: '(11) 94444-4444',
+      nascimento: '1985-11-30', telefone: '(11) 94444-4444', foto: '/avatares/prof_4.jpg',
       profissoes: ['ajudante_carga', 'auxiliar_logistica'],
       experiencia: [{ cargo: 'Ajudante', empresa: 'Express Cargo', inicio: '2021-05', fim: '2025-08', descricao: 'Carga e descarga' }],
       certificados: [],
@@ -252,7 +252,7 @@ export function createSeedState(): AppState {
     },
     {
       id: 'prof_5', userId: 'user_p5', nome: 'Ana Costa', cpf: '555.555.555-55', rg: '55.555.555-5',
-      nascimento: '1992-04-15', telefone: '(11) 95555-5555',
+      nascimento: '1992-04-15', telefone: '(11) 95555-5555', foto: '/avatares/prof_5.jpg',
       profissoes: ['separador', 'embalador', 'estoquista'],
       experiencia: [{ cargo: 'Picker', empresa: 'E-commerce SP', inicio: '2019-08', fim: '2025-10', descricao: 'Separação WMS' }],
       certificados: [],
@@ -263,7 +263,7 @@ export function createSeedState(): AppState {
     },
     {
       id: 'prof_6', userId: 'user_p6', nome: 'Lucas Ferreira', cpf: '666.666.666-66', rg: '66.666.666-6',
-      nascimento: '1987-09-03', telefone: '(11) 96666-6666',
+      nascimento: '1987-09-03', telefone: '(11) 96666-6666', foto: '/avatares/prof_6.jpg',
       profissoes: ['motorista_vuc', 'motorista_cnh_b'],
       experiencia: [{ cargo: 'Motorista VUC', empresa: 'Last Mile SP', inicio: '2017-01', fim: '2025-03', descricao: 'Entregas SP capital' }],
       certificados: [],
@@ -275,7 +275,7 @@ export function createSeedState(): AppState {
     },
     {
       id: 'prof_7', userId: 'user_p7', nome: 'Bruno Rocha', cpf: '777.777.777-77', rg: '77.777.777-7',
-      nascimento: '1983-12-19', telefone: '(11) 97777-7777',
+      nascimento: '1983-12-19', telefone: '(11) 97777-7777', foto: '/avatares/prof_7.jpg',
       profissoes: ['mecanico_diesel'],
       experiencia: [{ cargo: 'Mecânico Diesel', empresa: 'Oficina Norte', inicio: '2010-01', fim: '2025-01', descricao: 'Manutenção de caminhões' }],
       certificados: [],
@@ -286,7 +286,7 @@ export function createSeedState(): AppState {
     },
     {
       id: 'prof_8', userId: 'user_p8', nome: 'Fernanda Dias', cpf: '888.888.888-88', rg: '88.888.888-8',
-      nascimento: '1994-06-25', telefone: '(11) 98888-8888',
+      nascimento: '1994-06-25', telefone: '(11) 98888-8888', foto: '/avatares/prof_8.jpg',
       profissoes: ['conferente', 'expedidor', 'recebimento'],
       experiencia: [{ cargo: 'Expedidor', empresa: 'CD Campinas', inicio: '2021-01', fim: '2025-11', descricao: 'Expedição' }],
       certificados: [],
@@ -297,7 +297,7 @@ export function createSeedState(): AppState {
     },
     {
       id: 'prof_9', userId: 'user_p9', nome: 'Rafael Nunes', cpf: '999.999.999-99', rg: '99.999.999-9',
-      nascimento: '1991-02-14', telefone: '(11) 99999-9999',
+      nascimento: '1991-02-14', telefone: '(11) 99999-9999', foto: '/avatares/prof_9.jpg',
       profissoes: ['empilhadeira', 'reach_stacker'],
       experiencia: [{ cargo: 'Empilhadeira', empresa: 'Porto Seco', inicio: '2016-04', fim: '2024-12', descricao: 'Pátio e armazém' }],
       certificados: [
@@ -311,7 +311,7 @@ export function createSeedState(): AppState {
     },
     {
       id: 'prof_10', userId: 'user_p10', nome: 'Juliana Martins', cpf: '101.101.101-10', rg: '10.101.101-0',
-      nascimento: '1996-08-07', telefone: '(11) 91010-1010',
+      nascimento: '1996-08-07', telefone: '(11) 91010-1010', foto: '/avatares/prof_10.jpg',
       profissoes: ['analista_transporte', 'monitor_frota'],
       experiencia: [{ cargo: 'Monitor de Frota', empresa: 'Log Express', inicio: '2022-01', fim: '2025-09', descricao: 'Torre de controle' }],
       certificados: [],
@@ -322,7 +322,7 @@ export function createSeedState(): AppState {
     },
     {
       id: 'prof_11', userId: 'user_p11', nome: 'Diego Almeida', cpf: '121.121.121-12', rg: '12.121.121-1',
-      nascimento: '1989-05-21', telefone: '(11) 91212-1212',
+      nascimento: '1989-05-21', telefone: '(11) 91212-1212', foto: '/avatares/prof_11.jpg',
       profissoes: ['bitrem', 'rodotrem', 'carreteiro'],
       experiencia: [{ cargo: 'Carreteiro', empresa: 'Rodovias BR', inicio: '2014-01', fim: '2025-05', descricao: 'Cargas longas' }],
       certificados: [{ tipo: 'MOPP', validade: '2026-09-01', valido: true }],
@@ -334,7 +334,7 @@ export function createSeedState(): AppState {
     },
     {
       id: 'prof_12', userId: 'user_p12', nome: 'Patrícia Souza', cpf: '131.131.131-13', rg: '13.131.131-1',
-      nascimento: '1993-10-11', telefone: '(11) 91313-1313',
+      nascimento: '1993-10-11', telefone: '(11) 91313-1313', foto: '/avatares/prof_12.jpg',
       profissoes: ['eletricista', 'mecanico_diesel'],
       experiencia: [{ cargo: 'Eletricista', empresa: 'AutoElétrica SP', inicio: '2018-06', fim: '2025-07', descricao: 'Elétrica veicular' }],
       certificados: [{ tipo: 'NR10', validade: '2026-11-01', valido: true }],

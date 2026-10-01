@@ -17,6 +17,15 @@ export function loadState(): AppState {
     if (!Array.isArray(parsed.documentos)) parsed.documentos = []
     if (!Array.isArray(parsed.pecas)) parsed.pecas = []
     if (!parsed.cadastroEtt) parsed.cadastroEtt = cadastroEttInicial()
+    if (parsed.profissionais?.some((pessoa) => !pessoa.foto)) {
+      const fotos = new Map(
+        createSeedState().profissionais.filter((pessoa) => pessoa.foto).map((pessoa) => [pessoa.id, pessoa.foto]),
+      )
+      for (const pessoa of parsed.profissionais) {
+        if (!pessoa.foto) pessoa.foto = fotos.get(pessoa.id)
+      }
+      saveState(parsed)
+    }
     return parsed
   } catch {
     const seed = createSeedState()
