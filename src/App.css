@@ -706,6 +706,37 @@
   font-weight: 700;
 }
 
+.cadastro-lista {
+  margin: 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 4px;
+}
+
+.cadastro-resumo {
+  margin: 0;
+  display: grid;
+  gap: 10px;
+}
+
+.cadastro-resumo div {
+  display: grid;
+  gap: 2px;
+}
+
+.cadastro-resumo dt {
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.cadastro-resumo dd {
+  margin: 0;
+  font-weight: 700;
+}
+
 .prof-group h3 {
   margin: 0 0 8px;
   font-size: 0.95rem;
