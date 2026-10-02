@@ -143,6 +143,27 @@
   align-items: flex-start;
 }
 
+.docs-atualizar {
+  flex: 1 1 100%;
+  display: grid;
+  gap: 10px;
+  padding-top: 12px;
+  border-top: 1px solid #e5e7eb;
+}
+
+.docs-atualizar .px-field input[type='file'] {
+  width: 100%;
+  min-height: 44px;
+  padding: 8px 0;
+  font-size: 16px;
+}
+
+.docs-ok {
+  margin: 6px 0 0;
+  color: #047857;
+  font-weight: 700;
+}
+
 .docs-resumo-inline {
   display: flex;
   flex-wrap: wrap;

@@ -34,8 +34,6 @@ export function DocumentacaoProfissionalPanel({ profissional }: { profissional: 
   const resumo = resumoDocumental(items)
   const obrigatorios = items.filter((i) => !i.opcional)
   const opcionais = items.filter((i) => i.opcional)
-  const [selecao, setSelecao] = useState<{ tipoId: string; validade: string } | null>(null)
-
   return (
     <div className="docs-panel">
       <ResumoCards resumo={resumo} />
@@ -48,21 +46,15 @@ export function DocumentacaoProfissionalPanel({ profissional }: { profissional: 
       )}
 
       <h3>Checklist obrigatório</h3>
-      <ChecklistLista items={obrigatorios} onSelect={setSelecao} />
+      <ChecklistLista items={obrigatorios} donoTipo="profissional" donoId={profissional.id} />
 
       {opcionais.length > 0 && (
         <>
           <h3>Opcionais</h3>
-          <ChecklistLista items={opcionais} onSelect={setSelecao} />
+          <ChecklistLista items={opcionais} donoTipo="profissional" donoId={profissional.id} />
         </>
       )}
 
-      <EnvioDocumentoForm
-        defs={DOCS_PROFISSIONAL}
-        donoTipo="profissional"
-        donoId={profissional.id}
-        selecao={selecao}
-      />
       <TermosPlataforma />
     </div>
   )
@@ -77,8 +69,6 @@ export function DocumentacaoEmpresaPanel({ empresa }: { empresa: Empresa }) {
   const resumo = resumoDocumental(items)
   const obrigatorios = items.filter((i) => !i.opcional)
   const opcionais = items.filter((i) => i.opcional)
-  const [selecao, setSelecao] = useState<{ tipoId: string; validade: string } | null>(null)
-
   return (
     <div className="docs-panel">
       <p className="muted">
@@ -92,19 +82,13 @@ export function DocumentacaoEmpresaPanel({ empresa }: { empresa: Empresa }) {
         </div>
       )}
       <h3>Checklist obrigatório</h3>
-      <ChecklistLista items={obrigatorios} onSelect={setSelecao} />
+      <ChecklistLista items={obrigatorios} donoTipo="empresa" donoId={empresa.id} />
       {opcionais.length > 0 && (
         <>
           <h3>Opcionais</h3>
-          <ChecklistLista items={opcionais} onSelect={setSelecao} />
+          <ChecklistLista items={opcionais} donoTipo="empresa" donoId={empresa.id} />
         </>
       )}
-      <EnvioDocumentoForm
-        defs={DOCS_EMPRESA}
-        donoTipo="empresa"
-        donoId={empresa.id}
-        selecao={selecao}
-      />
       <TermosPlataforma />
     </div>
   )
@@ -284,128 +268,127 @@ function ResumoCards({
 
 function ChecklistLista({
   items,
-  onSelect,
-}: {
-  items: ChecklistItem[]
-  onSelect: (selecao: { tipoId: string; validade: string }) => void
-}) {
-  return (
-    <ul className="px-list">
-      {items.map(({ def, doc, status, faltando, vencendo }) => (
-        <li key={def.id} className="px-list-card docs-item">
-          <div>
-            <strong>
-              {def.label}
-              {def.opcional && <span className="docs-tag">opcional</span>}
-            </strong>
-            <p className="muted">{def.descricao}</p>
-            {doc?.arquivoNome && <p className="muted">Arquivo: {doc.arquivoNome}</p>}
-            {doc?.validade && (
-              <p className="muted">
-                Validade: {doc.validade}
-                {vencendo ? ' · vence em breve' : ''}
-                {isDocVencido(doc) ? ' · vencido' : ''}
-              </p>
-            )}
-            {doc?.observacao && <p className="error">Obs.: {doc.observacao}</p>}
-          </div>
-          <div className="px-row-actions">
-            <StatusBadge status={faltando ? 'pendente' : status} />
-            <button
-              type="button"
-              className="px-btn px-btn-outline"
-              onClick={() => onSelect({ tipoId: def.id, validade: doc?.validade ?? '' })}
-            >
-              {faltando ? 'Enviar' : 'Atualizar'}
-            </button>
-          </div>
-        </li>
-      ))}
-    </ul>
-  )
-}
-
-function EnvioDocumentoForm({
-  defs,
   donoTipo,
   donoId,
-  selecao,
 }: {
-  defs: { id: string; label: string }[]
+  items: ChecklistItem[]
   donoTipo: 'profissional' | 'empresa'
   donoId: string
-  selecao: { tipoId: string; validade: string } | null
 }) {
   const { enviarDocumento } = useStore()
-  const [tipoId, setTipoId] = useState(selecao?.tipoId ?? defs[0]?.id ?? '')
-  const [validade, setValidade] = useState(selecao?.validade ?? '')
+  const [aberto, setAberto] = useState<string | null>(null)
   const [arquivo, setArquivo] = useState('')
+  const [validade, setValidade] = useState('')
   const [erro, setErro] = useState('')
+  const [aviso, setAviso] = useState('')
+
+  function abrir(tipoId: string, validadeAtual: string) {
+    if (aberto === tipoId) {
+      setAberto(null)
+      setErro('')
+      return
+    }
+    setAberto(tipoId)
+    setArquivo('')
+    setValidade(validadeAtual)
+    setErro('')
+    setAviso('')
+  }
 
   useEffect(() => {
-    if (!selecao) return
-    setTipoId(selecao.tipoId)
-    setValidade(selecao.validade)
+    if (!aberto) return
+    document.getElementById(`docs-atualizar-${aberto}`)?.scrollIntoView({ block: 'nearest' })
+  }, [aberto])
+
+  function enviar(tipoId: string) {
+    if (!arquivo.trim()) {
+      setErro('Escolha o arquivo.')
+      return
+    }
+    const msg = validarEnvioDocumento(tipoId, arquivo, validade || undefined)
+    if (msg) {
+      setErro(msg)
+      return
+    }
+    const def = docDefById(tipoId)
+    enviarDocumento({
+      tipoId,
+      donoTipo,
+      donoId,
+      arquivoNome: arquivo.trim(),
+      validade: def?.temValidade ? validade : undefined,
+    })
+    setAberto(null)
+    setArquivo('')
     setErro('')
-  }, [selecao])
+    setAviso(tipoId)
+  }
 
   return (
-    <div className="px-card" style={{ marginTop: 16 }}>
-      <h3 style={{ marginTop: 0 }}>Enviar / atualizar documento</h3>
-      <div className="px-form-grid">
-        <label className="px-field">
-          <span>Tipo</span>
-          <select
-            value={tipoId}
-            onChange={(e) => {
-              setTipoId(e.target.value)
-              setErro('')
-            }}
-          >
-            {defs.map((d) => (
-              <option key={d.id} value={d.id}>{d.label}</option>
-            ))}
-          </select>
-        </label>
-        <label className="px-field">
-          <span>Nome do arquivo</span>
-          <input
-            value={arquivo}
-            onChange={(e) => setArquivo(e.target.value)}
-            placeholder="ex: cnh_frente.pdf"
-          />
-        </label>
-        {docDefById(tipoId)?.temValidade && (
-          <label className="px-field">
-            <span>Validade</span>
-            <input type="date" value={validade} onChange={(e) => setValidade(e.target.value)} />
-          </label>
-        )}
-      </div>
-      {erro && <p className="error">{erro}</p>}
-      <button
-        type="button"
-        className="px-btn px-btn-primary"
-        onClick={() => {
-          const msg = validarEnvioDocumento(tipoId, arquivo, validade || undefined)
-          if (msg) {
-            setErro(msg)
-            return
-          }
-          enviarDocumento({
-            tipoId,
-            donoTipo,
-            donoId,
-            arquivoNome: arquivo.trim(),
-            validade: docDefById(tipoId)?.temValidade ? validade : undefined,
-          })
-          setArquivo('')
-          setErro('')
-        }}
-      >
-        Enviar para análise
-      </button>
-    </div>
+    <ul className="px-list">
+      {items.map(({ def, doc, status, faltando, vencendo }) => {
+        const painelAberto = aberto === def.id
+        return (
+          <li key={def.id} className="px-list-card docs-item">
+            <div>
+              <strong>
+                {def.label}
+                {def.opcional && <span className="docs-tag">opcional</span>}
+              </strong>
+              <p className="muted">{def.descricao}</p>
+              {doc?.arquivoNome && <p className="muted">Arquivo: {doc.arquivoNome}</p>}
+              {doc?.validade && (
+                <p className="muted">
+                  Validade: {doc.validade}
+                  {vencendo ? ' · vence em breve' : ''}
+                  {isDocVencido(doc) ? ' · vencido' : ''}
+                </p>
+              )}
+              {doc?.observacao && <p className="error">Obs.: {doc.observacao}</p>}
+              {aviso === def.id && <p className="docs-ok">Novo arquivo enviado para análise.</p>}
+            </div>
+            <div className="px-row-actions">
+              <StatusBadge status={faltando ? 'pendente' : status} />
+              <button
+                type="button"
+                className="px-btn px-btn-outline"
+                aria-expanded={painelAberto}
+                aria-controls={`docs-atualizar-${def.id}`}
+                onClick={() => abrir(def.id, doc?.validade ?? '')}
+              >
+                {faltando ? 'Enviar' : painelAberto ? 'Fechar' : 'Atualizar'}
+              </button>
+            </div>
+            {painelAberto && (
+              <div className="docs-atualizar" id={`docs-atualizar-${def.id}`}>
+                <label className="px-field">
+                  <span>Novo arquivo</span>
+                  <input
+                    type="file"
+                    accept=".pdf,.jpg,.jpeg,.png,.txt,application/pdf,image/jpeg,image/png,text/plain"
+                    onChange={(e) => {
+                      setArquivo(e.target.files?.[0]?.name ?? '')
+                      setErro('')
+                    }}
+                  />
+                </label>
+                {def.temValidade && (
+                  <label className="px-field">
+                    <span>Validade</span>
+                    <input type="date" value={validade} onChange={(e) => setValidade(e.target.value)} />
+                  </label>
+                )}
+                {arquivo && <p className="muted">Selecionado: {arquivo}</p>}
+                {erro && <p className="error">{erro}</p>}
+                <button type="button" className="px-btn px-btn-primary" onClick={() => enviar(def.id)}>
+                  Enviar para análise
+                </button>
+              </div>
+            )}
+          </li>
+        )
+      })}
+    </ul>
   )
 }
 
