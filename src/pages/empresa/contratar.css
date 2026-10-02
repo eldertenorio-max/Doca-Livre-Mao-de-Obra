@@ -779,6 +779,26 @@
   min-width: 0;
 }
 
+button.cf-vaga-nome {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+button.cf-vaga-nome:hover strong {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+button.cf-vaga-nome:disabled {
+  cursor: default;
+}
+
 .cf-vaga-nome strong,
 .cf-vaga-nome small {
   display: block;

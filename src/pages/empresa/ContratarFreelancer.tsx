@@ -7,6 +7,7 @@ import { abrirCurriculoPdf } from '../../lib/curriculoPdf'
 import { MapaMaoDeObra } from './MapaMaoDeObra'
 import { PerfilColaborador } from './PerfilColaborador'
 import { checklistProfissional, resumoDocumental } from '../../lib/documentos'
+import { distanciaKm } from '../../lib/matching'
 import type { DocumentoRegistro } from '../../lib/types'
 import {
   AVISO_FORMALIZACAO,
@@ -1246,6 +1247,7 @@ function CartaoAnalise() {
 
 function PainelVagas({ empresaId, onPublicar }: { empresaId: string; onPublicar: () => void }) {
   const { state } = useStore()
+  const [perfil, setPerfil] = useState<{ pessoaId: string; lat: number; lng: number } | null>(null)
   const vagas = state.demandas
     .filter((demanda) => demanda.empresaId === empresaId)
     .slice()
@@ -1355,12 +1357,21 @@ function PainelVagas({ empresaId, onPublicar }: { empresaId: string; onPublicar:
                           <span className="cf-vaga-avatar">
                             {pessoa?.foto ? <img src={pessoa.foto} alt="" /> : iniciaisNome(nome)}
                           </span>
-                          <span className="cf-vaga-nome">
+                          <button
+                            type="button"
+                            className="cf-vaga-nome"
+                            disabled={!pessoa}
+                            aria-label={`Abrir perfil de ${nome}`}
+                            onClick={() =>
+                              pessoa &&
+                              setPerfil({ pessoaId: pessoa.id, lat: vaga.endereco.lat, lng: vaga.endereco.lng })
+                            }
+                          >
                             <strong>{nome}</strong>
                             <small>
                               {pessoa ? `${pessoa.endereco.cidade}/${pessoa.endereco.estado}` : 'Colaborador'}
                             </small>
-                          </span>
+                          </button>
                           <span className={`cf-vaga-selo cf-vaga-selo--${inscrito.status}`}>{rotuloConvite(inscrito.status)}</span>
                         </li>
                       )
@@ -1372,7 +1383,27 @@ function PainelVagas({ empresaId, onPublicar }: { empresaId: string; onPublicar:
           )
         })}
       </div>
+      {perfil && <PerfilDoCandidato perfil={perfil} onFechar={() => setPerfil(null)} />}
     </section>
+  )
+}
+
+function PerfilDoCandidato({
+  perfil,
+  onFechar,
+}: {
+  perfil: { pessoaId: string; lat: number; lng: number }
+  onFechar: () => void
+}) {
+  const { state } = useStore()
+  const pessoa = state.profissionais.find((item) => item.id === perfil.pessoaId)
+  if (!pessoa) return null
+  return (
+    <PerfilColaborador
+      pessoa={pessoa}
+      distancia={distanciaKm(pessoa.endereco, perfil)}
+      onFechar={onFechar}
+    />
   )
 }
 
@@ -1385,6 +1416,7 @@ function iniciaisNome(nome: string) {
 
 function PainelMissoes({ empresaId }: { empresaId: string }) {
   const { state } = useStore()
+  const [perfil, setPerfil] = useState<{ pessoaId: string; lat: number; lng: number } | null>(null)
   const missoes = state.demandas
     .filter((demanda) => demanda.empresaId === empresaId)
     .filter(
@@ -1466,13 +1498,22 @@ function PainelMissoes({ empresaId }: { empresaId: string }) {
                         <span className="cf-vaga-avatar">
                           {pessoa?.foto ? <img src={pessoa.foto} alt="" /> : iniciaisNome(nome)}
                         </span>
-                        <span className="cf-vaga-nome">
+                        <button
+                          type="button"
+                          className="cf-vaga-nome"
+                          disabled={!pessoa}
+                          aria-label={`Abrir perfil de ${nome}`}
+                          onClick={() =>
+                            pessoa &&
+                            setPerfil({ pessoaId: pessoa.id, lat: missao.endereco.lat, lng: missao.endereco.lng })
+                          }
+                        >
                           <strong>{nome}</strong>
                           <small>
                             {pessoa ? `${pessoa.endereco.cidade}/${pessoa.endereco.estado}` : 'Colaborador'}
                             {contrato?.numero ? ` · Contrato ${contrato.numero}` : ''}
                           </small>
-                        </span>
+                        </button>
                       </div>
                       {passo < 0 ? (
                         <span className={`cf-vaga-selo cf-vaga-selo--${convite.status}`}>{rotuloConvite(convite.status)}</span>
@@ -1499,6 +1540,7 @@ function PainelMissoes({ empresaId }: { empresaId: string }) {
           )
         })}
       </div>
+      {perfil && <PerfilDoCandidato perfil={perfil} onFechar={() => setPerfil(null)} />}
     </section>
   )
 }
