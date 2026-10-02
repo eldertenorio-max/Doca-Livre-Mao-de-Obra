@@ -5,6 +5,7 @@ import { LevelBadge } from '../../components/LevelBadge'
 import { cargoLabel } from '../../data/categories'
 import { LOGO_DOCA_LIVRE_SRC } from '../../lib/brandAssets'
 import { useStore } from '../../lib/store'
+import { AdminDashboard } from './AdminDashboard'
 import '../empresa/empresa-px.css'
 import './admin.css'
 
@@ -202,44 +203,6 @@ function IconeAba({ id }: { id: string }) {
         </>
       )}
     </svg>
-  )
-}
-
-function AdminDashboard() {
-  const { state } = useStore()
-  const abertas = state.demandas.filter((d) => d.status === 'aberta').length
-  const finalizadas = state.demandas.filter((d) => d.status === 'finalizada').length
-  const faturamento = state.pagamentos.reduce((s, p) => s + p.comissao, 0)
-  const pendProf = state.profissionais.filter((p) => p.status === 'pendente').length
-  const pendEmp = state.empresas.filter((e) => e.status === 'pendente').length
-  const porCidade = state.profissionais.reduce<Record<string, number>>((acc, p) => {
-    acc[p.endereco.cidade] = (acc[p.endereco.cidade] ?? 0) + 1
-    return acc
-  }, {})
-
-  return (
-    <div className="px-page">
-      <h1 className="px-title">Dashboard</h1>
-      <div className="px-stat-3" style={{ marginBottom: 16 }}>
-        <div className="px-mini-card"><span className="muted">Empresas</span><strong>{state.empresas.length}</strong></div>
-        <div className="px-mini-card"><span className="muted">Profissionais</span><strong>{state.profissionais.length}</strong></div>
-        <div className="px-mini-card"><span className="muted">Demandas abertas</span><strong>{abertas}</strong></div>
-        <div className="px-mini-card"><span className="muted">Finalizadas</span><strong>{finalizadas}</strong></div>
-        <div className="px-mini-card"><span className="muted">Comissões</span><strong>R$ {faturamento}</strong></div>
-        <div className="px-mini-card"><span className="muted">Pendências</span><strong>{pendProf + pendEmp}</strong></div>
-      </div>
-      <div className="px-card">
-        <h3>Profissionais por cidade</h3>
-        <ul className="px-list">
-          {Object.entries(porCidade).map(([cidade, n]) => (
-            <li key={cidade} className="px-list-card">
-              <strong>{cidade}</strong>
-              <span>{n}</span>
-            </li>
-          ))}
-        </ul>
-      </div>
-    </div>
   )
 }
 
