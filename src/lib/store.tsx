@@ -341,10 +341,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       )
       if (!user) return { ok: false, error: 'Usuário ou senha inválidos.' }
 
+      const contaOperacional = user.role === 'profissional' || user.role === 'empresa'
       const isSuper =
         user.role === 'super' ||
-        isLocalSuperUser(user.usuario || '') ||
-        isLocalSuperUser(user.email)
+        (!contaOperacional &&
+          (isLocalSuperUser(user.usuario || '') || isLocalSuperUser(user.email)))
 
       if (!isSuper) {
         if (portal === 'empresa' && user.role !== 'empresa') {
@@ -362,8 +363,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         }
       }
 
-      // Super/admin nos portais operacionais: usa conta demo com perfil completo
-      if ((isSuper || user.role === 'admin') && portal !== 'admin') {
+      // Só a conta super ou admin entra no perfil de demonstração. Um trabalhador
+      // chamado Diego Isidoro permanece na própria conta.
+      if ((user.role === 'super' || user.role === 'admin') && portal !== 'admin') {
         if (portal === 'profissional') {
           const demo =
             state.users.find((u) => u.email === 'carlos@email.com' && u.role === 'profissional') ||
