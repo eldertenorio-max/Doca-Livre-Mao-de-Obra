@@ -3,6 +3,7 @@ import { LOCAIS_OPERACAO } from '../../data/cidades'
 import { ACCEPT_DOCUMENTO_CADASTRO, analisarDocumentoCadastro, lerArquivoEmpresa } from '../../lib/analisarDocumentoCadastro'
 import { coordenadaDaCidade } from '../../lib/coordenadaCidade'
 import { useStore } from '../../lib/store'
+import { SeloDocumento } from './SeloDocumento'
 import type { EmpresaTipo } from '../../lib/types'
 
 type Props = {
@@ -132,8 +133,10 @@ export function CadastroEmpresaScreen({ onBack, onDone }: Props) {
       })
       if (geracaoDoc.current[id] !== vez) return
       if (!result.ok) {
-        setDocs((atual) => ({ ...atual, [id]: { arquivo: foto.nome, analise: null, analisando: false } }))
-        setError(result.erro)
+        setDocs((atual) => ({
+          ...atual,
+          [id]: { arquivo: foto.nome, analise: { aceito: false, motivo: result.erro }, analisando: false },
+        }))
         return
       }
       setDocs((atual) => ({
@@ -142,8 +145,14 @@ export function CadastroEmpresaScreen({ onBack, onDone }: Props) {
       }))
     } catch (falha) {
       if (geracaoDoc.current[id] !== vez) return
-      setDocs((atual) => ({ ...atual, [id]: DOC_VAZIO }))
-      setError(falha instanceof Error ? falha.message : 'Não foi possível ler o arquivo.')
+      setDocs((atual) => ({
+        ...atual,
+        [id]: {
+          arquivo: atual[id].arquivo || file.name,
+          analise: { aceito: false, motivo: falha instanceof Error ? falha.message : 'Não foi possível ler o arquivo.' },
+          analisando: false,
+        },
+      }))
     }
   }
 
@@ -366,13 +375,7 @@ export function CadastroEmpresaScreen({ onBack, onDone }: Props) {
                     <small className="muted">{item.ajuda}</small>
                     {atual.arquivo && <small className="muted">{atual.arquivo}</small>}
                   </label>
-                  {atual.analisando && <p className="docs-analise">Analisando…</p>}
-                  {atual.analise && (
-                    <p className={atual.analise.aceito ? 'docs-analise docs-analise--ok' : 'docs-analise docs-analise--nao'}>
-                      <strong>{atual.analise.aceito ? 'Aceito' : 'Não aceito'}</strong>
-                      <span>{atual.analise.motivo}</span>
-                    </p>
-                  )}
+                  <SeloDocumento analisando={atual.analisando} analise={atual.analise} />
                 </div>
               )
             })}

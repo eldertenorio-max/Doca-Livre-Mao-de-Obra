@@ -12,6 +12,7 @@ import {
 import { coordenadaDaCidade } from '../../lib/coordenadaCidade'
 import { validarChavePix } from '../../lib/pix'
 import { useStore } from '../../lib/store'
+import { SeloDocumento } from './SeloDocumento'
 import type { Disponibilidade } from '../../lib/types'
 
 type Props = {
@@ -166,8 +167,10 @@ export function CadastroProfissionalScreen({ onBack, onDone }: Props) {
       })
       if (geracaoDoc.current[papel] !== vez) return
       if (!result.ok) {
-        setLinhas((atual) => ({ ...atual, [papel]: { arquivo: foto, analise: null, analisando: false } }))
-        setError(result.erro)
+        setLinhas((atual) => ({
+          ...atual,
+          [papel]: { arquivo: foto, analise: { aceito: false, motivo: result.erro }, analisando: false },
+        }))
         return
       }
       setLinhas((atual) => ({
@@ -176,8 +179,14 @@ export function CadastroProfissionalScreen({ onBack, onDone }: Props) {
       }))
     } catch (falha) {
       if (geracaoDoc.current[papel] !== vez) return
-      setLinhas((atual) => ({ ...atual, [papel]: LINHA_VAZIA }))
-      setError(falha instanceof Error ? falha.message : 'Não foi possível ler o arquivo.')
+      setLinhas((atual) => ({
+        ...atual,
+        [papel]: {
+          arquivo: atual[papel].arquivo,
+          analise: { aceito: false, motivo: falha instanceof Error ? falha.message : 'Não foi possível ler o arquivo.' },
+          analisando: false,
+        },
+      }))
     }
   }
 
@@ -480,13 +489,7 @@ function CampoDoc({
         />
         {linha.arquivo && <small className="muted">{linha.arquivo.nome}</small>}
       </label>
-      {linha.analisando && <p className="docs-analise">Analisando…</p>}
-      {linha.analise && (
-        <p className={linha.analise.aceito ? 'docs-analise docs-analise--ok' : 'docs-analise docs-analise--nao'}>
-          <strong>{linha.analise.aceito ? 'Aceito' : 'Não aceito'}</strong>
-          <span>{linha.analise.motivo}</span>
-        </p>
-      )}
+      <SeloDocumento analisando={linha.analisando} analise={linha.analise} />
     </div>
   )
 }

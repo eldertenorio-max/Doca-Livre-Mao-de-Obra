@@ -685,6 +685,59 @@
   padding-bottom: 0;
 }
 
+.docs-selo {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: #f4f7fb;
+  color: #1a2b4a;
+}
+
+.docs-selo-marca {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  font-weight: 800;
+  background: #e8eef5;
+  color: #1a2b4a;
+}
+
+.docs-selo strong,
+.docs-selo small {
+  display: block;
+}
+
+.docs-selo small {
+  margin-top: 2px;
+  font-size: 0.85rem;
+}
+
+.docs-selo--ok {
+  background: #ecfdf3;
+  color: #047857;
+}
+
+.docs-selo--ok .docs-selo-marca {
+  background: #16a34a;
+  color: #fff;
+}
+
+.docs-selo--nao {
+  background: #fef2f2;
+  color: #b91c1c;
+}
+
+.docs-selo--nao .docs-selo-marca {
+  background: #dc2626;
+  color: #fff;
+}
+
 .docs-analise {
   display: flex;
   flex-direction: column;
