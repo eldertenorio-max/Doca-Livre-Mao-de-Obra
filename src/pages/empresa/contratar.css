@@ -359,6 +359,159 @@
   font-weight: 700;
 }
 
+.cf-empresa {
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  overflow: hidden;
+  box-shadow: 0 10px 24px rgb(17 17 17 / 0.04);
+}
+
+.cf-empresa-topo {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 22px 22px 18px;
+}
+
+.cf-empresa-marca {
+  width: 56px;
+  height: 56px;
+  border-radius: 16px;
+  background: #f9db00;
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+}
+
+.cf-empresa-marca svg {
+  width: 28px;
+  height: 28px;
+}
+
+.cf-empresa-topo h2 {
+  margin: 8px 0 0;
+  font-size: 1.45rem;
+  letter-spacing: -0.03em;
+}
+
+.cf-empresa-topo p {
+  margin: 4px 0 0;
+  color: #5c6670;
+  font-weight: 700;
+}
+
+.cf-empresa-topo > div {
+  min-width: 0;
+  flex: 1;
+}
+
+.cf-empresa-selo {
+  display: inline-flex;
+  border-radius: 999px;
+  padding: 4px 10px;
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
+.cf-empresa-selo--ok {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.cf-empresa-selo--espera {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.cf-empresa-selo--off {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.cf-empresa-tipo {
+  flex: 0 0 auto;
+  background: #111;
+  color: #f9db00;
+  border-radius: 999px;
+  padding: 6px 12px;
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.cf-empresa-grade {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px;
+  padding: 0 22px 8px;
+}
+
+.cf-empresa-grade h3,
+.cf-empresa-endereco h3 {
+  margin: 0 0 10px;
+  font-size: 0.78rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #6b7280;
+}
+
+.cf-empresa-grade dl {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+}
+
+.cf-empresa-grade dl div {
+  background: #f6f7f9;
+  border-radius: 12px;
+  padding: 10px 12px;
+}
+
+.cf-empresa-grade dt,
+.cf-empresa-endereco h3 {
+  font-weight: 800;
+}
+
+.cf-empresa-grade dt {
+  font-size: 0.7rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #6b7280;
+}
+
+.cf-empresa-grade dd {
+  margin: 4px 0 0;
+  font-weight: 700;
+}
+
+.cf-empresa-endereco {
+  margin: 14px 22px 22px;
+  background: #111;
+  color: #fff;
+  border-radius: 16px;
+  padding: 16px 18px;
+}
+
+.cf-empresa-endereco h3 {
+  color: #f9db00;
+}
+
+.cf-empresa-endereco p {
+  margin: 0;
+  font-weight: 700;
+}
+
+.cf-empresa-endereco p + p {
+  margin-top: 4px;
+  color: #e5e7eb;
+}
+
+.cf-empresa-endereco small {
+  display: block;
+  margin-top: 8px;
+  color: #d1d5db;
+}
+
 .cf-main {
   flex: 1;
   min-width: 0;
@@ -1563,6 +1716,7 @@
   }
 
   .cf-dados,
+  .cf-empresa-grade,
   .cf-grid,
   .cf-checks--duo,
   .cf-dates,
@@ -1587,6 +1741,10 @@
 
   .cf-local {
     grid-template-columns: 1fr;
+  }
+
+  .cf-empresa-topo {
+    flex-wrap: wrap;
   }
 
   .cf-vaga-pagina {

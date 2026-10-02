@@ -1560,17 +1560,12 @@ function rotuloContrato(status: string) {
 }
 
 function PainelDados() {
-  const empresa = useStore().currentEmpresa!
+  const { currentEmpresa, currentUser } = useStore()
+  const empresa = currentEmpresa!
   const endereco = empresa.endereco
-  const campos = [
-    ['Nome fantasia', empresa.nomeFantasia],
-    ['Razão social', empresa.razaoSocial],
-    ['CNPJ', empresa.cnpj],
-    ['Responsável', `${empresa.responsavelNome} · ${empresa.responsavelCargo}`],
-    ['Telefone', empresa.telefone],
-    ['Endereço', `${endereco.rua}, ${endereco.numero} · ${endereco.cidade}/${endereco.estado}`],
-    ['Situação', empresa.status === 'aprovada' ? 'Validada' : empresa.status === 'bloqueada' ? 'Bloqueada' : 'Aguardando validação'],
-  ]
+  const situacao =
+    empresa.status === 'aprovada' ? 'Validada' : empresa.status === 'bloqueada' ? 'Bloqueada' : 'Aguardando validação'
+  const situacaoClasse = empresa.status === 'aprovada' ? 'ok' : empresa.status === 'bloqueada' ? 'off' : 'espera'
 
   return (
     <section className="cf-panel">
@@ -1578,16 +1573,79 @@ function PainelDados() {
         <h1>Dados da empresa</h1>
         <p>Cadastro da empresa tomadora usado nas missões temporárias.</p>
       </div>
-      <dl className="cf-dados">
-        {campos.map(([rotulo, valor]) => (
-          <div key={rotulo}>
-            <dt>{rotulo}</dt>
-            <dd>{valor}</dd>
+      <article className="cf-empresa">
+        <header className="cf-empresa-topo">
+          <span className="cf-empresa-marca" aria-hidden>
+            <IconeEmpresa />
+          </span>
+          <div>
+            <span className={`cf-empresa-selo cf-empresa-selo--${situacaoClasse}`}>{situacao}</span>
+            <h2>{empresa.nomeFantasia}</h2>
+            <p>{empresa.razaoSocial}</p>
           </div>
-        ))}
-      </dl>
+          <span className="cf-empresa-tipo">{rotuloTipoEmpresa(empresa.tipo)}</span>
+        </header>
+        <div className="cf-empresa-grade">
+          <section>
+            <h3>Identificação</h3>
+            <dl>
+              <div>
+                <dt>CNPJ</dt>
+                <dd>{empresa.cnpj}</dd>
+              </div>
+              {currentUser?.email && (
+                <div>
+                  <dt>E-mail</dt>
+                  <dd>{currentUser.email}</dd>
+                </div>
+              )}
+            </dl>
+          </section>
+          <section>
+            <h3>Responsável</h3>
+            <dl>
+              <div>
+                <dt>Nome</dt>
+                <dd>{empresa.responsavelNome}</dd>
+              </div>
+              <div>
+                <dt>Cargo</dt>
+                <dd>{empresa.responsavelCargo}</dd>
+              </div>
+              <div>
+                <dt>Telefone</dt>
+                <dd>{empresa.telefone}</dd>
+              </div>
+            </dl>
+          </section>
+        </div>
+        <footer className="cf-empresa-endereco">
+          <h3>Endereço da operação</h3>
+          <p>
+            {endereco.rua}, {endereco.numero}
+          </p>
+          <p>
+            {endereco.cidade}/{endereco.estado}
+            {endereco.cep ? ` · CEP ${endereco.cep}` : ''}
+          </p>
+          <small>Este endereço é a origem das buscas e do mapa.</small>
+        </footer>
+      </article>
     </section>
   )
+}
+
+function rotuloTipoEmpresa(tipo: string) {
+  const nomes: Record<string, string> = {
+    transportadora: 'Transportadora',
+    operador_logistico: 'Operador logístico',
+    industria: 'Indústria',
+    centro_distribuicao: 'Centro de distribuição',
+    atacadista: 'Atacadista',
+    varejo: 'Varejo',
+    outro: 'Outro',
+  }
+  return nomes[tipo] ?? tipo
 }
 
 function rotuloStatusMissao(status: string) {
