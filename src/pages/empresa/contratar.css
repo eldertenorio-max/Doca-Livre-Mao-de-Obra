@@ -395,6 +395,10 @@
   padding: 20px;
 }
 
+.cf-card .cf-primary {
+  margin-top: 12px;
+}
+
 .cf-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -634,6 +638,10 @@
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 12px;
+}
+
+.cf-stat-row--duo {
+  grid-template-columns: repeat(2, minmax(160px, 240px));
 }
 
 .cf-stat {
@@ -1287,6 +1295,7 @@
   .cf-checks--duo,
   .cf-dates,
   .cf-stat-row,
+  .cf-stat-row--duo,
   .cf-gallery,
   .cf-pro-top {
     grid-template-columns: 1fr;

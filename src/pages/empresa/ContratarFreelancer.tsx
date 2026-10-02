@@ -266,6 +266,7 @@ function valorNumero(texto: string) {
 
 const ABAS_EMPRESA = [
   { id: 'missao', label: 'Vaga temporária', icon: <IconeVaga /> },
+  { id: 'vagas', label: 'Vagas', icon: <IconeVagasLista /> },
   { id: 'missoes', label: 'Missões', icon: <IconeMissoes /> },
   { id: 'mapa', label: 'Mapa Mão de Obra', icon: <IconeMapa /> },
   { id: 'contratacoes', label: 'Minhas contratações', icon: <IconeContratacoes /> },
@@ -302,6 +303,17 @@ function IconeVaga() {
       <rect x="6" y="3.5" width="12" height="17" rx="2" stroke="currentColor" strokeWidth="1.75" />
       <path d="M9 3.5h6v2.2a1 1 0 0 1-1 1h-4a1 1 0 0 1-1-1V3.5z" stroke="currentColor" strokeWidth="1.75" />
       <path d="M9 11h6M9 14.5h4" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" />
+    </IconeBase>
+  )
+}
+
+function IconeVagasLista() {
+  return (
+    <IconeBase>
+      <path d="M8 6.5h11M8 12h11M8 17.5h11" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" />
+      <circle cx="4.5" cy="6.5" r="1.1" fill="currentColor" />
+      <circle cx="4.5" cy="12" r="1.1" fill="currentColor" />
+      <circle cx="4.5" cy="17.5" r="1.1" fill="currentColor" />
     </IconeBase>
   )
 }
@@ -693,6 +705,7 @@ export function ContratarFreelancer({ onLogout }: { onLogout: () => void }) {
     setMissaoId(criada.id)
     setVagaPublicadaChave(chave)
     setAvisoPublicacao('Vaga publicada. Os colaboradores já podem ver e se candidatar.')
+    setAba('vagas')
   }
 
   function convidar(item: CurriculoAnalisado) {
@@ -795,6 +808,7 @@ export function ContratarFreelancer({ onLogout }: { onLogout: () => void }) {
       <main className="cf-main">
         <div className="cf-wrap">
           {aba === 'documentos' && <BibliotecaDocumental modo="tomadora" empresaId={empresa.id} />}
+          {aba === 'vagas' && <PainelVagas empresaId={empresa.id} onPublicar={() => setAba('missao')} />}
           {aba === 'missoes' && <PainelMissoes empresaId={empresa.id} />}
           {aba === 'mapa' && <MapaMaoDeObra empresa={empresa} />}
           {aba === 'contratacoes' && <PainelContratacoes empresaId={empresa.id} />}
@@ -1227,6 +1241,92 @@ function CartaoAnalise() {
         </div>
       </div>
     </div>
+  )
+}
+
+function PainelVagas({ empresaId, onPublicar }: { empresaId: string; onPublicar: () => void }) {
+  const { state } = useStore()
+  const vagas = state.demandas
+    .filter((demanda) => demanda.empresaId === empresaId)
+    .slice()
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt) || b.data.localeCompare(a.data))
+  const abertas = vagas.filter((demanda) => demanda.status === 'aberta').length
+  const candidaturas = state.candidaturas.filter((item) => vagas.some((demanda) => demanda.id === item.demandaId)).length
+
+  return (
+    <section className="cf-panel">
+      <div className="cf-intro">
+        <h1>Vagas</h1>
+        <p>Vagas publicadas por esta empresa e os colaboradores que já se candidataram.</p>
+      </div>
+      {vagas.length > 0 && (
+        <div className="cf-stat-row cf-stat-row--duo">
+          <article className="cf-stat cf-stat--dark">
+            <span>Publicadas</span>
+            <strong>{vagas.length}</strong>
+            <small>{abertas === 1 ? '1 aberta agora' : `${abertas} abertas agora`}</small>
+          </article>
+          <article className="cf-stat cf-stat--green">
+            <span>Candidaturas</span>
+            <strong>{candidaturas}</strong>
+            <small>interesse registrado</small>
+          </article>
+        </div>
+      )}
+      {vagas.length === 0 && (
+        <div className="cf-card">
+          <strong>Nenhuma vaga publicada.</strong>
+          <p className="muted">Publique uma vaga temporária para ela aparecer aqui e na aba Vagas do colaborador.</p>
+          <button type="button" className="cf-primary" onClick={onPublicar}>
+            Publicar vaga
+          </button>
+        </div>
+      )}
+      <div className="cf-mission-list">
+        {vagas.map((vaga) => {
+          const inscritos = state.candidaturas.filter((item) => item.demandaId === vaga.id)
+          return (
+            <article key={vaga.id} className="cf-card cf-mission">
+              <div className="cf-mission-head">
+                <h2>{cargoLabel(vaga.cargo)}</h2>
+                <span className={`cf-status cf-status--${vaga.status}`}>{rotuloStatusMissao(vaga.status)}</span>
+              </div>
+              <p>
+                {formatarDataBr(vaga.data)}
+                {vaga.dataFim ? ` a ${formatarDataBr(vaga.dataFim)}` : ''} · {vaga.horaInicio}–{vaga.horaFim} ·{' '}
+                {vaga.endereco.cidade}/{vaga.endereco.estado}
+              </p>
+              <p>
+                {vaga.quantidade} trabalhador{vaga.quantidade === 1 ? '' : 'es'} ·{' '}
+                {vaga.valorDiaria.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })} por dia
+              </p>
+              {(vaga.atividades || vaga.descricao) && <p>{vaga.atividades || vaga.descricao}</p>}
+              {vaga.requisitos.length > 0 && (
+                <p className="muted">Requisitos: {vaga.requisitos.join(', ')}</p>
+              )}
+              {inscritos.length === 0 ? (
+                <p className="muted">Nenhuma candidatura ainda.</p>
+              ) : (
+                <ul className="cf-invite-list">
+                  {inscritos.map((inscrito) => {
+                    const pessoa = state.profissionais.find((item) => item.id === inscrito.profissionalId)
+                    return (
+                      <li key={inscrito.id}>
+                        <strong>
+                          {pessoa?.nome ?? 'Trabalhador'}
+                          {pessoa ? ` · ${pessoa.endereco.cidade}/${pessoa.endereco.estado}` : ''}
+                        </strong>
+                        <span>{rotuloConvite(inscrito.status)}</span>
+                      </li>
+                    )
+                  })}
+                </ul>
+              )}
+            </article>
+          )
+        })}
+      </div>
+    </section>
   )
 }
 
