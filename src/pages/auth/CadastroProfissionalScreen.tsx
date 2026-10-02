@@ -1,4 +1,4 @@
-import { useMemo, useState, type FormEvent } from 'react'
+import { useMemo, useRef, useState, type FormEvent } from 'react'
 import { CATEGORIES } from '../../data/categories'
 import { LOCAIS_OPERACAO } from '../../data/cidades'
 import { AvailabilityToggle } from '../../components/AvailabilityToggle'
@@ -19,6 +19,14 @@ type Props = {
   onDone: () => void
 }
 
+type LinhaDoc = {
+  arquivo: FotoDocumento | null
+  analise: { aceito: boolean; motivo: string } | null
+  analisando: boolean
+}
+
+const LINHA_VAZIA: LinhaDoc = { arquivo: null, analise: null, analisando: false }
+
 const CERTS = ['NR11', 'NR35', 'NR10', 'NR20', 'MOPP', 'Munck', 'Ponte Rolante']
 const RAIOS = [10, 25, 50, 100]
 const ETAPAS = [
@@ -37,11 +45,12 @@ export function CadastroProfissionalScreen({ onBack, onDone }: Props) {
   const completing = currentUser?.role === 'profissional' && currentUser.perfilCompleto === false
   const [step, setStep] = useState(1)
   const [error, setError] = useState('')
-  const [documento, setDocumento] = useState<FotoDocumento | null>(null)
-  const [verso, setVerso] = useState<FotoDocumento | null>(null)
-  const [selfie, setSelfie] = useState<FotoDocumento | null>(null)
-  const [analise, setAnalise] = useState<{ aceito: boolean; motivo: string } | null>(null)
-  const [analisando, setAnalisando] = useState(false)
+  const [linhas, setLinhas] = useState<Record<PapelDocumento, LinhaDoc>>({
+    documento: LINHA_VAZIA,
+    verso: LINHA_VAZIA,
+    selfie: LINHA_VAZIA,
+  })
+  const geracaoDoc = useRef<Partial<Record<PapelDocumento, number>>>({})
   const [form, setForm] = useState({
     nome: '',
     cpf: '',
@@ -106,68 +115,83 @@ export function CadastroProfissionalScreen({ onBack, onDone }: Props) {
     set('raioKm', valor === '' || !Number.isFinite(numero) || numero <= 0 ? null : Math.min(500, Math.round(numero)))
   }
 
+  function documentosProntos() {
+    const frente = linhas.documento.analise?.aceito && linhas.documento.arquivo
+    const face = linhas.selfie.analise?.aceito && linhas.selfie.arquivo
+    const costas = !linhas.verso.arquivo || linhas.verso.analise?.aceito
+    return Boolean(frente && face && costas)
+  }
+
+  function algumAnalisando() {
+    return linhas.documento.analisando || linhas.verso.analisando || linhas.selfie.analisando
+  }
+
   function documentosAceitos() {
-    if (!analise?.aceito || !documento || !selfie) return []
+    const frente = linhas.documento
+    const face = linhas.selfie
+    const costas = linhas.verso
+    if (!frente.arquivo || !frente.analise?.aceito || !face.arquivo || !face.analise?.aceito) return []
+    if (costas.arquivo && !costas.analise?.aceito) return []
     return [
       {
         tipoId: 'rg_cpf',
-        arquivoNome: [documento.nome, verso?.nome].filter(Boolean).join(', '),
-        observacao: analise.motivo,
+        arquivoNome: [frente.arquivo.nome, costas.arquivo?.nome].filter(Boolean).join(', '),
+        observacao: [frente.analise.motivo, costas.analise?.motivo].filter(Boolean).join(' '),
       },
-      { tipoId: 'selfie', arquivoNome: selfie.nome, observacao: analise.motivo },
+      { tipoId: 'selfie', arquivoNome: face.arquivo.nome, observacao: face.analise.motivo },
     ]
   }
 
   async function escolherFoto(file: File | undefined, papel: PapelDocumento) {
     setError('')
-    setAnalise(null)
-    const guardar = papel === 'documento' ? setDocumento : papel === 'verso' ? setVerso : setSelfie
+    const vez = (geracaoDoc.current[papel] ?? 0) + 1
+    geracaoDoc.current[papel] = vez
     if (!file) {
-      guardar(null)
+      setLinhas((atual) => ({ ...atual, [papel]: LINHA_VAZIA }))
       return
     }
-    try {
-      guardar(await lerArquivoCadastro(file))
-    } catch (falha) {
-      guardar(null)
-      setError(falha instanceof Error ? falha.message : 'Não foi possível ler a foto.')
-    }
-  }
-
-  async function analisarFotos() {
-    setError('')
-    if (!form.nome.trim()) {
+    if (form.nome.trim().length < 3) {
       setError('Volte e informe o nome antes de enviar o documento.')
       return
     }
-    if (!documento || !selfie) {
-      setError('Envie a foto do documento e a selfie.')
-      return
-    }
-    setAnalisando(true)
+    setLinhas((atual) => ({ ...atual, [papel]: { arquivo: { nome: file.name, mime: 'image/jpeg', dados: '' }, analise: null, analisando: true } }))
     try {
-      const arquivos = [
-        { papel: 'documento' as const, mime: documento.mime, dados: documento.dados },
-        ...(verso ? [{ papel: 'verso' as const, mime: verso.mime, dados: verso.dados }] : []),
-        { papel: 'selfie' as const, mime: selfie.mime, dados: selfie.dados },
-      ]
-      const result = await analisarDocumentoCadastro({ nome: form.nome.trim(), arquivos })
+      const foto = await lerArquivoCadastro(file)
+      if (geracaoDoc.current[papel] !== vez) return
+      setLinhas((atual) => ({ ...atual, [papel]: { arquivo: foto, analise: null, analisando: true } }))
+      const result = await analisarDocumentoCadastro({
+        nome: form.nome.trim(),
+        contexto: 'trabalhador',
+        arquivos: [{ papel, mime: foto.mime, dados: foto.dados }],
+      })
+      if (geracaoDoc.current[papel] !== vez) return
       if (!result.ok) {
-        setAnalise(null)
+        setLinhas((atual) => ({ ...atual, [papel]: { arquivo: foto, analise: null, analisando: false } }))
         setError(result.erro)
         return
       }
-      setAnalise({ aceito: result.aceito, motivo: result.motivo })
-    } finally {
-      setAnalisando(false)
+      setLinhas((atual) => ({
+        ...atual,
+        [papel]: { arquivo: foto, analise: { aceito: result.aceito, motivo: result.motivo }, analisando: false },
+      }))
+    } catch (falha) {
+      if (geracaoDoc.current[papel] !== vez) return
+      setLinhas((atual) => ({ ...atual, [papel]: LINHA_VAZIA }))
+      setError(falha instanceof Error ? falha.message : 'Não foi possível ler o arquivo.')
     }
   }
 
   function next() {
     setError('')
-    if (step === 2 && !analise?.aceito) {
-      setError('Envie o documento e a selfie e espere a análise aceitar.')
-      return
+    if (step === 2) {
+      if (algumAnalisando()) {
+        setError('Espere a análise do arquivo terminar.')
+        return
+      }
+      if (!documentosProntos()) {
+        setError('Envie o documento e a selfie. Cada um precisa ser aceito para continuar.')
+        return
+      }
     }
     if (step === 3 && form.profissoes.length === 0) {
       setError('Selecione ao menos um cargo.')
@@ -194,8 +218,8 @@ export function CadastroProfissionalScreen({ onBack, onDone }: Props) {
 
   function submit(e: FormEvent) {
     e.preventDefault()
-    if (!analise?.aceito || !documento || !selfie) {
-      setError('O documento precisa ser aceito na análise antes de concluir.')
+    if (!documentosProntos() || algumAnalisando()) {
+      setError('O documento e a selfie precisam ser aceitos antes de concluir.')
       setStep(2)
       return
     }
@@ -293,43 +317,10 @@ export function CadastroProfissionalScreen({ onBack, onDone }: Props) {
         )}
         {step === 2 && (
           <div className="docs-mock">
-            <p>Envie o documento de identidade e uma selfie, em foto ou PDF. A análise diz se o cadastro segue ou não.</p>
-            <label className="field">
-              <span>Documento (RG, CIN, CNH ou CPF)</span>
-              <input
-                type="file"
-                accept={ACCEPT_DOCUMENTO_CADASTRO}
-                onChange={(e) => void escolherFoto(e.target.files?.[0], 'documento')}
-              />
-              {documento && <small className="muted">{documento.nome}</small>}
-            </label>
-            <label className="field">
-              <span>Verso, se tiver</span>
-              <input
-                type="file"
-                accept={ACCEPT_DOCUMENTO_CADASTRO}
-                onChange={(e) => void escolherFoto(e.target.files?.[0], 'verso')}
-              />
-              {verso && <small className="muted">{verso.nome}</small>}
-            </label>
-            <label className="field">
-              <span>Selfie</span>
-              <input
-                type="file"
-                accept={ACCEPT_DOCUMENTO_CADASTRO}
-                onChange={(e) => void escolherFoto(e.target.files?.[0], 'selfie')}
-              />
-              {selfie && <small className="muted">{selfie.nome}</small>}
-            </label>
-            <button type="button" className="btn btn-primary btn-block" disabled={analisando} onClick={() => void analisarFotos()}>
-              {analisando ? 'Analisando…' : 'Analisar documento'}
-            </button>
-            {analise && (
-              <p className={analise.aceito ? 'docs-analise docs-analise--ok' : 'docs-analise docs-analise--nao'}>
-                <strong>{analise.aceito ? 'Aceito' : 'Não aceito'}</strong>
-                <span>{analise.motivo}</span>
-              </p>
-            )}
+            <p>Envie o documento e a selfie. A análise começa na hora e diz se cada arquivo foi aceito.</p>
+            <CampoDoc titulo="Documento (RG, CIN, CNH ou CPF)" papel="documento" linha={linhas.documento} onEscolher={escolherFoto} />
+            <CampoDoc titulo="Verso, se tiver" papel="verso" linha={linhas.verso} onEscolher={escolherFoto} />
+            <CampoDoc titulo="Selfie" papel="selfie" linha={linhas.selfie} onEscolher={escolherFoto} />
             <label className="field">
               <span>CNH (categoria, se aplicável)</span>
               <input value={form.cnhCategoria} onChange={(e) => set('cnhCategoria', e.target.value)} placeholder="Ex: B, C, D, E" />
@@ -459,10 +450,43 @@ export function CadastroProfissionalScreen({ onBack, onDone }: Props) {
         )}
 
         {error && <p className="error">{error}</p>}
-        <button type="submit" className="btn btn-accent btn-block">
-          {step === ETAPAS.length ? 'Concluir cadastro' : 'Continuar'}
+        <button type="submit" className="btn btn-accent btn-block" disabled={step === 2 && algumAnalisando()}>
+          {step === ETAPAS.length ? 'Concluir cadastro' : step === 2 && algumAnalisando() ? 'Analisando…' : 'Continuar'}
         </button>
       </form>
+    </div>
+  )
+}
+
+function CampoDoc({
+  titulo,
+  papel,
+  linha,
+  onEscolher,
+}: {
+  titulo: string
+  papel: PapelDocumento
+  linha: LinhaDoc
+  onEscolher: (file: File | undefined, papel: PapelDocumento) => void
+}) {
+  return (
+    <div className="docs-item">
+      <label className="field">
+        <span>{titulo}</span>
+        <input
+          type="file"
+          accept={ACCEPT_DOCUMENTO_CADASTRO}
+          onChange={(e) => onEscolher(e.target.files?.[0], papel)}
+        />
+        {linha.arquivo && <small className="muted">{linha.arquivo.nome}</small>}
+      </label>
+      {linha.analisando && <p className="docs-analise">Analisando…</p>}
+      {linha.analise && (
+        <p className={linha.analise.aceito ? 'docs-analise docs-analise--ok' : 'docs-analise docs-analise--nao'}>
+          <strong>{linha.analise.aceito ? 'Aceito' : 'Não aceito'}</strong>
+          <span>{linha.analise.motivo}</span>
+        </p>
+      )}
     </div>
   )
 }
