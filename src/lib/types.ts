@@ -71,6 +71,8 @@ export type Empresa = {
   razaoSocial: string
   nomeFantasia: string
   tipo: EmpresaTipo
+  /** Marca exibida para o trabalhador na vaga. */
+  logo?: string
   plano: Plano
   responsavelNome: string
   responsavelCpf: string

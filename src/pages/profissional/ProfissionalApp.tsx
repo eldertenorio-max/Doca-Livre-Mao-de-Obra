@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react'
+import { Fragment, useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react'
 import { AvailabilityToggle } from '../../components/AvailabilityToggle'
 import { BibliotecaDocumental } from '../../components/BibliotecaDocumental'
 import { ContratoViewer } from '../../components/ContratoViewer'
@@ -11,6 +11,7 @@ import { pendenciasParaIniciar } from '../../lib/dossieTemporario'
 import { BRAND_PRODUCT_NAME, LOGO_DOCA_LIVRE_SRC } from '../../lib/brandAssets'
 import { useStore } from '../../lib/store'
 import type { CandidaturaStatus, Disponibilidade } from '../../lib/types'
+import { PerfilEmpresa, logoDaEmpresa } from './PerfilEmpresa'
 import '../empresa/contratar.css'
 import './perfil.css'
 
@@ -424,6 +425,7 @@ function VagasTab() {
   const { currentProfissional, state, candidatar } = useStore()
   const prof = currentProfissional!
   const [aviso, setAviso] = useState<{ id: string; texto: string; ok: boolean } | null>(null)
+  const [perfilId, setPerfilId] = useState<string | null>(null)
   const aprovado = prof.status === 'aprovado'
   const verTodas = prof.verTodasVagas !== false
 
@@ -506,7 +508,8 @@ function VagasTab() {
         const periodo = `${dataCurta(demanda.data)}${demanda.dataFim ? ` a ${dataCurta(demanda.dataFim)}` : ''}`
         const texto = demanda.atividades || demanda.descricao
         return (
-          <article key={demanda.id} className="td-vaga">
+          <Fragment key={demanda.id}>
+          <article className="td-vaga">
             <div className="td-vaga-topo">
               <div>
                 {confirmada ? (
@@ -519,7 +522,24 @@ function VagasTab() {
                   <span className="td-vaga-selo td-vaga-selo--aberta">Aberta</span>
                 )}
                 <h3>{cargoLabel(demanda.cargo)}</h3>
-                <p className="td-vaga-empresa">{empresa?.nomeFantasia ?? 'Empresa tomadora'}</p>
+                <button
+                  type="button"
+                  className="td-vaga-marca"
+                  onClick={() => empresa && setPerfilId(demanda.id)}
+                  disabled={!empresa}
+                >
+                  <span className="td-vaga-logo">
+                    {empresa && logoDaEmpresa(empresa) ? (
+                      <img src={logoDaEmpresa(empresa)} alt="" />
+                    ) : (
+                      iniciais(empresa?.nomeFantasia ?? 'Empresa')
+                    )}
+                  </span>
+                  <span>
+                    <strong>{empresa?.nomeFantasia ?? 'Empresa tomadora'}</strong>
+                    <small>Ver perfil e localização</small>
+                  </span>
+                </button>
               </div>
               <div className="td-vaga-valor">
                 <strong>{demanda.valorDiaria ? moeda(demanda.valorDiaria) : 'A combinar'}</strong>
@@ -579,6 +599,15 @@ function VagasTab() {
             </div>
             {aviso?.id === demanda.id && <p className={aviso.ok ? 'success' : 'error'}>{aviso.texto}</p>}
           </article>
+          {empresa && perfilId === demanda.id && (
+            <PerfilEmpresa
+              empresa={empresa}
+              local={demanda.endereco}
+              distanciaKm={dist}
+              onFechar={() => setPerfilId(null)}
+            />
+          )}
+          </Fragment>
         )
       })}
     </div>
