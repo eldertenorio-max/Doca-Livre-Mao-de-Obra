@@ -1255,79 +1255,132 @@ function PainelVagas({ empresaId, onPublicar }: { empresaId: string; onPublicar:
 
   return (
     <section className="cf-panel">
-      <div className="cf-intro">
-        <h1>Vagas</h1>
-        <p>Vagas publicadas por esta empresa e os colaboradores que já se candidataram.</p>
-      </div>
+      <header className="cf-vaga-pagina">
+        <div className="cf-intro">
+          <h1>Vagas</h1>
+          <p>Vagas publicadas por esta empresa e quem já se candidatou.</p>
+        </div>
+        <button type="button" className="cf-primary" onClick={onPublicar}>
+          Nova vaga
+        </button>
+      </header>
       {vagas.length > 0 && (
-        <div className="cf-stat-row cf-stat-row--duo">
-          <article className="cf-stat cf-stat--dark">
-            <span>Publicadas</span>
-            <strong>{vagas.length}</strong>
-            <small>{abertas === 1 ? '1 aberta agora' : `${abertas} abertas agora`}</small>
-          </article>
-          <article className="cf-stat cf-stat--green">
-            <span>Candidaturas</span>
-            <strong>{candidaturas}</strong>
-            <small>interesse registrado</small>
-          </article>
+        <div className="cf-vaga-resumo">
+          <span>
+            <b>{vagas.length}</b> {vagas.length === 1 ? 'publicada' : 'publicadas'}
+          </span>
+          <span>
+            <b>{abertas}</b> {abertas === 1 ? 'aberta' : 'abertas'}
+          </span>
+          <span>
+            <b>{candidaturas}</b> {candidaturas === 1 ? 'candidatura' : 'candidaturas'}
+          </span>
         </div>
       )}
       {vagas.length === 0 && (
-        <div className="cf-card">
+        <div className="cf-card cf-vaga-vazia">
           <strong>Nenhuma vaga publicada.</strong>
           <p className="muted">Publique uma vaga temporária para ela aparecer aqui e na aba Vagas do colaborador.</p>
-          <button type="button" className="cf-primary" onClick={onPublicar}>
-            Publicar vaga
-          </button>
         </div>
       )}
-      <div className="cf-mission-list">
+      <div className="cf-vaga-lista">
         {vagas.map((vaga) => {
           const inscritos = state.candidaturas.filter((item) => item.demandaId === vaga.id)
+          const periodo = `${formatarDataBr(vaga.data)}${vaga.dataFim ? ` a ${formatarDataBr(vaga.dataFim)}` : ''}`
+          const texto = vaga.atividades || vaga.descricao
           return (
-            <article key={vaga.id} className="cf-card cf-mission">
-              <div className="cf-mission-head">
-                <h2>{cargoLabel(vaga.cargo)}</h2>
-                <span className={`cf-status cf-status--${vaga.status}`}>{rotuloStatusMissao(vaga.status)}</span>
+            <article key={vaga.id} className="cf-vaga">
+              <div className="cf-vaga-corpo">
+                <div className="cf-vaga-topo">
+                  <div>
+                    <span className={`cf-status cf-status--${vaga.status}`}>{rotuloStatusMissao(vaga.status)}</span>
+                    <h2>{cargoLabel(vaga.cargo)}</h2>
+                    <p>
+                      {vaga.endereco.cidade}/{vaga.endereco.estado}
+                    </p>
+                  </div>
+                  <div className="cf-vaga-valor">
+                    <strong>
+                      {vaga.valorDiaria.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                    </strong>
+                    <small>por dia</small>
+                  </div>
+                </div>
+                <dl className="cf-vaga-fatos">
+                  <div>
+                    <dt>Período</dt>
+                    <dd>{periodo}</dd>
+                  </div>
+                  <div>
+                    <dt>Jornada</dt>
+                    <dd>
+                      {vaga.horaInicio}–{vaga.horaFim}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>Pessoas</dt>
+                    <dd>
+                      {vaga.quantidade} {vaga.quantidade === 1 ? 'trabalhador' : 'trabalhadores'}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>Candidatos</dt>
+                    <dd>{inscritos.length}</dd>
+                  </div>
+                </dl>
+                {texto && <p className="cf-vaga-texto">{texto}</p>}
+                {(vaga.requisitos.length > 0 || vaga.beneficios) && (
+                  <div className="cf-vaga-chips">
+                    {vaga.requisitos.map((item) => (
+                      <span key={item}>{item}</span>
+                    ))}
+                    {vaga.beneficios && <span className="cf-vaga-chip--soft">{vaga.beneficios}</span>}
+                  </div>
+                )}
               </div>
-              <p>
-                {formatarDataBr(vaga.data)}
-                {vaga.dataFim ? ` a ${formatarDataBr(vaga.dataFim)}` : ''} · {vaga.horaInicio}–{vaga.horaFim} ·{' '}
-                {vaga.endereco.cidade}/{vaga.endereco.estado}
-              </p>
-              <p>
-                {vaga.quantidade} trabalhador{vaga.quantidade === 1 ? '' : 'es'} ·{' '}
-                {vaga.valorDiaria.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })} por dia
-              </p>
-              {(vaga.atividades || vaga.descricao) && <p>{vaga.atividades || vaga.descricao}</p>}
-              {vaga.requisitos.length > 0 && (
-                <p className="muted">Requisitos: {vaga.requisitos.join(', ')}</p>
-              )}
-              {inscritos.length === 0 ? (
-                <p className="muted">Nenhuma candidatura ainda.</p>
-              ) : (
-                <ul className="cf-invite-list">
-                  {inscritos.map((inscrito) => {
-                    const pessoa = state.profissionais.find((item) => item.id === inscrito.profissionalId)
-                    return (
-                      <li key={inscrito.id}>
-                        <strong>
-                          {pessoa?.nome ?? 'Trabalhador'}
-                          {pessoa ? ` · ${pessoa.endereco.cidade}/${pessoa.endereco.estado}` : ''}
-                        </strong>
-                        <span>{rotuloConvite(inscrito.status)}</span>
-                      </li>
-                    )
-                  })}
-                </ul>
-              )}
+              <aside className="cf-vaga-pessoas">
+                <h3>
+                  Candidatos
+                  <span>{inscritos.length}</span>
+                </h3>
+                {inscritos.length === 0 ? (
+                  <p>Ninguém se candidatou ainda.</p>
+                ) : (
+                  <ul>
+                    {inscritos.map((inscrito) => {
+                      const pessoa = state.profissionais.find((item) => item.id === inscrito.profissionalId)
+                      const nome = pessoa?.nome ?? 'Trabalhador'
+                      return (
+                        <li key={inscrito.id}>
+                          <span className="cf-vaga-avatar">
+                            {pessoa?.foto ? <img src={pessoa.foto} alt="" /> : iniciaisNome(nome)}
+                          </span>
+                          <span className="cf-vaga-nome">
+                            <strong>{nome}</strong>
+                            <small>
+                              {pessoa ? `${pessoa.endereco.cidade}/${pessoa.endereco.estado}` : 'Colaborador'}
+                            </small>
+                          </span>
+                          <span className={`cf-vaga-selo cf-vaga-selo--${inscrito.status}`}>{rotuloConvite(inscrito.status)}</span>
+                        </li>
+                      )
+                    })}
+                  </ul>
+                )}
+              </aside>
             </article>
           )
         })}
       </div>
     </section>
   )
+}
+
+function iniciaisNome(nome: string) {
+  const partes = nome.trim().split(/\s+/).filter(Boolean)
+  const primeira = partes[0]?.[0] ?? ''
+  const ultima = partes.length > 1 ? partes[partes.length - 1]?.[0] ?? '' : ''
+  return `${primeira}${ultima}`.toUpperCase()
 }
 
 function PainelMissoes({ empresaId }: { empresaId: string }) {
