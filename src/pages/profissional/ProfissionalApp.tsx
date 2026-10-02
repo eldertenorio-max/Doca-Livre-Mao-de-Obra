@@ -916,6 +916,7 @@ function PerfilTab() {
         </div>
       </article>
 
+      <div className="td-painel">
       <section className="td-card">
         <h2>Sobre</h2>
         <p>{textoSobre(prof.experiencia, cargo, prof.endereco.cidade)}</p>
@@ -1045,6 +1046,7 @@ function PerfilTab() {
           </div>
         )}
       </section>
+      </div>
     </div>
   )
 }

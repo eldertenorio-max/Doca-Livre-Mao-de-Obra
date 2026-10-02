@@ -6,6 +6,12 @@
   padding-bottom: 12px;
 }
 
+.td-painel {
+  display: grid;
+  gap: 14px;
+  min-width: 0;
+}
+
 .td-hero {
   position: relative;
   height: min(72vh, 560px);
@@ -902,16 +908,32 @@
 
 @media (min-width: 980px) {
   .td-page {
-    width: min(960px, 100%);
-    grid-template-columns: minmax(300px, 420px) minmax(0, 1fr);
+    width: 100%;
+    max-width: none;
+    margin: 0;
+    min-height: calc(100dvh - 86px);
+    grid-template-columns: minmax(340px, 460px) minmax(0, 1fr);
     align-items: start;
   }
 
   .td-hero {
     position: sticky;
     top: 0;
-    grid-row: 1 / span 12;
-    height: min(74vh, 640px);
+    grid-row: auto;
+    height: calc(100dvh - 86px);
+    max-height: none;
+  }
+
+  .td-painel {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+    align-content: start;
+    min-width: 0;
+  }
+
+  .td-painel > .td-card:last-child {
+    grid-column: 1 / -1;
   }
 }
 
