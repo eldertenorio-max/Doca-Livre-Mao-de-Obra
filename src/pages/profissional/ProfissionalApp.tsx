@@ -760,33 +760,146 @@ function AgendaTab() {
 function FinanceiroTab() {
   const { currentProfissional, state } = useStore()
   const prof = currentProfissional!
-  const pags = state.pagamentos.filter((p) => p.profissionalId === prof.id)
+  const [filtro, setFiltro] = useState<'todos' | 'receber' | 'pagos'>('todos')
+
+  const linhas = useMemo(() => {
+    const pagos = state.pagamentos
+      .filter((pagamento) => pagamento.profissionalId === prof.id)
+      .map((pagamento) => {
+        const demanda = state.demandas.find((item) => item.id === pagamento.demandaId)
+        const empresa = state.empresas.find((item) => item.id === pagamento.empresaId)
+        const tipo = pagamento.status === 'pago' ? 'pago' : pagamento.status === 'estornado' ? 'estornado' : 'receber'
+        return {
+          id: pagamento.id,
+          tipo,
+          valor: pagamento.valor,
+          quando: pagamento.createdAt,
+          cargo: demanda ? cargoLabel(demanda.cargo) : 'Missão temporária',
+          empresa: empresa?.nomeFantasia ?? 'Empresa tomadora',
+          detalhe: demanda
+            ? `${dataCurta(demanda.data)}${demanda.dataFim ? ` a ${dataCurta(demanda.dataFim)}` : ''} · ${demanda.horaInicio}–${demanda.horaFim}`
+            : 'Pagamento da missão',
+          status: tipo === 'pago' ? 'Pago' : tipo === 'estornado' ? 'Estornado' : 'A receber',
+        }
+      })
+    const demandasPagas = new Set(
+      state.pagamentos.filter((pagamento) => pagamento.profissionalId === prof.id).map((pagamento) => pagamento.demandaId),
+    )
+    const previstos = state.candidaturas
+      .filter((candidatura) => candidatura.profissionalId === prof.id && candidatura.status === 'confirmada')
+      .flatMap((candidatura) => {
+        const demanda = state.demandas.find((item) => item.id === candidatura.demandaId)
+        if (!demanda || demanda.status === 'finalizada' || demandasPagas.has(demanda.id)) return []
+        const empresa = state.empresas.find((item) => item.id === demanda.empresaId)
+        const dias = diasDaMissao(demanda.data, demanda.dataFim)
+        return [
+          {
+            id: `previsto-${candidatura.id}`,
+            tipo: 'receber' as const,
+            valor: demanda.valorDiaria * dias,
+            quando: demanda.data,
+            cargo: cargoLabel(demanda.cargo),
+            empresa: empresa?.nomeFantasia ?? 'Empresa tomadora',
+            detalhe: `${dias} ${dias === 1 ? 'dia' : 'dias'} · ${moeda(demanda.valorDiaria)} por dia`,
+            status: 'A receber',
+          },
+        ]
+      })
+    return [...previstos, ...pagos].sort((a, b) => b.quando.localeCompare(a.quando))
+  }, [prof.id, state.candidaturas, state.demandas, state.empresas, state.pagamentos])
+
+  const aReceber = linhas.filter((linha) => linha.tipo === 'receber').reduce((total, linha) => total + linha.valor, 0)
+  const visiveis = linhas.filter((linha) => {
+    if (filtro === 'receber') return linha.tipo === 'receber'
+    if (filtro === 'pagos') return linha.tipo === 'pago'
+    return true
+  })
 
   return (
-    <div className="panel panel--mobile">
-      <h2>Financeiro</h2>
-      <div className="stat-grid">
-        <div className="stat-card">
-          <span className="muted">Saldo</span>
-          <strong>R$ {prof.saldo}</strong>
-        </div>
-        <div className="stat-card">
-          <span className="muted">PIX</span>
-          <strong className="pix-value">{prof.pix}</strong>
-        </div>
-      </div>
-      <h3>Extrato</h3>
-      <ul className="list">
-        {pags.map((p) => (
-          <li key={p.id} className="list-item">
-            <span>+ R$ {p.valor}</span>
-            <span className="muted">{p.status}</span>
-          </li>
-        ))}
-        {pags.length === 0 && <p className="muted">Sem pagamentos ainda.</p>}
-      </ul>
+    <div className="td-fin">
+      <header className="td-vagas-intro">
+        <p className="td-home-kicker">Financeiro</p>
+        <h2>Seus recebimentos</h2>
+        <p>Saldo, ganhos do mês e o que ainda entra quando a missão confirmada termina.</p>
+      </header>
+      <section className="td-fin-resumo">
+        <article className="td-fin-stat td-fin-stat--dark">
+          <span>Saldo disponível</span>
+          <strong>{moeda(prof.saldo)}</strong>
+          <small>Já creditado</small>
+        </article>
+        <article className="td-fin-stat">
+          <span>Ganhos do mês</span>
+          <strong>{moeda(prof.ganhosMes)}</strong>
+          <small>Neste mês</small>
+        </article>
+        <article className="td-fin-stat td-fin-stat--amarelo">
+          <span>A receber</span>
+          <strong>{moeda(aReceber)}</strong>
+          <small>Missões confirmadas</small>
+        </article>
+      </section>
+      <section className="td-fin-extrato">
+        <header>
+          <h3>Extrato</h3>
+          <div className="td-fin-filtros">
+            {(
+              [
+                ['todos', 'Todos'],
+                ['receber', 'A receber'],
+                ['pagos', 'Pagos'],
+              ] as const
+            ).map(([id, rotulo]) => (
+              <button
+                key={id}
+                type="button"
+                className={filtro === id ? 'on' : ''}
+                onClick={() => setFiltro(id)}
+              >
+                {rotulo}
+              </button>
+            ))}
+          </div>
+        </header>
+        {visiveis.length === 0 && (
+          <p className="td-fin-vazio">
+            {filtro === 'todos'
+              ? 'Nenhum lançamento ainda. O valor entra aqui quando uma missão confirmada é encerrada.'
+              : 'Nenhum lançamento neste filtro.'}
+          </p>
+        )}
+        <ul>
+          {visiveis.map((linha) => (
+            <li key={linha.id}>
+              <div>
+                <strong>{linha.cargo}</strong>
+                <span>
+                  {linha.empresa} · {linha.detalhe}
+                </span>
+              </div>
+              <div className="td-fin-valor">
+                <b>{linha.tipo === 'estornado' ? moeda(linha.valor) : `+ ${moeda(linha.valor)}`}</b>
+                <small className={`td-fin-selo td-fin-selo--${linha.tipo}`}>{linha.status}</small>
+              </div>
+            </li>
+          ))}
+        </ul>
+      </section>
+      <section className="td-fin-pix">
+        <span>Chave PIX</span>
+        <strong>{prof.pix}</strong>
+        <small>Os pagamentos das missões são creditados nesta chave.</small>
+      </section>
     </div>
   )
+}
+
+function diasDaMissao(inicio: string, fim?: string) {
+  if (!fim) return 1
+  const a = new Date(`${inicio}T12:00:00`)
+  const b = new Date(`${fim}T12:00:00`)
+  if (Number.isNaN(a.getTime()) || Number.isNaN(b.getTime()) || b < a) return 1
+  return Math.round((b.getTime() - a.getTime()) / 86400000) + 1
 }
 
 function PerfilTab() {
