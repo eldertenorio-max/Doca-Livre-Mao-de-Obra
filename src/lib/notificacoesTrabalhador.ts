@@ -1,17 +1,18 @@
 import { cargoLabel } from '../data/categories'
 import { distanciaKm } from './matching'
 import { rotuloPeriodo } from './periodoMissao'
-import type { Candidatura, Demanda, Empresa, Profissional } from './types'
+import type { Candidatura, ContratoServico, Demanda, Empresa, Profissional } from './types'
 
 export const CHAVE_NOTIFICACOES_TRABALHADOR = 'doca-livre-notificacoes-trabalhador-v1'
 
 export type AvisoTrabalhador = {
   id: string
-  tipo: 'vaga' | 'convite'
+  tipo: 'vaga' | 'convite' | 'termo'
   quando: string
   texto: string
   extra: string
-  aba: 'vagas'
+  aba: 'vagas' | 'agenda'
+  contratoId?: string
 }
 
 type Registro = { lidas: string[] }
@@ -37,11 +38,29 @@ export function montarAvisosTrabalhador(input: {
   demandas: Demanda[]
   candidaturas: Candidatura[]
   empresas: Empresa[]
+  contratos?: ContratoServico[]
 }): AvisoTrabalhador[] {
   const empresas = new Map(input.empresas.map((item) => [item.id, item]))
   const minhas = input.candidaturas.filter((item) => item.profissionalId === input.prof.id)
   const porDemanda = new Map(minhas.map((item) => [item.demandaId, item]))
   const avisos: AvisoTrabalhador[] = []
+
+  for (const contrato of input.contratos ?? []) {
+    if (contrato.profissionalId !== input.prof.id || contrato.status !== 'gerado') continue
+    const demanda = input.demandas.find((item) => item.id === contrato.demandaId)
+    if (!demanda || demanda.status === 'cancelada') continue
+    const empresa = empresas.get(contrato.empresaId)
+    const nome = empresa?.nomeFantasia ?? 'A empresa'
+    avisos.push({
+      id: `termo:${contrato.id}`,
+      tipo: 'termo',
+      quando: contrato.createdAt,
+      texto: `Termo para assinar. ${nome} fechou o contrato de ${cargoLabel(demanda.cargo)}.`,
+      extra: `${demanda.endereco.cidade}/${demanda.endereco.estado} · ${rotuloPeriodo(demanda.data, demanda.dataFim)}`,
+      aba: 'agenda',
+      contratoId: contrato.id,
+    })
+  }
 
   for (const cand of minhas) {
     if (cand.status !== 'pendente') continue
@@ -75,7 +94,8 @@ export function montarAvisosTrabalhador(input: {
     })
   }
 
-  avisos.sort((a, b) => b.quando.localeCompare(a.quando) || (a.tipo === 'convite' ? -1 : 1))
+  const peso = { termo: 0, convite: 1, vaga: 2 }
+  avisos.sort((a, b) => b.quando.localeCompare(a.quando) || peso[a.tipo] - peso[b.tipo])
   return avisos
 }
 

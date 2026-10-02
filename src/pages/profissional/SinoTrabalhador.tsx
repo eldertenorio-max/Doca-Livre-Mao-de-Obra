@@ -10,7 +10,7 @@ import {
 } from '../../lib/notificacoesTrabalhador'
 import { useStore } from '../../lib/store'
 
-export function SinoTrabalhador({ onIr }: { onIr: (aba: 'vagas') => void }) {
+export function SinoTrabalhador({ onIr }: { onIr: (aba: 'vagas' | 'agenda', contratoId?: string) => void }) {
   const { state, currentProfissional } = useStore()
   const prof = currentProfissional
   const avisos = useMemo(() => {
@@ -20,8 +20,9 @@ export function SinoTrabalhador({ onIr }: { onIr: (aba: 'vagas') => void }) {
       demandas: state.demandas,
       candidaturas: state.candidaturas,
       empresas: state.empresas,
+      contratos: state.contratos,
     })
-  }, [prof, state.candidaturas, state.demandas, state.empresas])
+  }, [prof, state.candidaturas, state.contratos, state.demandas, state.empresas])
   const [lidas, setLidas] = useState<string[] | null>(null)
   const [aberto, setAberto] = useState(false)
   const [posicao, setPosicao] = useState({ top: 62, right: 12 })
@@ -90,7 +91,7 @@ export function SinoTrabalhador({ onIr }: { onIr: (aba: 'vagas') => void }) {
     if (!prof) return
     setLidas(marcarAvisosTrabalhador(prof.id, [aviso.id]))
     setAberto(false)
-    onIr(aviso.aba)
+    onIr(aviso.aba, aviso.contratoId)
   }
 
   const rotulo =
@@ -131,7 +132,7 @@ export function SinoTrabalhador({ onIr }: { onIr: (aba: 'vagas') => void }) {
               )}
             </header>
             {visiveis.length === 0 && (
-              <p className="cf-sino-vazio">Nenhuma vaga nova ou convite por enquanto.</p>
+              <p className="cf-sino-vazio">Nenhuma notificação por enquanto.</p>
             )}
             <ul>
               {visiveis.map((aviso) => {

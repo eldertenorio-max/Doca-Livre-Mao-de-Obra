@@ -35,6 +35,7 @@ export function ProfissionalApp({ onLogout }: { onLogout: () => void }) {
   const store = useStore()
   const prof = store.currentProfissional
   const [tab, setTab] = useState<TabId>('inicio')
+  const [termoId, setTermoId] = useState<string | null>(null)
   const [menuFixo, setMenuFixo] = useState(false)
   const [menuHover, setMenuHover] = useState(false)
   const [telaEstreita, setTelaEstreita] = useState(false)
@@ -84,7 +85,12 @@ export function ProfissionalApp({ onLogout }: { onLogout: () => void }) {
           </div>
         </div>
         <div className="cf-topbar-right">
-          <SinoTrabalhador onIr={setTab} />
+          <SinoTrabalhador
+            onIr={(aba, contratoId) => {
+              setTab(aba)
+              setTermoId(contratoId ?? null)
+            }}
+          />
           <div className="cf-topbar-user">
             <span>
               <strong>{prof.nome.split(' ')[0]}</strong>
@@ -147,6 +153,7 @@ export function ProfissionalApp({ onLogout }: { onLogout: () => void }) {
           </div>
         </main>
       </div>
+      {termoId && <ContratoViewer contratoId={termoId} onClose={() => setTermoId(null)} canAssinar />}
     </div>
   )
 }
@@ -704,7 +711,7 @@ function AgendaTab() {
               <div className="row-actions">
                 {contrato && (
                   <button type="button" className="btn btn-primary" onClick={() => setContratoAberto(contrato.id)}>
-                    Contrato temporário {contrato.numero}
+                    {contrato.status === 'gerado' ? 'Assinar termo' : `Contrato temporário ${contrato.numero}`}
                   </button>
                 )}
                 {!encerrada && !check?.checkInAt && faltas.length === 0 && (
