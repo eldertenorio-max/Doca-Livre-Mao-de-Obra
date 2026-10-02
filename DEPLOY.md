@@ -19,6 +19,7 @@ Repo: https://github.com/eldertenorio-max/Doca-Livre-M-o-de-Obra
 | `NODE_VERSION` | `20.19.0` (já vem no blueprint) |
 | `RESEND_API_KEY` | a mesma chave do WMS Pro |
 | `RESEND_FROM` | remetente verificado, a mesma do WMS Pro |
+| `GEMINI_API_KEY` | a mesma chave Gemini do WMS Plus, só no servidor |
 
 6. **Apply** / **Deploy**.
 7. Aguarde o build (`npm ci` → `write-supabase-config` → `vite build`) e o start `node server/index.mjs`.

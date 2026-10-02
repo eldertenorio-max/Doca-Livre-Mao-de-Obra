@@ -2,6 +2,12 @@ import { useMemo, useState, type FormEvent } from 'react'
 import { CATEGORIES } from '../../data/categories'
 import { LOCAIS_OPERACAO } from '../../data/cidades'
 import { AvailabilityToggle } from '../../components/AvailabilityToggle'
+import {
+  analisarDocumentoCadastro,
+  lerFotoDocumento,
+  type FotoDocumento,
+  type PapelDocumento,
+} from '../../lib/analisarDocumentoCadastro'
 import { coordenadaDaCidade } from '../../lib/coordenadaCidade'
 import { useStore } from '../../lib/store'
 import type { Disponibilidade } from '../../lib/types'
@@ -29,6 +35,11 @@ export function CadastroProfissionalScreen({ onBack, onDone }: Props) {
   const completing = currentUser?.role === 'profissional' && currentUser.perfilCompleto === false
   const [step, setStep] = useState(1)
   const [error, setError] = useState('')
+  const [documento, setDocumento] = useState<FotoDocumento | null>(null)
+  const [verso, setVerso] = useState<FotoDocumento | null>(null)
+  const [selfie, setSelfie] = useState<FotoDocumento | null>(null)
+  const [analise, setAnalise] = useState<{ aceito: boolean; motivo: string } | null>(null)
+  const [analisando, setAnalisando] = useState(false)
   const [form, setForm] = useState({
     nome: '',
     cpf: '',
@@ -37,7 +48,6 @@ export function CadastroProfissionalScreen({ onBack, onDone }: Props) {
     telefone: '',
     email: currentUser?.email || '',
     senha: '',
-    docsOk: true,
     profissoes: [] as string[],
     expEmpresa: '',
     expCargo: '',
@@ -93,8 +103,69 @@ export function CadastroProfissionalScreen({ onBack, onDone }: Props) {
     set('raioKm', valor === '' || !Number.isFinite(numero) || numero <= 0 ? null : Math.min(500, Math.round(numero)))
   }
 
+  function documentosAceitos() {
+    if (!analise?.aceito || !documento || !selfie) return []
+    return [
+      {
+        tipoId: 'rg_cpf',
+        arquivoNome: [documento.nome, verso?.nome].filter(Boolean).join(', '),
+        observacao: analise.motivo,
+      },
+      { tipoId: 'selfie', arquivoNome: selfie.nome, observacao: analise.motivo },
+    ]
+  }
+
+  async function escolherFoto(file: File | undefined, papel: PapelDocumento) {
+    setError('')
+    setAnalise(null)
+    const guardar = papel === 'documento' ? setDocumento : papel === 'verso' ? setVerso : setSelfie
+    if (!file) {
+      guardar(null)
+      return
+    }
+    try {
+      guardar(await lerFotoDocumento(file))
+    } catch (falha) {
+      guardar(null)
+      setError(falha instanceof Error ? falha.message : 'Não foi possível ler a foto.')
+    }
+  }
+
+  async function analisarFotos() {
+    setError('')
+    if (!form.nome.trim()) {
+      setError('Volte e informe o nome antes de enviar o documento.')
+      return
+    }
+    if (!documento || !selfie) {
+      setError('Envie a foto do documento e a selfie.')
+      return
+    }
+    setAnalisando(true)
+    try {
+      const arquivos = [
+        { papel: 'documento' as const, mime: documento.mime, dados: documento.dados },
+        ...(verso ? [{ papel: 'verso' as const, mime: verso.mime, dados: verso.dados }] : []),
+        { papel: 'selfie' as const, mime: selfie.mime, dados: selfie.dados },
+      ]
+      const result = await analisarDocumentoCadastro({ nome: form.nome.trim(), arquivos })
+      if (!result.ok) {
+        setAnalise(null)
+        setError(result.erro)
+        return
+      }
+      setAnalise({ aceito: result.aceito, motivo: result.motivo })
+    } finally {
+      setAnalisando(false)
+    }
+  }
+
   function next() {
     setError('')
+    if (step === 2 && !analise?.aceito) {
+      setError('Envie o documento e a selfie e espere a análise aceitar.')
+      return
+    }
     if (step === 3 && form.profissoes.length === 0) {
       setError('Selecione ao menos um cargo.')
       return
@@ -120,6 +191,11 @@ export function CadastroProfissionalScreen({ onBack, onDone }: Props) {
 
   function submit(e: FormEvent) {
     e.preventDefault()
+    if (!analise?.aceito || !documento || !selfie) {
+      setError('O documento precisa ser aceito na análise antes de concluir.')
+      setStep(2)
+      return
+    }
     if (form.raioKm == null || form.raioKm < 1) {
       setError('Informe o raio máximo, em km, que você pode ir trabalhar.')
       setStep(7)
@@ -165,9 +241,10 @@ export function CadastroProfissionalScreen({ onBack, onDone }: Props) {
       raioKm: form.raioKm,
       pix: form.pix,
     }
+    const documentos = documentosAceitos()
     const res = completing
-      ? completeProfissionalPerfil(profissionalPayload)
-      : registerProfissional({ email: form.email, senha: form.senha }, profissionalPayload)
+      ? completeProfissionalPerfil(profissionalPayload, documentos)
+      : registerProfissional({ email: form.email, senha: form.senha }, profissionalPayload, documentos)
     if (!res.ok) {
       setError(res.error ?? 'Erro no cadastro')
       return
@@ -207,11 +284,43 @@ export function CadastroProfissionalScreen({ onBack, onDone }: Props) {
         )}
         {step === 2 && (
           <div className="docs-mock">
-            <p>Validação de documentos</p>
-            <label className="check-row">
-              <input type="checkbox" checked={form.docsOk} onChange={(e) => set('docsOk', e.target.checked)} />
-              Selfie + documento frente/verso enviados
+            <p>Envie a foto do documento de identidade e uma selfie. A análise diz se o cadastro segue ou não.</p>
+            <label className="field">
+              <span>Documento (RG, CIN, CNH ou CPF)</span>
+              <input
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                onChange={(e) => void escolherFoto(e.target.files?.[0], 'documento')}
+              />
+              {documento && <small className="muted">{documento.nome}</small>}
             </label>
+            <label className="field">
+              <span>Verso, se tiver</span>
+              <input
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                onChange={(e) => void escolherFoto(e.target.files?.[0], 'verso')}
+              />
+              {verso && <small className="muted">{verso.nome}</small>}
+            </label>
+            <label className="field">
+              <span>Selfie</span>
+              <input
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                onChange={(e) => void escolherFoto(e.target.files?.[0], 'selfie')}
+              />
+              {selfie && <small className="muted">{selfie.nome}</small>}
+            </label>
+            <button type="button" className="btn btn-primary btn-block" disabled={analisando} onClick={() => void analisarFotos()}>
+              {analisando ? 'Analisando…' : 'Analisar documento'}
+            </button>
+            {analise && (
+              <p className={analise.aceito ? 'docs-analise docs-analise--ok' : 'docs-analise docs-analise--nao'}>
+                <strong>{analise.aceito ? 'Aceito' : 'Não aceito'}</strong>
+                <span>{analise.motivo}</span>
+              </p>
+            )}
             <label className="field">
               <span>CNH (categoria, se aplicável)</span>
               <input value={form.cnhCategoria} onChange={(e) => set('cnhCategoria', e.target.value)} placeholder="Ex: B, C, D, E" />

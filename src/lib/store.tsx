@@ -36,6 +36,37 @@ import type {
   UserRole,
 } from './types'
 
+type DocumentoCadastro = { tipoId: string; arquivoNome: string; observacao: string }
+
+function documentosDeCadastro(
+  existentes: DocumentoRegistro[],
+  donoId: string,
+  itens: DocumentoCadastro[] | undefined,
+): DocumentoRegistro[] {
+  if (!itens?.length) return existentes
+  const tipos = new Set(itens.map((item) => item.tipoId))
+  const agora = nowIso()
+  const novos: DocumentoRegistro[] = itens.map((item) => ({
+    id: uid('doc'),
+    tipoId: item.tipoId,
+    donoTipo: 'profissional',
+    donoId,
+    status: 'aprovado',
+    arquivoNome: item.arquivoNome,
+    enviadoEm: agora,
+    revisadoEm: agora,
+    revisadoPor: 'ia',
+    observacao: item.observacao,
+    meta: { origem: 'cadastro' },
+  }))
+  return [
+    ...novos,
+    ...existentes.filter(
+      (doc) => !(doc.donoTipo === 'profissional' && doc.donoId === donoId && tipos.has(doc.tipoId)),
+    ),
+  ]
+}
+
 type StoreApi = {
   state: AppState
   currentUser: User | null
@@ -65,9 +96,9 @@ type StoreApi = {
   }) => { ok: boolean; error?: string }
   portalResetSenha: (email: string, novaSenha: string) => { ok: boolean; error?: string }
   registerEmpresa: (user: Omit<User, 'id' | 'role' | 'ativo' | 'createdAt'>, empresa: Omit<Empresa, 'id' | 'userId' | 'status' | 'avaliacaoMedia' | 'favoritos' | 'bloqueados' | 'docsOk' | 'saldo' | 'limitePosPago' | 'diasTaxaZero' | 'metaTaxaZero' | 'diasAgenciados' | 'rankingDias' | 'economiaTotal'>) => { ok: boolean; error?: string }
-  registerProfissional: (user: Omit<User, 'id' | 'role' | 'ativo' | 'createdAt'>, profissional: Omit<Profissional, 'id' | 'userId' | 'status' | 'nivel' | 'avaliacaoMedia' | 'taxaComparecimento' | 'faltas' | 'tempoRespostaMin' | 'ganhosMes' | 'saldo'>) => { ok: boolean; error?: string }
+  registerProfissional: (user: Omit<User, 'id' | 'role' | 'ativo' | 'createdAt'>, profissional: Omit<Profissional, 'id' | 'userId' | 'status' | 'nivel' | 'avaliacaoMedia' | 'taxaComparecimento' | 'faltas' | 'tempoRespostaMin' | 'ganhosMes' | 'saldo'>, documentos?: DocumentoCadastro[]) => { ok: boolean; error?: string }
   completeEmpresaPerfil: (empresa: Omit<Empresa, 'id' | 'userId' | 'status' | 'avaliacaoMedia' | 'favoritos' | 'bloqueados' | 'docsOk' | 'saldo' | 'limitePosPago' | 'diasTaxaZero' | 'metaTaxaZero' | 'diasAgenciados' | 'rankingDias' | 'economiaTotal'>) => { ok: boolean; error?: string }
-  completeProfissionalPerfil: (profissional: Omit<Profissional, 'id' | 'userId' | 'status' | 'nivel' | 'avaliacaoMedia' | 'taxaComparecimento' | 'faltas' | 'tempoRespostaMin' | 'ganhosMes' | 'saldo'>) => { ok: boolean; error?: string }
+  completeProfissionalPerfil: (profissional: Omit<Profissional, 'id' | 'userId' | 'status' | 'nivel' | 'avaliacaoMedia' | 'taxaComparecimento' | 'faltas' | 'tempoRespostaMin' | 'ganhosMes' | 'saldo'>, documentos?: DocumentoCadastro[]) => { ok: boolean; error?: string }
   createDemanda: (data: Omit<Demanda, 'id' | 'createdAt' | 'status' | 'categoria'>) => Demanda
   publicarVaga: (data: Omit<Demanda, 'id' | 'createdAt' | 'status' | 'categoria'>) => Demanda
   candidatar: (demandaId: string, profissionalId: string) => { ok: boolean; error?: string }
@@ -422,7 +453,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       return { ok: true }
     },
 
-    registerProfissional(userData, profissionalData) {
+    registerProfissional(userData, profissionalData, documentos) {
       if (state.users.some((u) => u.email.toLowerCase() === userData.email.toLowerCase())) {
         return { ok: false, error: 'E-mail já cadastrado.' }
       }
@@ -453,6 +484,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         ...s,
         users: [...s.users, user],
         profissionais: [...s.profissionais, profissional],
+        documentos: documentosDeCadastro(s.documentos, profId, documentos),
         sessionUserId: userId,
         auditLogs: [
           { id: uid('log'), at: nowIso(), actorId: userId, action: 'cadastro_profissional', detail: profissional.nome },
@@ -509,16 +541,20 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       return { ok: true }
     },
 
-    completeProfissionalPerfil(profissionalData) {
+    completeProfissionalPerfil(profissionalData, documentos) {
       const user = state.users.find((u) => u.id === state.sessionUserId)
       if (!user || user.role !== 'profissional') {
         return { ok: false, error: 'Sessão de profissional inválida.' }
       }
       if (state.profissionais.some((p) => p.userId === user.id)) {
-        update((s) => ({
-          ...s,
-          users: s.users.map((u) => (u.id === user.id ? { ...u, perfilCompleto: true } : u)),
-        }))
+        update((s) => {
+          const existente = s.profissionais.find((p) => p.userId === user.id)
+          return {
+            ...s,
+            users: s.users.map((u) => (u.id === user.id ? { ...u, perfilCompleto: true } : u)),
+            documentos: existente ? documentosDeCadastro(s.documentos, existente.id, documentos) : s.documentos,
+          }
+        })
         return { ok: true }
       }
       const profissional: Profissional = {
@@ -537,6 +573,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       update((s) => ({
         ...s,
         profissionais: [...s.profissionais, profissional],
+        documentos: documentosDeCadastro(s.documentos, profissional.id, documentos),
         users: s.users.map((u) => (u.id === user.id ? { ...u, perfilCompleto: true } : u)),
         auditLogs: [
           {

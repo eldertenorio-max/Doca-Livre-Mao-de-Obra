@@ -1,41 +1,76 @@
+import type { ServerResponse } from 'node:http'
 import { defineConfig, loadEnv, type Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
 
-function portalEmailDev(): Plugin {
+function responderJson(res: ServerResponse, status: number, corpo: unknown) {
+  res.statusCode = status
+  res.setHeader('Content-Type', 'application/json; charset=utf-8')
+  res.end(JSON.stringify(corpo))
+}
+
+function portalApiDev(): Plugin {
   return {
-    name: 'portal-email-dev',
+    name: 'portal-api-dev',
     configureServer(server) {
       const env = loadEnv(server.config.mode, process.cwd(), '')
       server.middlewares.use((req, res, next) => {
         const path = req.url?.split('?')[0]
-        if (path !== '/api/portal/enviar-codigo' || req.method !== 'POST') {
+        const email = path === '/api/portal/enviar-codigo' && req.method === 'POST'
+        const documento = path === '/api/cadastro/analisar-documento' && req.method === 'POST'
+        if (!email && !documento) {
           next()
           return
         }
+        const limite = documento ? 6_000_000 : 8000
         const partes: Buffer[] = []
-        req.on('data', (parte: Buffer) => partes.push(parte))
+        let tamanho = 0
+        let estourou = false
+        req.on('data', (parte: Buffer) => {
+          tamanho += parte.length
+          if (tamanho > limite) {
+            estourou = true
+            responderJson(res, 413, {
+              ok: false,
+              erro: documento ? 'A foto ficou grande demais. Envie uma imagem menor.' : 'Não foi possível enviar o e-mail.',
+            })
+            req.destroy()
+            return
+          }
+          partes.push(parte)
+        })
         req.on('end', () => {
+          if (estourou) return
           void (async () => {
-            const { enviarCodigoEmail } = await import('./server/enviarCodigoEmail.mjs')
-            let data: { email?: string; codigo?: string; finalidade?: string } = {}
+            let data: { email?: string; codigo?: string; finalidade?: string; nome?: string; arquivos?: { papel?: string; mime?: string; dados?: string }[] } = {}
             try {
               data = JSON.parse(Buffer.concat(partes).toString('utf8') || '{}') as typeof data
             } catch {
-              res.statusCode = 400
-              res.setHeader('Content-Type', 'application/json; charset=utf-8')
-              res.end(JSON.stringify({ ok: false, erro: 'Não foi possível enviar o e-mail.' }))
+              responderJson(res, 400, { ok: false, erro: documento ? 'Não foi possível analisar o documento.' : 'Não foi possível enviar o e-mail.' })
               return
             }
+            if (documento) {
+              const { analisarDocumentoCadastro } = await import('./server/analisarDocumentoCadastro.mjs')
+              const result = await analisarDocumentoCadastro({ nome: data.nome, arquivos: data.arquivos, env })
+              responderJson(
+                res,
+                result.ok ? 200 : result.status,
+                result.ok ? { ok: true, aceito: result.aceito, motivo: result.motivo } : { ok: false, erro: result.erro },
+              )
+              return
+            }
+            const { enviarCodigoEmail } = await import('./server/enviarCodigoEmail.mjs')
             const result = await enviarCodigoEmail({
               email: data.email,
               codigo: data.codigo,
               finalidade: data.finalidade,
               env,
             })
-            res.statusCode = result.ok ? 200 : result.status
-            res.setHeader('Content-Type', 'application/json; charset=utf-8')
-            res.end(JSON.stringify(result.ok ? { ok: true } : { ok: false, erro: result.erro }))
-          })()
+            responderJson(res, result.ok ? 200 : result.status, result.ok ? { ok: true } : { ok: false, erro: result.erro })
+          })().catch(() => {
+            if (!res.writableEnded) {
+              responderJson(res, 503, { ok: false, erro: documento ? 'Não foi possível analisar o documento.' : 'Não foi possível enviar o e-mail.' })
+            }
+          })
         })
       })
     },
@@ -44,7 +79,7 @@ function portalEmailDev(): Plugin {
 
 // https://vite.dev/config/
 export default defineConfig({
-  plugins: [react(), portalEmailDev()],
+  plugins: [react(), portalApiDev()],
   build: {
     // Evita um único JS grande (~560KB) que em alguns deploys do Render
     // sumiu do CDN (HTML 200 + assets/*.js 404).

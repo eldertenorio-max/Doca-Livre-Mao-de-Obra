@@ -672,6 +672,26 @@
   gap: 12px;
 }
 
+.docs-analise {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  padding: 12px;
+  border-radius: 12px;
+  font-size: 0.95rem;
+}
+
+.docs-analise--ok {
+  background: #ecfdf3;
+  color: #047857;
+}
+
+.docs-analise--nao {
+  background: #fef2f2;
+  color: #b91c1c;
+}
+
 .check-row {
   display: flex;
   gap: 10px;

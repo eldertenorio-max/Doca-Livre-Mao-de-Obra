@@ -1,6 +1,7 @@
 import { createReadStream, statSync } from 'node:fs'
 import { createServer } from 'node:http'
 import { extname, join, normalize, resolve, sep } from 'node:path'
+import { analisarDocumentoCadastro } from './analisarDocumentoCadastro.mjs'
 import { enviarCodigoEmail } from './enviarCodigoEmail.mjs'
 
 const root = resolve(process.cwd(), 'dist')
@@ -22,20 +23,24 @@ const types = {
   '.woff2': 'font/woff2',
 }
 
-function lerCorpo(req) {
+function lerCorpo(req, limite) {
   return new Promise((resolveBody, reject) => {
     const partes = []
     let tamanho = 0
+    let estourou = false
     req.on('data', (parte) => {
       tamanho += parte.length
-      if (tamanho > 8000) {
+      if (tamanho > limite) {
+        estourou = true
         reject(new Error('corpo grande'))
         req.destroy()
         return
       }
       partes.push(parte)
     })
-    req.on('end', () => resolveBody(Buffer.concat(partes).toString('utf8')))
+    req.on('end', () => {
+      if (!estourou) resolveBody(Buffer.concat(partes).toString('utf8'))
+    })
     req.on('error', reject)
   })
 }
@@ -67,7 +72,7 @@ const server = createServer(async (req, res) => {
   const url = new URL(req.url || '/', 'http://local')
   if (url.pathname === '/api/portal/enviar-codigo' && req.method === 'POST') {
     try {
-      const bruto = await lerCorpo(req)
+      const bruto = await lerCorpo(req, 8000)
       const data = JSON.parse(bruto || '{}')
       const result = await enviarCodigoEmail({
         email: data.email,
@@ -81,6 +86,33 @@ const server = createServer(async (req, res) => {
     } catch {
       res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8' })
       res.end(JSON.stringify({ ok: false, erro: 'Não foi possível enviar o e-mail.' }))
+    }
+    return
+  }
+
+  if (url.pathname === '/api/cadastro/analisar-documento' && req.method === 'POST') {
+    try {
+      const bruto = await lerCorpo(req, 6_000_000)
+      const data = JSON.parse(bruto || '{}')
+      const result = await analisarDocumentoCadastro({
+        nome: data.nome,
+        arquivos: data.arquivos,
+      })
+      res.writeHead(result.status || (result.ok ? 200 : 503), {
+        'Content-Type': 'application/json; charset=utf-8',
+      })
+      res.end(
+        JSON.stringify(
+          result.ok
+            ? { ok: true, aceito: result.aceito, motivo: result.motivo }
+            : { ok: false, erro: result.erro },
+        ),
+      )
+    } catch {
+      if (!res.headersSent) {
+        res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8' })
+        res.end(JSON.stringify({ ok: false, erro: 'Não foi possível analisar o documento.' }))
+      }
     }
     return
   }
