@@ -5,6 +5,33 @@ import type { AppState } from './types'
 
 export const STORAGE_KEY = 'doca-livre-mao-de-obra-v7'
 
+function fecharVagasComContrato(state: AppState) {
+  if (!Array.isArray(state.demandas) || !Array.isArray(state.candidaturas)) return false
+  const fechadas = new Set<string>()
+  let mudou = false
+  for (const demanda of state.demandas) {
+    if (demanda.status === 'cancelada' || demanda.status === 'finalizada') continue
+    const confirmados = state.candidaturas.filter(
+      (item) => item.demandaId === demanda.id && item.status === 'confirmada',
+    ).length
+    if (demanda.quantidade > 0 && confirmados >= demanda.quantidade) {
+      fechadas.add(demanda.id)
+      if (demanda.status === 'aberta') {
+        demanda.status = 'em_andamento'
+        mudou = true
+      }
+    }
+  }
+  for (const candidatura of state.candidaturas) {
+    if (!fechadas.has(candidatura.demandaId)) continue
+    if (candidatura.status === 'pendente' || candidatura.status === 'aceita') {
+      candidatura.status = 'cancelada'
+      mudou = true
+    }
+  }
+  return mudou
+}
+
 export function loadState(): AppState {
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
@@ -35,6 +62,7 @@ export function loadState(): AppState {
       }
       if (classificacaoMudou) saveState(parsed)
     }
+    if (fecharVagasComContrato(parsed)) saveState(parsed)
     if (parsed.profissionais?.some((pessoa) => !pessoa.foto)) {
       const fotos = new Map(
         createSeedState().profissionais.filter((pessoa) => pessoa.foto).map((pessoa) => [pessoa.id, pessoa.foto]),

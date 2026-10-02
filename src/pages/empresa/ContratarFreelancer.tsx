@@ -1521,6 +1521,7 @@ function PainelVagas({ empresaId, onPublicar }: { empresaId: string; onPublicar:
       <div className="cf-vaga-lista">
         {vagas.map((vaga) => {
           const inscritos = state.candidaturas.filter((item) => item.demandaId === vaga.id)
+          const situacao = statusDaVaga(vaga.status, inscritos, vaga.quantidade)
           const periodo = rotuloPeriodo(vaga.data, vaga.dataFim)
           const texto = vaga.atividades || vaga.descricao
           return (
@@ -1528,7 +1529,7 @@ function PainelVagas({ empresaId, onPublicar }: { empresaId: string; onPublicar:
               <div className="cf-vaga-corpo">
                 <div className="cf-vaga-topo">
                   <div>
-                    <span className={`cf-status cf-status--${vaga.status}`}>{rotuloStatusMissao(vaga.status)}</span>
+                    <span className={`cf-status cf-status--${situacao.classe}`}>{situacao.rotulo}</span>
                     <h2>{cargoLabel(vaga.cargo)}</h2>
                     <p>
                       {vaga.endereco.cidade}/{vaga.endereco.estado}
@@ -1699,6 +1700,7 @@ function PainelMissoes({ empresaId }: { empresaId: string }) {
       <div className="cf-missao-lista">
         {missoes.map((missao) => {
           const convites = state.candidaturas.filter((item) => item.demandaId === missao.id)
+          const situacao = statusDaVaga(missao.status, convites, missao.quantidade)
           const confirmadosMissao = convites.filter((item) => item.status === 'confirmada').length
           const progresso = missao.quantidade > 0 ? Math.min(100, Math.round((confirmadosMissao / missao.quantidade) * 100)) : 0
           const periodo = rotuloPeriodo(missao.data, missao.dataFim)
@@ -1706,7 +1708,7 @@ function PainelMissoes({ empresaId }: { empresaId: string }) {
             <article key={missao.id} className="cf-missao">
               <header className="cf-missao-topo">
                 <div className="cf-missao-cabeca">
-                  <span className={`cf-status cf-status--${missao.status}`}>{rotuloStatusMissao(missao.status)}</span>
+                  <span className={`cf-status cf-status--${situacao.classe}`}>{situacao.rotulo}</span>
                   <h2>{cargoLabel(missao.cargo)}</h2>
                 </div>
                 <p>
@@ -2068,6 +2070,18 @@ function rotuloStatusMissao(status: string) {
   if (status === 'finalizada') return 'Encerrada'
   if (status === 'cancelada') return 'Cancelada'
   return 'Aberta'
+}
+
+function statusDaVaga(
+  status: string,
+  candidaturas: { status: string }[],
+  quantidade: number,
+) {
+  const confirmados = candidaturas.filter((item) => item.status === 'confirmada').length
+  if (status !== 'finalizada' && status !== 'cancelada' && quantidade > 0 && confirmados >= quantidade) {
+    return { rotulo: 'Contrato fechado', classe: 'fechada' }
+  }
+  return { rotulo: rotuloStatusMissao(status), classe: status }
 }
 
 function rotuloConvite(status: string) {

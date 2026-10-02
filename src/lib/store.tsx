@@ -910,11 +910,16 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         const confirmados = s.candidaturas.filter(
           (c) => c.demandaId === cand.demandaId && c.status === 'confirmada',
         ).length
-        const nextCands = s.candidaturas.map((c) =>
-          c.id === candidaturaId ? { ...c, status: 'confirmada' as const } : c,
-        )
+        const vagaFechada = confirmados + 1 >= demanda.quantidade
+        const nextCands = s.candidaturas.map((c) => {
+          if (c.id === candidaturaId) return { ...c, status: 'confirmada' as const }
+          if (vagaFechada && c.demandaId === cand.demandaId && (c.status === 'pendente' || c.status === 'aceita')) {
+            return { ...c, status: 'cancelada' as const }
+          }
+          return c
+        })
         let demandas = s.demandas
-        if (confirmados + 1 >= demanda.quantidade) {
+        if (vagaFechada) {
           demandas = s.demandas.map((d) =>
             d.id === demanda.id ? { ...d, status: 'em_andamento' as const } : d,
           )
