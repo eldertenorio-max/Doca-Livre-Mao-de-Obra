@@ -1390,51 +1390,118 @@ function PainelMissoes({ empresaId }: { empresaId: string }) {
     .slice()
     .sort((a, b) => b.data.localeCompare(a.data))
 
+  const abertas = missoes.filter((missao) => missao.status === 'aberta').length
+  const convitesTotal = state.candidaturas.filter((item) => missoes.some((missao) => missao.id === item.demandaId)).length
+
   return (
     <section className="cf-panel">
       <div className="cf-intro">
         <h1>Missões</h1>
-        <p>Vagas temporárias desta empresa e o andamento de cada convite.</p>
+        <p>Andamento das missões temporárias e de cada convite.</p>
       </div>
+      {missoes.length > 0 && (
+        <div className="cf-vaga-resumo">
+          <span>
+            <b>{missoes.length}</b> {missoes.length === 1 ? 'missão' : 'missões'}
+          </span>
+          <span>
+            <b>{abertas}</b> {abertas === 1 ? 'aberta' : 'abertas'}
+          </span>
+          <span>
+            <b>{convitesTotal}</b> {convitesTotal === 1 ? 'convite' : 'convites'}
+          </span>
+        </div>
+      )}
       {missoes.length === 0 && (
-        <div className="cf-card">
+        <div className="cf-card cf-vaga-vazia">
           <strong>Nenhuma missão ainda.</strong>
           <p className="muted">Publique a vaga para os colaboradores verem e se candidatarem.</p>
         </div>
       )}
-      <div className="cf-mission-list">
+      <div className="cf-vaga-lista">
         {missoes.map((missao) => {
-          const convites = state.candidaturas.filter((c) => c.demandaId === missao.id)
+          const convites = state.candidaturas.filter((item) => item.demandaId === missao.id)
+          const periodo = `${formatarDataBr(missao.data)}${missao.dataFim ? ` a ${formatarDataBr(missao.dataFim)}` : ''}`
+          const texto = missao.atividades || missao.descricao
           return (
-            <article key={missao.id} className="cf-card cf-mission">
-              <div className="cf-mission-head">
-                <h2>{cargoLabel(missao.cargo)}</h2>
-                <span className={`cf-status cf-status--${missao.status}`}>{rotuloStatusMissao(missao.status)}</span>
+            <article key={missao.id} className="cf-vaga">
+              <div className="cf-vaga-corpo">
+                <div className="cf-vaga-topo">
+                  <div>
+                    <span className={`cf-status cf-status--${missao.status}`}>{rotuloStatusMissao(missao.status)}</span>
+                    <h2>{cargoLabel(missao.cargo)}</h2>
+                    <p>
+                      {missao.endereco.cidade}/{missao.endereco.estado}
+                    </p>
+                  </div>
+                  <div className="cf-vaga-valor">
+                    <strong>
+                      {missao.valorDiaria.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                    </strong>
+                    <small>por dia</small>
+                  </div>
+                </div>
+                <dl className="cf-vaga-fatos">
+                  <div>
+                    <dt>Período</dt>
+                    <dd>{periodo}</dd>
+                  </div>
+                  <div>
+                    <dt>Jornada</dt>
+                    <dd>
+                      {missao.horaInicio}–{missao.horaFim}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>Pessoas</dt>
+                    <dd>
+                      {missao.quantidade} {missao.quantidade === 1 ? 'trabalhador' : 'trabalhadores'}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>Convites</dt>
+                    <dd>{convites.length}</dd>
+                  </div>
+                </dl>
+                {texto && <p className="cf-vaga-texto">{texto}</p>}
+                {missao.requisitos.length > 0 && (
+                  <div className="cf-vaga-chips">
+                    {missao.requisitos.map((item) => (
+                      <span key={item}>{item}</span>
+                    ))}
+                  </div>
+                )}
               </div>
-              <p>
-                {formatarDataBr(missao.data)}
-                {missao.dataFim ? ` a ${formatarDataBr(missao.dataFim)}` : ''} · {missao.horaInicio}–{missao.horaFim} ·{' '}
-                {missao.endereco.cidade}/{missao.endereco.estado}
-              </p>
-              <p>
-                {missao.quantidade} trabalhador{missao.quantidade === 1 ? '' : 'es'} ·{' '}
-                {missao.valorDiaria.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })} por dia
-              </p>
-              {convites.length === 0 ? (
-                <p className="muted">Nenhuma candidatura ainda.</p>
-              ) : (
-                <ul className="cf-invite-list">
-                  {convites.map((convite) => {
-                    const nome = state.profissionais.find((p) => p.id === convite.profissionalId)?.nome ?? 'Trabalhador'
-                    return (
-                      <li key={convite.id}>
-                        <strong>{nome}</strong>
-                        <span>{rotuloConvite(convite.status)}</span>
-                      </li>
-                    )
-                  })}
-                </ul>
-              )}
+              <aside className="cf-vaga-pessoas">
+                <h3>
+                  Convites
+                  <span>{convites.length}</span>
+                </h3>
+                {convites.length === 0 ? (
+                  <p>Nenhum convite nesta missão.</p>
+                ) : (
+                  <ul>
+                    {convites.map((convite) => {
+                      const pessoa = state.profissionais.find((item) => item.id === convite.profissionalId)
+                      const nome = pessoa?.nome ?? 'Trabalhador'
+                      return (
+                        <li key={convite.id}>
+                          <span className="cf-vaga-avatar">
+                            {pessoa?.foto ? <img src={pessoa.foto} alt="" /> : iniciaisNome(nome)}
+                          </span>
+                          <span className="cf-vaga-nome">
+                            <strong>{nome}</strong>
+                            <small>
+                              {pessoa ? `${pessoa.endereco.cidade}/${pessoa.endereco.estado}` : 'Colaborador'}
+                            </small>
+                          </span>
+                          <span className={`cf-vaga-selo cf-vaga-selo--${convite.status}`}>{rotuloConvite(convite.status)}</span>
+                        </li>
+                      )
+                    })}
+                  </ul>
+                )}
+              </aside>
             </article>
           )
         })}
