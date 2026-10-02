@@ -12,6 +12,7 @@ import { BRAND_PRODUCT_NAME, LOGO_DOCA_LIVRE_SRC } from '../../lib/brandAssets'
 import { useStore } from '../../lib/store'
 import type { CandidaturaStatus, Disponibilidade } from '../../lib/types'
 import { PerfilEmpresa, logoDaEmpresa } from './PerfilEmpresa'
+import { EditorPerfil, lerFotoPerfil } from './EditorPerfil'
 import '../empresa/contratar.css'
 import './perfil.css'
 
@@ -943,12 +944,39 @@ function PerfilTab() {
   const { currentProfissional } = useStore()
   const prof = currentProfissional!
   const [docsOpen, setDocsOpen] = useState(false)
+  const [editando, setEditando] = useState(false)
+  const [fotoAoVivo, setFotoAoVivo] = useState<string | undefined>()
+  const [erroFoto, setErroFoto] = useState('')
+  const [salvo, setSalvo] = useState(false)
+  const arquivoRef = useRef<HTMLInputElement>(null)
   const [slide, setSlide] = useState(0)
   const toque = useRef({ x: 0, y: 0 })
   const idade = idadeDe(prof.nascimento)
   const cargo = prof.profissoes[0] ? cargoLabel(prof.profissoes[0]) : 'Trabalhador'
   const nota = prof.avaliacaoMedia.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })
   const turnos = TURNOS.filter((item) => prof.disponibilidade[item.key])
+  const fotoCapa = editando && fotoAoVivo ? fotoAoVivo : prof.foto
+
+  function pararToque(event: ReactPointerEvent<HTMLButtonElement>) {
+    event.stopPropagation()
+  }
+
+  function abrirFoto() {
+    setSalvo(false)
+    setErroFoto('')
+    setEditando(true)
+    arquivoRef.current?.click()
+  }
+
+  async function escolherFoto(file: File | undefined) {
+    if (!file) return
+    try {
+      setFotoAoVivo(await lerFotoPerfil(file))
+      setErroFoto('')
+    } catch (falha) {
+      setErroFoto(falha instanceof Error ? falha.message : 'Não foi possível ler a foto.')
+    }
+  }
 
   const slides = useMemo(() => {
     const itens: { id: string; node: ReactNode }[] = [
@@ -956,8 +984,8 @@ function PerfilTab() {
         id: 'capa',
         node: (
           <div className="td-cover">
-            {prof.foto ? (
-              <img src={prof.foto} alt="" />
+            {fotoCapa ? (
+              <img src={fotoCapa} alt="" />
             ) : (
               <div className="td-mono" aria-hidden>
                 <span>{iniciais(prof.nome)}</span>
@@ -1018,7 +1046,7 @@ function PerfilTab() {
       })
     }
     return itens
-  }, [cargo, idade, prof])
+  }, [cargo, fotoCapa, idade, prof])
 
   function ir(delta: number) {
     setSlide((atual) => Math.min(slides.length - 1, Math.max(0, atual + delta)))
@@ -1045,6 +1073,16 @@ function PerfilTab() {
 
   return (
     <div className="td-page">
+      <input
+        ref={arquivoRef}
+        className="td-arquivo"
+        type="file"
+        accept="image/jpeg,image/png,image/webp"
+        onChange={(e) => {
+          void escolherFoto(e.target.files?.[0])
+          e.target.value = ''
+        }}
+      />
       <article
         className="td-hero"
         onPointerDown={(event) => {
@@ -1064,9 +1102,50 @@ function PerfilTab() {
             </div>
           ))}
         </div>
+        {slide === 0 && (
+          <button
+            type="button"
+            className="td-foto-btn"
+            onPointerDown={pararToque}
+            onPointerUp={pararToque}
+            onClick={abrirFoto}
+          >
+            Trocar foto
+          </button>
+        )}
       </article>
 
       <div className="td-painel">
+      {salvo && !editando && <p className="docs-ok">Perfil atualizado.</p>}
+      {erroFoto && <p className="error">{erroFoto}</p>}
+      {!editando && (
+        <button
+          type="button"
+          className="td-editor-pri"
+          onClick={() => {
+            setSalvo(false)
+            setEditando(true)
+          }}
+        >
+          Editar perfil
+        </button>
+      )}
+      {editando ? (
+        <EditorPerfil
+          prof={prof}
+          fotoNova={fotoAoVivo}
+          onFechar={() => {
+            setEditando(false)
+            setFotoAoVivo(undefined)
+          }}
+          onSalvou={() => {
+            setEditando(false)
+            setFotoAoVivo(undefined)
+            setSalvo(true)
+          }}
+        />
+      ) : (
+        <>
       <section className="td-card">
         <h2>Sobre</h2>
         <p>{textoSobre(prof.experiencia, cargo, prof.endereco.cidade)}</p>
@@ -1177,6 +1256,8 @@ function PerfilTab() {
             ))}
           </div>
         </section>
+      )}
+        </>
       )}
 
       <section className="td-card">

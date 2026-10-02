@@ -135,6 +135,27 @@ type StoreApi = {
   addAvaliacao: (data: Omit<Avaliacao, 'id' | 'createdAt'>) => void
   updateDisponibilidade: (profissionalId: string, disp: Disponibilidade) => void
   definirVerTodasVagas: (profissionalId: string, verTodas: boolean) => void
+  atualizarPerfilProfissional: (
+    profissionalId: string,
+    dados: Pick<
+      Profissional,
+      | 'nome'
+      | 'cpf'
+      | 'rg'
+      | 'nascimento'
+      | 'telefone'
+      | 'foto'
+      | 'profissoes'
+      | 'experiencia'
+      | 'certificados'
+      | 'cnhCategoria'
+      | 'cnhValidade'
+      | 'disponibilidade'
+      | 'endereco'
+      | 'raioKm'
+      | 'pix'
+    >,
+  ) => { ok: boolean; error?: string }
   toggleFavorito: (empresaId: string, profissionalId: string) => void
   toggleBloqueado: (empresaId: string, profissionalId: string) => void
   setEmpresaStatus: (id: string, status: Empresa['status']) => void
@@ -1085,6 +1106,53 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           p.id === profissionalId ? { ...p, verTodasVagas: verTodas } : p,
         ),
       }))
+    },
+
+    atualizarPerfilProfissional(profissionalId, dados) {
+      const nome = dados.nome.trim()
+      if (nome.length < 3) return { ok: false, error: 'Informe o nome.' }
+      if (!dados.endereco.cidade.trim() || !dados.endereco.estado.trim()) {
+        return { ok: false, error: 'Informe a cidade e o estado.' }
+      }
+      if (!Number.isFinite(dados.raioKm) || dados.raioKm < 1) {
+        return { ok: false, error: 'Informe o raio máximo, em km.' }
+      }
+      if (!state.profissionais.some((p) => p.id === profissionalId)) {
+        return { ok: false, error: 'Perfil não encontrado.' }
+      }
+      update((s) => ({
+        ...s,
+        profissionais: s.profissionais.map((p) =>
+          p.id === profissionalId
+            ? {
+                ...p,
+                nome,
+                cpf: dados.cpf.trim(),
+                rg: dados.rg.trim(),
+                nascimento: dados.nascimento,
+                telefone: dados.telefone.trim(),
+                foto: dados.foto || p.foto,
+                profissoes: dados.profissoes,
+                experiencia: dados.experiencia,
+                certificados: dados.certificados,
+                cnhCategoria: dados.cnhCategoria?.trim() || undefined,
+                cnhValidade: dados.cnhValidade || undefined,
+                disponibilidade: dados.disponibilidade,
+                endereco: {
+                  ...dados.endereco,
+                  cep: dados.endereco.cep.trim(),
+                  rua: dados.endereco.rua.trim(),
+                  numero: dados.endereco.numero.trim(),
+                  cidade: dados.endereco.cidade.trim(),
+                  estado: dados.endereco.estado.trim().toUpperCase(),
+                },
+                raioKm: Math.min(500, Math.round(dados.raioKm)),
+                pix: dados.pix.trim(),
+              }
+            : p,
+        ),
+      }))
+      return { ok: true }
     },
 
     toggleFavorito(empresaId, profissionalId) {
