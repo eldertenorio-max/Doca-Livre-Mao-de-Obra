@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { IntroSplash } from './components/IntroSplash'
-import { StoreProvider, avisoAcessoEmpresa, useStore } from './lib/store'
+import { StoreProvider, avisoAcessoEmpresa, avisoAcessoProfissional, useStore } from './lib/store'
 import { AdminApp } from './pages/admin/AdminApp'
 import { CadastroEmpresaScreen } from './pages/auth/CadastroEmpresaScreen'
 import { CadastroProfissionalScreen } from './pages/auth/CadastroProfissionalScreen'
@@ -109,6 +109,16 @@ function AppRoutes() {
     setGate('login')
   }, [gate, portal, currentEmpresa, logout])
 
+  useEffect(() => {
+    if (gate === 'cadastro_profissional' || gate === 'login' || gate === 'splash') return
+    if (portal !== 'profissional' || !currentProfissional) return
+    const aviso = avisoAcessoProfissional(currentProfissional.status)
+    if (!aviso) return
+    setAvisoLogin(aviso)
+    logout()
+    setGate('login')
+  }, [gate, portal, currentProfissional, logout])
+
   function handleLogout() {
     logout()
     setGate('select')
@@ -166,6 +176,7 @@ function AppRoutes() {
           </div>
         )
       }
+      if (currentProfissional.status !== 'aprovado') return null
       return <ProfissionalApp onLogout={handleLogout} />
     }
     if (portal === 'empresa') {
@@ -224,9 +235,13 @@ function AppRoutes() {
       <CadastroProfissionalScreen
         onBack={() => setGate('select')}
         onDone={() => {
+          setAvisoLogin(
+            'Seu cadastro foi enviado e aguarda aprovação. O login libera quando o administrador validar o colaborador.',
+          )
+          logout()
           writePortal('profissional')
           setPortal('profissional')
-          setGate('app')
+          setGate('login')
         }}
       />
     )

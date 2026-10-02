@@ -55,6 +55,14 @@ export function avisoAcessoEmpresa(status: Empresa['status']): string | null {
   return 'Sua empresa ainda aguarda aprovação. O login libera quando o administrador validar o cadastro.'
 }
 
+export function avisoAcessoProfissional(status: Profissional['status']): string | null {
+  if (status === 'aprovado') return null
+  if (status === 'bloqueado') {
+    return 'Este cadastro está bloqueado. O acesso ao painel não está liberado.'
+  }
+  return 'Seu cadastro ainda aguarda aprovação. O login libera quando o administrador validar o colaborador.'
+}
+
 function documentosDeCadastro(
   existentes: DocumentoRegistro[],
   donoId: string,
@@ -389,6 +397,12 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       if (portal === 'empresa' && user.role === 'empresa' && !isSuper && hasPerfil) {
         const empresa = state.empresas.find((item) => item.userId === user.id)
         const aviso = empresa ? avisoAcessoEmpresa(empresa.status) : null
+        if (aviso) return { ok: false, error: aviso, aviso: true }
+      }
+
+      if (portal === 'profissional' && user.role === 'profissional' && !isSuper && hasPerfil) {
+        const profissional = state.profissionais.find((item) => item.userId === user.id)
+        const aviso = profissional ? avisoAcessoProfissional(profissional.status) : null
         if (aviso) return { ok: false, error: aviso, aviso: true }
       }
 

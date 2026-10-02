@@ -131,7 +131,7 @@ export function PortalLoginScreen({ portal, avisoInicial, onSuccess, onBack }: P
     try {
       const result = store.loginPortal(usuario.trim(), senha, portal)
       if (!result.ok) {
-        if (result.aviso) setAviso(result.error || 'Sua empresa ainda aguarda aprovação.')
+        if (result.aviso) setAviso(result.error || 'Seu cadastro ainda aguarda aprovação.')
         else {
           setAviso(null)
           setErro(result.error || 'Falha no login.')
