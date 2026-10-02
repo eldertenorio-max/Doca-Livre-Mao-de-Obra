@@ -78,11 +78,8 @@ function AppRoutes() {
         setGate('cadastro_profissional')
         return
       }
-      const res = login('carlos@email.com', 'demo123')
-      if (!res.ok) {
-        logout()
-        setGate('select')
-      }
+      logout()
+      setGate('select')
       return
     }
 

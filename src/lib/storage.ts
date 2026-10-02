@@ -5,61 +5,6 @@ import type { AppState } from './types'
 
 export const STORAGE_KEY = 'doca-livre-mao-de-obra-v7'
 
-type EstadoComCorrecao = AppState & { correcaoCandidatoDiego?: boolean }
-
-function nomeChave(nome: string) {
-  return nome
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toLowerCase()
-    .trim()
-}
-
-/** Convite gravado no Carlos da demonstração, em vaga publicada pela empresa, passa para o Diego Isidoro. */
-function corrigirConviteDiego(state: EstadoComCorrecao) {
-  if (state.correcaoCandidatoDiego) return false
-  const diego = state.profissionais.find((pessoa) => nomeChave(pessoa.nome) === 'diego isidoro')
-  const carlos = state.profissionais.find((pessoa) => pessoa.id === 'prof_2')
-  if (!diego || !carlos || diego.id === carlos.id) return false
-  if (!Array.isArray(state.candidaturas) || !Array.isArray(state.demandas)) return false
-
-  const vagasDaDemonstracao = new Set(['dem_1', 'dem_2', 'dem_3'])
-  for (const candidatura of state.candidaturas) {
-    if (candidatura.profissionalId !== carlos.id) continue
-    if (vagasDaDemonstracao.has(candidatura.demandaId)) continue
-    const diegoJaEsta = state.candidaturas.some(
-      (outra) =>
-        outra.id !== candidatura.id &&
-        outra.demandaId === candidatura.demandaId &&
-        outra.profissionalId === diego.id,
-    )
-    if (diegoJaEsta) continue
-    candidatura.profissionalId = diego.id
-    for (const check of state.checkIns ?? []) {
-      if (check.demandaId === candidatura.demandaId && check.profissionalId === carlos.id) {
-        check.profissionalId = diego.id
-      }
-    }
-    for (const pagamento of state.pagamentos ?? []) {
-      if (pagamento.demandaId === candidatura.demandaId && pagamento.profissionalId === carlos.id) {
-        pagamento.profissionalId = diego.id
-      }
-    }
-    for (const contrato of state.contratos ?? []) {
-      if (contrato.candidaturaId === candidatura.id && contrato.profissionalId === carlos.id) {
-        contrato.profissionalId = diego.id
-      }
-    }
-    for (const peca of state.pecas ?? []) {
-      if (peca.candidaturaId === candidatura.id && peca.profissionalId === carlos.id) {
-        peca.profissionalId = diego.id
-      }
-    }
-  }
-  state.correcaoCandidatoDiego = true
-  return true
-}
-
 export function loadState(): AppState {
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
@@ -99,7 +44,6 @@ export function loadState(): AppState {
       }
       saveState(parsed)
     }
-    if (corrigirConviteDiego(parsed)) saveState(parsed)
     return parsed
   } catch {
     const seed = createSeedState()

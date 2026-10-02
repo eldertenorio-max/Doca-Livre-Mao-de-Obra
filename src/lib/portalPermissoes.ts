@@ -1,26 +1,12 @@
-/** Superusuários locais com acesso total (igual WMS Plus). */
+/** Contas super do painel. O colaborador Diego Isidoro não entra nesta lista. */
 export function isLocalSuperUser(usuario: string): boolean {
   const u = (usuario || '').trim().toLowerCase()
   if (!u) return false
   const ascii = u.normalize('NFD').replace(/[\u0300-\u036f]/g, '')
-  const locals = [
-    'diego',
-    'elder',
-    'diego.isidoro',
-    'elder.tenorio',
-    'eldertenorio',
-    'diegoisidoro',
-    'diego isidoro',
-    'elder tenorio',
-  ]
-  if (locals.includes(u) || locals.includes(ascii)) return true
+  const locals = ['diego', 'elder', 'elder.tenorio', 'eldertenorio', 'elder tenorio']
+  if (locals.includes(ascii)) return true
   const local = (ascii.split('@')[0] || '').trim()
-  if (locals.includes(local)) return true
-  // diego@docalivre.com / elder@... — não match em diegoprof / diego.prof
-  if (locals.some((s) => ascii === s || ascii.startsWith(`${s}.`) || ascii.startsWith(`${s}@`))) {
-    return true
-  }
-  return false
+  return locals.includes(local)
 }
 
 export type SistemaId = 'empresa' | 'profissional' | 'admin'

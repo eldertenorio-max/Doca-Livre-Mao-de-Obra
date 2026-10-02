@@ -371,20 +371,19 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         }
       }
 
-      // Só a conta super ou admin entra no perfil de demonstração. Um trabalhador
-      // chamado Diego Isidoro permanece na própria conta.
-      if ((user.role === 'super' || user.role === 'admin') && portal !== 'admin') {
-        if (portal === 'profissional') {
-          const demo =
-            state.users.find((u) => u.email === 'carlos@email.com' && u.role === 'profissional') ||
-            state.users.find((u) => u.role === 'profissional' && u.ativo)
-          if (demo) user = demo
-        } else if (portal === 'empresa') {
-          const demo =
-            state.users.find((u) => u.email === 'empresa@logexpress.com' && u.role === 'empresa') ||
-            state.users.find((u) => u.role === 'empresa' && u.ativo)
-          if (demo) user = demo
+      if ((user.role === 'super' || user.role === 'admin') && portal === 'profissional') {
+        return {
+          ok: false,
+          error: 'Esta conta não abre o perfil de um colaborador. Entre com o usuário criado no cadastro do profissional.',
         }
+      }
+
+      // A conta super ou admin, no portal da empresa, abre a Log Express de demonstração.
+      if ((user.role === 'super' || user.role === 'admin') && portal === 'empresa') {
+        const demo =
+          state.users.find((u) => u.email === 'empresa@logexpress.com' && u.role === 'empresa') ||
+          state.users.find((u) => u.role === 'empresa' && u.ativo)
+        if (demo) user = demo
       }
 
       const hasPerfil =
