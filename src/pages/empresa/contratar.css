@@ -2095,10 +2095,24 @@ button.cf-vaga-nome:disabled {
   border-bottom: 0;
 }
 
+.cf-vaga-aceite-bloco {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  margin-top: 6px;
+}
+
 .cf-vaga-aceite,
 .cf-vaga-espera {
   grid-column: 1 / -1;
   margin-top: 6px;
+}
+
+.cf-vaga-aceite-bloco .cf-vaga-aceite,
+.cf-vaga-aceite-bloco .cf-vaga-espera {
+  margin-top: 0;
 }
 
 .cf-vaga-espera {
@@ -2127,7 +2141,8 @@ button.cf-vaga-nome:disabled {
 }
 
 .cf-missao-lado .cf-vaga-aceite,
-.cf-missao-lado .cf-vaga-espera {
+.cf-missao-lado .cf-vaga-espera,
+.cf-missao-lado .cf-vaga-aceite-bloco {
   grid-column: auto;
 }
 

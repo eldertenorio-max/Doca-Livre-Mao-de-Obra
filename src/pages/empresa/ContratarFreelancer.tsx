@@ -2038,13 +2038,15 @@ function AceiteCandidatura({
   const pessoa = state.profissionais.find((item) => item.id === profissionalId)
   if (!pessoa) return null
   const docs = resumoDocumental(checklistProfissional(pessoa, state.documentos, requisitos))
-  if (!docs.completo) {
-    return <span className="cf-vaga-espera">Documentação em {docs.pct}%. O aceite espera a validação.</span>
-  }
   return (
-    <button type="button" className="cf-btn cf-btn--yellow cf-vaga-aceite" onClick={() => confirmCandidato(candidaturaId)}>
-      Aceitar candidatura
-    </button>
+    <div className="cf-vaga-aceite-bloco">
+      <button type="button" className="cf-btn cf-btn--yellow cf-vaga-aceite" onClick={() => confirmCandidato(candidaturaId)}>
+        Aprovar candidatura
+      </button>
+      {!docs.completo && (
+        <span className="cf-vaga-espera">Documentação em {docs.pct}%. A validação dos arquivos segue no administrador.</span>
+      )}
+    </div>
   )
 }
 
