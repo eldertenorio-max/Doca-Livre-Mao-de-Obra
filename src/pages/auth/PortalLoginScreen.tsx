@@ -1,4 +1,4 @@
-import { useState, type FormEvent, type InputHTMLAttributes } from 'react'
+import { useEffect, useState, type FormEvent, type InputHTMLAttributes } from 'react'
 import { LOGO_DOCA_LIVRE_SRC } from '../../lib/brandAssets'
 import {
   portalCadastroEnviarCodigo,
@@ -24,6 +24,7 @@ export type PortalLoginSuccess = {
 
 type Props = {
   portal: PortalRole | 'admin'
+  avisoInicial?: string | null
   onSuccess: (result: PortalLoginSuccess) => void
   onBack: () => void
 }
@@ -84,7 +85,7 @@ const PORTAL_TAG: Record<PortalRole | 'admin', string> = {
   admin: 'Administração · hierarquia · permissões',
 }
 
-export function PortalLoginScreen({ portal, onSuccess, onBack }: Props) {
+export function PortalLoginScreen({ portal, avisoInicial, onSuccess, onBack }: Props) {
   const store = useStore()
   const [mode, setMode] = useState<Mode>('login')
   const [step, setStep] = useState<Step>('form')
@@ -99,7 +100,12 @@ export function PortalLoginScreen({ portal, onSuccess, onBack }: Props) {
 
   const [erro, setErro] = useState<string | null>(null)
   const [info, setInfo] = useState<string | null>(null)
+  const [aviso, setAviso] = useState<string | null>(avisoInicial ?? null)
   const [loading, setLoading] = useState(false)
+
+  useEffect(() => {
+    if (avisoInicial) setAviso(avisoInicial)
+  }, [avisoInicial])
 
   function resetMessages() {
     setErro(null)
@@ -125,9 +131,14 @@ export function PortalLoginScreen({ portal, onSuccess, onBack }: Props) {
     try {
       const result = store.loginPortal(usuario.trim(), senha, portal)
       if (!result.ok) {
-        setErro(result.error || 'Falha no login.')
+        if (result.aviso) setAviso(result.error || 'Sua empresa ainda aguarda aprovação.')
+        else {
+          setAviso(null)
+          setErro(result.error || 'Falha no login.')
+        }
         return
       }
+      setAviso(null)
       onSuccess({
         usuario: result.usuario || usuario.trim(),
         role: result.role || portal,
@@ -295,6 +306,12 @@ export function PortalLoginScreen({ portal, onSuccess, onBack }: Props) {
           <h1 className="portal-login__title">{mode === 'cadastro' ? 'Cadastro' : PORTAL_TITLE[portal]}</h1>
           <p className="portal-login__tagline">{PORTAL_TAG[portal]}</p>
         </div>
+
+        {mode === 'login' && aviso && (
+          <p className="portal-login__aviso" role="status">
+            {aviso}
+          </p>
+        )}
 
         {mode === 'login' && (
           <form className="portal-login__form" onSubmit={handleLogin}>

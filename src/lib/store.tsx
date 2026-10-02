@@ -39,6 +39,14 @@ import type {
 
 type DocumentoCadastro = { tipoId: string; arquivoNome: string; observacao: string }
 
+export function avisoAcessoEmpresa(status: Empresa['status']): string | null {
+  if (status === 'aprovada') return null
+  if (status === 'bloqueada') {
+    return 'Esta empresa está bloqueada. O acesso ao painel não está liberado.'
+  }
+  return 'Sua empresa ainda aguarda aprovação. O login libera quando o administrador validar o cadastro.'
+}
+
 function documentosDeCadastro(
   existentes: DocumentoRegistro[],
   donoId: string,
@@ -80,6 +88,7 @@ type StoreApi = {
   ) => {
     ok: boolean
     error?: string
+    aviso?: boolean
     role?: UserRole
     usuario?: string
     isSuperuser?: boolean
@@ -370,6 +379,12 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           : user.role === 'empresa'
             ? state.empresas.some((e) => e.userId === user!.id)
             : true
+
+      if (portal === 'empresa' && user.role === 'empresa' && !isSuper && hasPerfil) {
+        const empresa = state.empresas.find((item) => item.userId === user.id)
+        const aviso = empresa ? avisoAcessoEmpresa(empresa.status) : null
+        if (aviso) return { ok: false, error: aviso, aviso: true }
+      }
 
       update((s) => ({ ...s, sessionUserId: user!.id }))
       return {

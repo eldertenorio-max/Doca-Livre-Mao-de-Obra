@@ -102,6 +102,16 @@
   border-color: #94a3b8;
 }
 
+.portal-login__aviso {
+  margin: 0 0 4px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: #fff8d1;
+  color: #1a2b4a;
+  font-size: 0.92rem;
+  line-height: 1.45;
+}
+
 .portal-login__erro {
   margin: 8px 0 0;
   color: #b91c1c;

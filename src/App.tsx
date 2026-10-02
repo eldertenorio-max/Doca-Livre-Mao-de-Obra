@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { IntroSplash } from './components/IntroSplash'
-import { StoreProvider, useStore } from './lib/store'
+import { StoreProvider, avisoAcessoEmpresa, useStore } from './lib/store'
 import { AdminApp } from './pages/admin/AdminApp'
 import { CadastroEmpresaScreen } from './pages/auth/CadastroEmpresaScreen'
 import { CadastroProfissionalScreen } from './pages/auth/CadastroProfissionalScreen'
@@ -56,6 +56,7 @@ function AppRoutes() {
     () => readPortal() ?? portalFromUser(currentUser?.role),
   )
   const [gate, setGate] = useState<Gate>(() => (currentUser ? 'app' : 'splash'))
+  const [avisoLogin, setAvisoLogin] = useState<string | null>(null)
 
   const finishSplash = useCallback(() => {
     if (currentUser) {
@@ -98,12 +99,23 @@ function AppRoutes() {
     }
   }, [gate, portal, currentUser, currentProfissional, currentEmpresa, login, logout])
 
+  useEffect(() => {
+    if (gate === 'cadastro_empresa' || gate === 'login' || gate === 'splash') return
+    if (portal !== 'empresa' || !currentEmpresa) return
+    const aviso = avisoAcessoEmpresa(currentEmpresa.status)
+    if (!aviso) return
+    setAvisoLogin(aviso)
+    logout()
+    setGate('login')
+  }, [gate, portal, currentEmpresa, logout])
+
   function handleLogout() {
     logout()
     setGate('select')
   }
 
   function openPortal(p: PortalTipo) {
+    setAvisoLogin(null)
     setPortal(p)
     writePortal(p)
     setGate('login')
@@ -166,6 +178,7 @@ function AppRoutes() {
           </div>
         )
       }
+      if (currentEmpresa.status !== 'aprovada') return null
       return <ContratarFreelancer onLogout={handleLogout} />
     }
     return <AdminApp onLogout={handleLogout} onOpenConfig={() => setGate('config')} />
@@ -175,6 +188,7 @@ function AppRoutes() {
     return (
       <PortalLoginScreen
         portal={portal}
+        avisoInicial={avisoLogin}
         onBack={() => setGate('select')}
         onSuccess={(r) =>
           afterLogin({
@@ -193,9 +207,13 @@ function AppRoutes() {
       <CadastroEmpresaScreen
         onBack={() => setGate('select')}
         onDone={() => {
+          setAvisoLogin(
+            'Sua empresa foi cadastrada e aguarda aprovação. O login libera quando o administrador validar o cadastro.',
+          )
+          logout()
           writePortal('empresa')
           setPortal('empresa')
-          setGate('app')
+          setGate('login')
         }}
       />
     )
