@@ -158,6 +158,11 @@ export function PortalLoginScreen({ portal, avisoInicial, onSuccess, onBack }: P
       return
     }
     resetMessages()
+    const em = email.trim().toLowerCase()
+    if (store.state.users.some((usuarioCadastrado) => usuarioCadastrado.email.toLowerCase() === em)) {
+      setErro('Este e-mail já está sendo utilizado.')
+      return
+    }
     setLoading(true)
     try {
       const result = await portalCadastroEnviarCodigo(email.trim(), portal)

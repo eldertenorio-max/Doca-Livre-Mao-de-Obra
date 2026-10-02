@@ -405,7 +405,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       const em = email.trim().toLowerCase()
       const us = usuario.trim()
       if (state.users.some((u) => u.email.toLowerCase() === em)) {
-        return { ok: false, error: 'E-mail já cadastrado.' }
+        return { ok: false, error: 'Este e-mail já está sendo utilizado.' }
       }
       if (state.users.some((u) => (u.usuario || '').toLowerCase() === us.toLowerCase())) {
         return { ok: false, error: 'Nome de usuário já existe.' }
@@ -457,7 +457,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
     registerEmpresa(userData, empresaData, documentos) {
       if (state.users.some((u) => u.email.toLowerCase() === userData.email.toLowerCase())) {
-        return { ok: false, error: 'E-mail já cadastrado.' }
+        return { ok: false, error: 'Este e-mail já está sendo utilizado.' }
       }
       const userId = uid('user')
       const empresaId = uid('emp')
@@ -502,7 +502,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
     registerProfissional(userData, profissionalData, documentos) {
       if (state.users.some((u) => u.email.toLowerCase() === userData.email.toLowerCase())) {
-        return { ok: false, error: 'E-mail já cadastrado.' }
+        return { ok: false, error: 'Este e-mail já está sendo utilizado.' }
       }
       const userId = uid('user')
       const profId = uid('prof')
