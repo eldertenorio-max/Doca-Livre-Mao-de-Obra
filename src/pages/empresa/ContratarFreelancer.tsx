@@ -5,6 +5,7 @@ import { LOCAIS_OPERACAO } from '../../data/cidades'
 import { analisarCurriculos, requisitosDoCargo, rotuloAnos, type CurriculoAnalisado } from '../../lib/analiseCurriculo'
 import { abrirCurriculoPdf } from '../../lib/curriculoPdf'
 import { MapaMaoDeObra } from './MapaMaoDeObra'
+import { SinoEmpresa } from './SinoEmpresa'
 import { PerfilColaborador } from './PerfilColaborador'
 import { checklistProfissional, resumoDocumental } from '../../lib/documentos'
 import { distanciaKm } from '../../lib/matching'
@@ -859,6 +860,7 @@ export function ContratarFreelancer({ onLogout }: { onLogout: () => void }) {
           </div>
         </div>
         <div className="cf-topbar-right">
+          <SinoEmpresa empresaId={empresa.id} onIr={setAba} />
           <div className="cf-topbar-user">
             <span>
               <strong>{empresa.nomeFantasia}</strong>

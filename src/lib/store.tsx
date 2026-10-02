@@ -634,6 +634,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           score: m.score,
           distanciaKm: Math.round(m.distanciaKm * 10) / 10,
           createdAt: nowIso(),
+          origem: 'convite',
         }))
         return {
           ...s,
@@ -696,9 +697,17 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           (item) => item.demandaId === demandaId && item.profissionalId === profissionalId,
         )
         if (existente?.status === 'aceita' || existente?.status === 'confirmada') return s
+        const agora = nowIso()
         const candidaturas = existente
           ? s.candidaturas.map((item) =>
-              item.id === existente.id ? { ...item, status: 'aceita' as const } : item,
+              item.id === existente.id
+                ? {
+                    ...item,
+                    status: 'aceita' as const,
+                    origem: item.origem ?? 'convite',
+                    respondidoEm: agora,
+                  }
+                : item,
             )
           : [
               {
@@ -708,7 +717,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
                 status: 'aceita' as const,
                 score: 0,
                 distanciaKm: Number.isFinite(distancia) ? distancia : 0,
-                createdAt: nowIso(),
+                createdAt: agora,
+                origem: 'candidatura' as const,
+                respondidoEm: agora,
               },
               ...s.candidaturas,
             ]
@@ -762,6 +773,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           score: input.score,
           distanciaKm: Math.round(input.distanciaKm * 10) / 10,
           createdAt: nowIso(),
+          origem: 'convite',
         }
         candidaturaId = cand.id
         const profissional = s.profissionais.find((p) => p.id === input.profissionalId)
@@ -810,8 +822,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       update((s) => ({
         ...s,
         candidaturas: s.candidaturas.map((c) =>
-          c.demandaId === demandaId && c.profissionalId === profissionalId
-            ? { ...c, status: 'aceita' as const }
+          c.demandaId === demandaId &&
+          c.profissionalId === profissionalId &&
+          c.status !== 'aceita' &&
+          c.status !== 'confirmada'
+            ? { ...c, status: 'aceita' as const, origem: c.origem ?? 'convite', respondidoEm: nowIso() }
             : c,
         ),
       }))

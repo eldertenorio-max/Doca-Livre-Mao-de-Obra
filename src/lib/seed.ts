@@ -419,6 +419,7 @@ export function createSeedState(): AppState {
       profissionalId: m.profissional.id,
       status:
         demanda.id === 'dem_1' && m.profissional.id === 'prof_2' ? ('aceita' as const) : ('pendente' as const),
+      origem: 'convite' as const,
       score: m.score,
       distanciaKm: Math.round(m.distanciaKm * 10) / 10,
       createdAt: nowIso(),

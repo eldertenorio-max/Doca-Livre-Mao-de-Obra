@@ -239,6 +239,10 @@ export type Candidatura = {
   score: number
   distanciaKm: number
   createdAt: string
+  /** Candidatura veio da vaga publicada; convite foi enviado pela empresa. */
+  origem?: 'candidatura' | 'convite'
+  /** Momento em que o trabalhador se candidatou ou aceitou o convite. */
+  respondidoEm?: string
 }
 
 export type CheckIn = {

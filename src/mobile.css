@@ -60,7 +60,8 @@ body,
   }
 
   .cf-topbar-menu,
-  .cf-sair {
+  .cf-sair,
+  .cf-sino-btn {
     min-width: 44px;
     min-height: 44px;
   }
