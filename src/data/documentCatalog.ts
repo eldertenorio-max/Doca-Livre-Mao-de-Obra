@@ -363,7 +363,8 @@ export function requiredDocsForProfissional(profissoes: string[], requisitosDema
       p.includes('rodotrem') ||
       p.includes('mopp') ||
       p.includes('munck') ||
-      p.includes('vuc'),
+      p.includes('vuc') ||
+      p.includes('manobrista'),
   )
   return DOCS_PROFISSIONAL.filter((d) => docExigido(d, profissoes, reqs, isMotorista))
 }
