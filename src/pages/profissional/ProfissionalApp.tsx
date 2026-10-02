@@ -9,6 +9,7 @@ import { distanciaKm } from '../../lib/matching'
 import { checklistProfissional, resumoDocumental } from '../../lib/documentos'
 import { pendenciasParaIniciar } from '../../lib/dossieTemporario'
 import { BRAND_PRODUCT_NAME, LOGO_DOCA_LIVRE_SRC } from '../../lib/brandAssets'
+import { validarChavePix } from '../../lib/pix'
 import { useStore } from '../../lib/store'
 import type { CandidaturaStatus, Disponibilidade } from '../../lib/types'
 import { PerfilEmpresa, logoDaEmpresa } from './PerfilEmpresa'
@@ -753,6 +754,7 @@ function FinanceiroTab() {
   const { currentProfissional, state } = useStore()
   const prof = currentProfissional!
   const [filtro, setFiltro] = useState<'todos' | 'receber' | 'pagos'>('todos')
+  const chavePix = validarChavePix(prof.pix)
 
   const linhas = useMemo(() => {
     const pagos = state.pagamentos
@@ -880,7 +882,11 @@ function FinanceiroTab() {
       <section className="td-fin-pix">
         <span>Chave PIX</span>
         <strong>{prof.pix}</strong>
-        <small>Os pagamentos das missões são creditados nesta chave.</small>
+        <small>
+          {chavePix.ok
+            ? `Chave de ${chavePix.rotulo}. Os pagamentos das missões caem aqui.`
+            : 'Os pagamentos das missões são creditados nesta chave.'}
+        </small>
       </section>
     </div>
   )
@@ -895,9 +901,26 @@ function diasDaMissao(inicio: string, fim?: string) {
 }
 
 function OpcoesTab({ onIr }: { onIr: (aba: TabId) => void }) {
-  const { currentProfissional, definirVerTodasVagas } = useStore()
+  const { currentProfissional, definirVerTodasVagas, atualizarPix } = useStore()
   const prof = currentProfissional!
   const verTodas = prof.verTodasVagas !== false
+  const [pix, setPix] = useState(prof.pix)
+  const [erroPix, setErroPix] = useState('')
+  const [avisoPix, setAvisoPix] = useState('')
+  const conferencia = pix.trim() ? validarChavePix(pix) : null
+  const atual = validarChavePix(prof.pix)
+
+  function salvarPix() {
+    const res = atualizarPix(prof.id, pix)
+    if (!res.ok) {
+      setErroPix(res.error)
+      setAvisoPix('')
+      return
+    }
+    setPix(res.chave)
+    setErroPix('')
+    setAvisoPix(`Chave de ${res.rotulo} salva.`)
+  }
 
   return (
     <div className="td-opcoes">
@@ -911,6 +934,35 @@ function OpcoesTab({ onIr }: { onIr: (aba: TabId) => void }) {
         <p>Foto, dados, documentos e o que as empresas veem sobre você.</p>
         <button type="button" className="td-vaga-btn" onClick={() => onIr('perfil')}>
           Configurar perfil
+        </button>
+      </section>
+      <section className="td-opcao">
+        <h3>Chave PIX</h3>
+        <p>Os pagamentos das missões caem nesta chave. CPF e CNPJ são conferidos pelos dígitos; e-mail, celular e chave aleatória pelo formato.</p>
+        <p className="td-pix-atual">
+          Chave atual: <strong>{prof.pix || 'nenhuma'}</strong>
+          {atual.ok ? ` · ${atual.rotulo}` : ''}
+        </p>
+        <label className="td-pix-campo">
+          <span>Nova chave</span>
+          <input
+            value={pix}
+            inputMode="text"
+            autoComplete="off"
+            placeholder="CPF, e-mail, celular ou chave aleatória"
+            onChange={(e) => {
+              setPix(e.target.value)
+              setErroPix('')
+              setAvisoPix('')
+            }}
+          />
+        </label>
+        {conferencia?.ok && <p className="docs-ok">Chave de {conferencia.rotulo} conferida: {conferencia.chave}</p>}
+        {conferencia && !conferencia.ok && <p className="error">{conferencia.erro}</p>}
+        {erroPix && conferencia?.ok !== false && <p className="error">{erroPix}</p>}
+        {avisoPix && <p className="docs-ok">{avisoPix}</p>}
+        <button type="button" className="td-editor-pri" onClick={salvarPix}>
+          Salvar chave PIX
         </button>
       </section>
       <section className="td-opcao">

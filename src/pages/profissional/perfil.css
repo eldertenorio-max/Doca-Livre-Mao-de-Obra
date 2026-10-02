@@ -1341,6 +1341,38 @@
   margin-top: 12px;
 }
 
+.td-pix-atual {
+  margin: 0 0 12px;
+  color: #111;
+}
+
+.td-pix-campo {
+  display: grid;
+  gap: 6px;
+  margin-bottom: 10px;
+  font-weight: 700;
+}
+
+.td-pix-campo input {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 10px 12px;
+  font: inherit;
+  font-size: 16px;
+  font-weight: 650;
+}
+
+.td-opcao .td-editor-pri {
+  margin-top: 12px;
+}
+
+.td-opcao .docs-ok,
+.td-opcao .error {
+  margin: 0 0 8px;
+}
+
 @media (max-width: 860px) {
   .td-home-stats {
     grid-template-columns: 1fr 1fr;

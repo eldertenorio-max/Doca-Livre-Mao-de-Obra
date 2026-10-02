@@ -9,6 +9,7 @@ import {
   type PapelDocumento,
 } from '../../lib/analisarDocumentoCadastro'
 import { coordenadaDaCidade } from '../../lib/coordenadaCidade'
+import { validarChavePix } from '../../lib/pix'
 import { useStore } from '../../lib/store'
 import type { Disponibilidade } from '../../lib/types'
 
@@ -79,6 +80,7 @@ export function CadastroProfissionalScreen({ onBack, onDone }: Props) {
     () => LOCAIS_OPERACAO.filter((local) => local.estado === form.estado).map((local) => local.cidade),
     [form.estado],
   )
+  const pixInfo = form.pix.trim() ? validarChavePix(form.pix) : null
 
   function set<K extends keyof typeof form>(key: K, value: (typeof form)[K]) {
     setForm((f) => ({ ...f, [key]: value }))
@@ -201,6 +203,12 @@ export function CadastroProfissionalScreen({ onBack, onDone }: Props) {
       setStep(7)
       return
     }
+    const chave = validarChavePix(form.pix)
+    if (!chave.ok) {
+      setError(chave.erro)
+      setStep(8)
+      return
+    }
     const profissionalPayload = {
       nome: form.nome,
       cpf: form.cpf,
@@ -239,7 +247,7 @@ export function CadastroProfissionalScreen({ onBack, onDone }: Props) {
         ]),
       },
       raioKm: form.raioKm,
-      pix: form.pix,
+      pix: chave.chave,
     }
     const documentos = documentosAceitos()
     const res = completing
@@ -442,8 +450,10 @@ export function CadastroProfissionalScreen({ onBack, onDone }: Props) {
             </p>
             <label className="field">
               <span>Chave PIX</span>
-              <input value={form.pix} onChange={(e) => set('pix', e.target.value)} required />
+              <input value={form.pix} onChange={(e) => set('pix', e.target.value)} placeholder="CPF, e-mail, celular ou chave aleatória" required />
             </label>
+            {pixInfo?.ok && <p className="docs-ok">Chave de {pixInfo.rotulo} conferida.</p>}
+            {pixInfo && !pixInfo.ok && <p className="error">{pixInfo.erro}</p>}
           </>
         )}
 

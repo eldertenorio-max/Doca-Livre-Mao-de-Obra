@@ -2,6 +2,7 @@ import { useEffect, useId, useMemo, useState } from 'react'
 import { CATEGORIES, cargoLabel } from '../../data/categories'
 import { LOCAIS_OPERACAO } from '../../data/cidades'
 import { coordenadaDaCidade } from '../../lib/coordenadaCidade'
+import { validarChavePix } from '../../lib/pix'
 import { useStore } from '../../lib/store'
 import type { Certificado, Disponibilidade, Experiencia, Profissional } from '../../lib/types'
 
@@ -87,6 +88,7 @@ export function EditorPerfil({
     () => LOCAIS_OPERACAO.filter((local) => local.estado === form.estado).map((local) => local.cidade),
     [form.estado],
   )
+  const pixInfo = form.pix.trim() ? validarChavePix(form.pix) : null
 
   useEffect(() => {
     if (!fotoNova) return
@@ -302,8 +304,14 @@ export function EditorPerfil({
           </label>
           <label>
             <span>Chave PIX</span>
-            <input value={form.pix} onChange={(e) => set('pix', e.target.value)} />
+            <input
+              value={form.pix}
+              placeholder="CPF, e-mail, celular ou chave aleatória"
+              onChange={(e) => set('pix', e.target.value)}
+            />
           </label>
+          {pixInfo?.ok && <p className="td-form-full docs-ok">Chave de {pixInfo.rotulo} conferida.</p>}
+          {pixInfo && !pixInfo.ok && <p className="td-form-full error">{pixInfo.erro}</p>}
         </div>
       </section>
 

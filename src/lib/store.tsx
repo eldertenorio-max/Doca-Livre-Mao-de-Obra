@@ -19,6 +19,7 @@ import {
 import { distanciaKm, matchDemanda } from './matching'
 import { canAccessSistema, isLocalSuperUser } from './portalPermissoes'
 import { nowIso, uid } from './seed'
+import { validarChavePix } from './pix'
 import { loadState, resetState, saveState, STORAGE_KEY } from './storage'
 import type {
   AppState,
@@ -156,6 +157,10 @@ type StoreApi = {
       | 'pix'
     >,
   ) => { ok: boolean; error?: string }
+  atualizarPix: (
+    profissionalId: string,
+    pix: string,
+  ) => { ok: true; chave: string; rotulo: string } | { ok: false; error: string }
   toggleFavorito: (empresaId: string, profissionalId: string) => void
   toggleBloqueado: (empresaId: string, profissionalId: string) => void
   setEmpresaStatus: (id: string, status: Empresa['status']) => void
@@ -1117,6 +1122,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       if (!Number.isFinite(dados.raioKm) || dados.raioKm < 1) {
         return { ok: false, error: 'Informe o raio máximo, em km.' }
       }
+      const pix = validarChavePix(dados.pix)
+      if (!pix.ok) return { ok: false, error: pix.erro }
       if (!state.profissionais.some((p) => p.id === profissionalId)) {
         return { ok: false, error: 'Perfil não encontrado.' }
       }
@@ -1147,12 +1154,25 @@ export function StoreProvider({ children }: { children: ReactNode }) {
                   estado: dados.endereco.estado.trim().toUpperCase(),
                 },
                 raioKm: Math.min(500, Math.round(dados.raioKm)),
-                pix: dados.pix.trim(),
+                pix: pix.chave,
               }
             : p,
         ),
       }))
       return { ok: true }
+    },
+
+    atualizarPix(profissionalId, pixInformado) {
+      const pix = validarChavePix(pixInformado)
+      if (!pix.ok) return { ok: false, error: pix.erro }
+      if (!state.profissionais.some((p) => p.id === profissionalId)) {
+        return { ok: false, error: 'Perfil não encontrado.' }
+      }
+      update((s) => ({
+        ...s,
+        profissionais: s.profissionais.map((p) => (p.id === profissionalId ? { ...p, pix: pix.chave } : p)),
+      }))
+      return { ok: true, chave: pix.chave, rotulo: pix.rotulo }
     },
 
     toggleFavorito(empresaId, profissionalId) {
