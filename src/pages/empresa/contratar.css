@@ -1693,6 +1693,80 @@ button.cf-vaga-nome:disabled {
   text-decoration: underline;
 }
 
+.cf-modelos {
+  margin-top: 14px;
+  display: grid;
+  gap: 8px;
+}
+
+.cf-modelos > p {
+  margin: 0;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #6b7280;
+}
+
+.cf-modelos ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.cf-modelo {
+  display: flex;
+  align-items: stretch;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 14px;
+  overflow: hidden;
+}
+
+.cf-modelo > button:first-child {
+  border: 0;
+  background: transparent;
+  text-align: left;
+  padding: 8px 12px;
+  cursor: pointer;
+  color: inherit;
+  font: inherit;
+}
+
+.cf-modelo strong,
+.cf-modelo small {
+  display: block;
+}
+
+.cf-modelo strong {
+  font-size: 0.92rem;
+}
+
+.cf-modelo small {
+  margin-top: 2px;
+  color: #6b7280;
+  font-weight: 700;
+  font-size: 0.75rem;
+}
+
+.cf-modelo > button:first-child:hover strong {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.cf-modelo-excluir {
+  width: 36px;
+  border: 0;
+  border-left: 1px solid #e5e7eb;
+  background: transparent;
+  color: #6b7280;
+  font-size: 1.15rem;
+  cursor: pointer;
+}
+
 .cf-cv {
   display: grid;
   gap: 6px;

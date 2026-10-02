@@ -187,6 +187,8 @@ function CampoCidade({
 }
 
 type ModeloMissao = {
+  id: string
+  salvoEm: string
   titulo: string
   cargoId: string
   requisitos: string[]
@@ -196,6 +198,8 @@ type ModeloMissao = {
   raioKm?: number | null
   horaInicio: string
   horaFim: string
+  inicio: string
+  fim: string
   observacoes: string
   motivo: MotivoTemporario | ''
   atividades: string
@@ -204,22 +208,66 @@ type ModeloMissao = {
   quantidade: number
 }
 
-function chaveModelo(empresaId: string) {
-  return `doca-modelo-missao:${empresaId}`
+function chaveModelos(empresaId: string) {
+  return `doca-modelos-missao:${empresaId}`
 }
 
-function lerModelo(empresaId: string): ModeloMissao | null {
-  try {
-    const raw = localStorage.getItem(chaveModelo(empresaId))
-    if (!raw) return null
-    return JSON.parse(raw) as ModeloMissao
-  } catch {
-    return null
+function modeloValido(valor: unknown): valor is ModeloMissao {
+  if (!valor || typeof valor !== 'object') return false
+  const item = valor as Partial<ModeloMissao>
+  return typeof item.cargoId === 'string' && typeof item.titulo === 'string'
+}
+
+function normalizarModelo(valor: ModeloMissao): ModeloMissao {
+  return {
+    ...valor,
+    id: valor.id || `mod_${Date.now()}`,
+    salvoEm: valor.salvoEm || new Date().toISOString(),
+    inicio: valor.inicio || '',
+    fim: valor.fim || '',
+    requisitos: Array.isArray(valor.requisitos) ? valor.requisitos : [],
+    diferenciais: Array.isArray(valor.diferenciais) ? valor.diferenciais : [],
+    quantidade: Number.isFinite(valor.quantidade) ? valor.quantidade : 1,
   }
 }
 
-function gravarModelo(empresaId: string, modelo: ModeloMissao) {
-  localStorage.setItem(chaveModelo(empresaId), JSON.stringify(modelo))
+function lerModelos(empresaId: string): ModeloMissao[] {
+  try {
+    const lista = localStorage.getItem(chaveModelos(empresaId))
+    if (lista) {
+      const parsed = JSON.parse(lista) as unknown
+      if (Array.isArray(parsed)) return parsed.filter(modeloValido).map(normalizarModelo)
+    }
+    const antigo = localStorage.getItem(`doca-modelo-missao:${empresaId}`)
+    if (!antigo) return []
+    const um = JSON.parse(antigo) as unknown
+    return modeloValido(um) ? [normalizarModelo(um)] : []
+  } catch {
+    return []
+  }
+}
+
+function gravarModelos(empresaId: string, modelos: ModeloMissao[]) {
+  localStorage.setItem(chaveModelos(empresaId), JSON.stringify(modelos.slice(0, 12)))
+}
+
+function assinaturaModelo(modelo: ModeloMissao) {
+  return [
+    modelo.cargoId,
+    modelo.cidade,
+    modelo.estado ?? '',
+    modelo.horaInicio,
+    modelo.horaFim,
+    String(modelo.quantidade),
+    [...modelo.requisitos].sort().join('|'),
+    [...modelo.diferenciais].sort().join('|'),
+    modelo.motivo,
+    modelo.atividades.trim(),
+    modelo.remuneracao,
+    modelo.beneficios,
+    String(modelo.raioKm ?? ''),
+    modelo.observacoes.trim(),
+  ].join('§')
 }
 
 function formatarMoedaDigitando(entrada: string) {
@@ -427,7 +475,8 @@ export function ContratarFreelancer({ onLogout }: { onLogout: () => void }) {
   const [missaoId, setMissaoId] = useState<string | null>(null)
   const [vagaPublicadaChave, setVagaPublicadaChave] = useState('')
   const [avisoPublicacao, setAvisoPublicacao] = useState('')
-  const [modelo, setModelo] = useState<ModeloMissao | null>(() => lerModelo(empresa.id))
+  const [modelos, setModelos] = useState<ModeloMissao[]>(() => lerModelos(empresa.id))
+  const [avisoModelo, setAvisoModelo] = useState('')
   const [aba, setAba] = useState<AbaEmpresa>('missao')
   const [menuFixo, setMenuFixo] = useState(false)
   const [menuHover, setMenuHover] = useState(false)
@@ -511,8 +560,9 @@ export function ContratarFreelancer({ onLogout }: { onLogout: () => void }) {
     setRequisitos((atual) => atual.filter((item) => item !== req))
   }
 
-  function repetirModelo() {
-    if (!modelo) return
+  const beneficiosTexto = beneficios.join(', ')
+
+  function aplicarModelo(modelo: ModeloMissao) {
     setCargoId(modelo.cargoId)
     setRequisitos(modelo.requisitos)
     setDiferenciais(modelo.diferenciais)
@@ -521,6 +571,8 @@ export function ContratarFreelancer({ onLogout }: { onLogout: () => void }) {
     setRaioKm(modelo.raioKm ?? null)
     setHoraInicio(modelo.horaInicio)
     setHoraFim(modelo.horaFim)
+    if (modelo.inicio) setInicio(modelo.inicio)
+    if (modelo.fim) setFim(modelo.fim)
     setObservacoes(modelo.observacoes)
     setMotivo(modelo.motivo)
     setAtividades(modelo.atividades)
@@ -529,9 +581,54 @@ export function ContratarFreelancer({ onLogout }: { onLogout: () => void }) {
     setQuantidade(modelo.quantidade)
     setResultados(null)
     setMissaoId(null)
+    setAvisoModelo(`Preenchido com ${modelo.titulo}.`)
+    setErro('')
   }
 
-  const beneficiosTexto = beneficios.join(', ')
+  function guardarModelo(remuneracaoFinal: string) {
+    const rascunho: ModeloMissao = {
+      id: `mod_${Date.now()}`,
+      salvoEm: new Date().toISOString(),
+      titulo: `${cargoLabel(cargoId)} — ${cidade || empresa.endereco.cidade}${estado ? `/${estado}` : ''}`,
+      cargoId,
+      requisitos,
+      diferenciais,
+      cidade,
+      estado,
+      raioKm,
+      horaInicio,
+      horaFim,
+      inicio,
+      fim,
+      observacoes,
+      motivo,
+      atividades,
+      remuneracao: remuneracaoFinal,
+      beneficios: beneficiosTexto,
+      quantidade,
+    }
+    const assinatura = assinaturaModelo(rascunho)
+    const existente = modelos.find((item) => assinaturaModelo(item) === assinatura)
+    const proxima = existente
+      ? modelos.map((item) => (item.id === existente.id ? { ...rascunho, id: existente.id } : item))
+      : [rascunho, ...modelos].slice(0, 12)
+    gravarModelos(empresa.id, proxima)
+    setModelos(proxima)
+  }
+
+  function salvarPublicacao() {
+    const remuneracaoFinal = finalizarMoeda(remuneracao)
+    if (remuneracaoFinal) setRemuneracao(remuneracaoFinal)
+    guardarModelo(remuneracaoFinal)
+    setAvisoModelo('Publicação salva. Clique nela acima para preencher o formulário de novo.')
+    setErro('')
+  }
+
+  function removerModelo(id: string) {
+    const proxima = modelos.filter((item) => item.id !== id)
+    gravarModelos(empresa.id, proxima)
+    setModelos(proxima)
+  }
 
   function chaveDaVaga(remuneracaoFinal = finalizarMoeda(remuneracao)) {
     return [
@@ -631,25 +728,7 @@ export function ContratarFreelancer({ onLogout }: { onLogout: () => void }) {
   function analisar() {
     const remuneracaoFinal = validarPedido()
     if (!remuneracaoFinal) return
-    const salvo: ModeloMissao = {
-      titulo: `${cargoLabel(cargoId)} — ${cidade || empresa.endereco.cidade}${estado ? `/${estado}` : ''}`,
-      cargoId,
-      requisitos,
-      diferenciais,
-      cidade,
-      estado,
-      raioKm,
-      horaInicio,
-      horaFim,
-      observacoes,
-      motivo,
-      atividades,
-      remuneracao: remuneracaoFinal,
-      beneficios: beneficiosTexto,
-      quantidade,
-    }
-    gravarModelo(empresa.id, salvo)
-    setModelo(salvo)
+    guardarModelo(remuneracaoFinal)
     setAnalisando(true)
     setResultados(null)
     const chave = chaveDaVaga(remuneracaoFinal)
@@ -823,10 +902,26 @@ export function ContratarFreelancer({ onLogout }: { onLogout: () => void }) {
               estruturados e mostra quem atende. A escolha continua com a empresa tomadora. Hoje há {base}{' '}
               currículos aprovados na base.
             </p>
-            {modelo && (
-              <button type="button" className="cf-open" onClick={repetirModelo}>
-                Repetir demanda: {modelo.titulo}
-              </button>
+            {modelos.length > 0 && (
+              <div className="cf-modelos">
+                <p>Publicações salvas</p>
+                <ul>
+                  {modelos.map((item) => (
+                    <li key={item.id} className="cf-modelo">
+                      <button type="button" onClick={() => aplicarModelo(item)}>
+                        <strong>{item.titulo}</strong>
+                        <small>
+                          {item.inicio ? `${formatarDataBr(item.inicio)}${item.fim ? ` a ${formatarDataBr(item.fim)}` : ''} · ` : ''}
+                          {item.horaInicio}–{item.horaFim}
+                        </small>
+                      </button>
+                      <button type="button" className="cf-modelo-excluir" aria-label={`Excluir ${item.titulo}`} onClick={() => removerModelo(item.id)}>
+                        ×
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
             )}
           </div>
 
@@ -1060,8 +1155,12 @@ export function ContratarFreelancer({ onLogout }: { onLogout: () => void }) {
               </div>
             )}
             {erro && <p className="error">{erro}</p>}
+            {avisoModelo && <p className="success">{avisoModelo}</p>}
             {avisoPublicacao && <p className="success">{avisoPublicacao}</p>}
             <div className="cf-actions">
+              <button type="button" className="cf-btn cf-btn--dark" onClick={salvarPublicacao} disabled={analisando}>
+                Salvar publicação
+              </button>
               <button
                 type="button"
                 className="cf-primary"
