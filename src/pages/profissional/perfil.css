@@ -686,40 +686,122 @@
   color: #4b5563;
 }
 
+.td-vaga-resumo {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.td-vaga-resumo span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 999px;
+  padding: 7px 12px;
+  font-weight: 700;
+  color: #374151;
+}
+
+.td-vaga-resumo b {
+  color: #111;
+}
+
 .td-vaga {
   background: #fff;
   border: 1px solid #e5e7eb;
-  border-radius: 18px;
-  padding: 16px 18px 18px;
-  box-shadow: 0 8px 18px rgb(17 17 17 / 0.04);
+  border-radius: 20px;
+  padding: 18px 20px 16px;
+  box-shadow: 0 10px 24px rgb(17 17 17 / 0.04);
+}
+
+.td-vaga--vazia strong {
+  display: block;
+  margin-bottom: 6px;
 }
 
 .td-vaga-topo {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  gap: 12px;
+  gap: 16px;
 }
 
-.td-vaga-topo strong {
-  font-size: 1.12rem;
+.td-vaga-topo h3 {
+  margin: 10px 0 0;
+  font-size: 1.28rem;
+  letter-spacing: -0.03em;
 }
 
-.td-vaga-empresa,
-.td-vaga-meta {
+.td-vaga-empresa {
   margin: 4px 0 0;
-  color: #4b5563;
+  color: #5c6670;
+  font-weight: 700;
 }
 
 .td-vaga-valor {
+  flex: 0 0 auto;
+  background: #f9db00;
+  color: #111;
+  border-radius: 14px;
+  padding: 10px 14px;
+  text-align: right;
+}
+
+.td-vaga-valor strong,
+.td-vaga-valor small {
+  display: block;
+}
+
+.td-vaga-valor strong {
+  font-size: 1.12rem;
+  letter-spacing: -0.03em;
   white-space: nowrap;
-  font-size: 1rem;
+}
+
+.td-vaga-valor small {
+  margin-top: 2px;
+  font-size: 0.75rem;
+  font-weight: 800;
+}
+
+.td-vaga-fatos {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  margin: 16px 0 0;
+}
+
+.td-vaga-fatos div {
+  background: #f6f7f9;
+  border-radius: 12px;
+  padding: 10px 12px;
+}
+
+.td-vaga-fatos dt {
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #6b7280;
+}
+
+.td-vaga-fatos dd {
+  margin: 4px 0 0;
+  font-weight: 700;
+}
+
+.td-vaga-texto {
+  margin: 14px 0 0;
+  color: #1f2937;
 }
 
 .td-vaga-chips {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
+  margin-top: 14px;
 }
 
 .td-vaga-chip {
@@ -741,7 +823,38 @@
   flex-wrap: wrap;
   align-items: center;
   gap: 10px;
-  margin-top: 4px;
+  margin-top: 16px;
+}
+
+.td-vaga-nota {
+  margin: 0;
+  color: #4b5563;
+  font-weight: 650;
+}
+
+.td-vaga-selo {
+  display: inline-flex;
+  border-radius: 999px;
+  padding: 4px 10px;
+  background: #f9db00;
+  color: #111;
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
+.td-vaga-selo--ok {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.td-vaga-selo--convite {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+.td-vaga-selo--aberta {
+  background: #111;
+  color: #f9db00;
 }
 
 .td-vaga-btn {
@@ -775,6 +888,14 @@
 
   .td-home-oferta {
     align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .td-vaga-fatos {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .td-vaga-topo {
     flex-direction: column;
   }
 }

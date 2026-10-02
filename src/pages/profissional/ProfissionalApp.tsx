@@ -446,6 +446,10 @@ function VagasTab() {
     })
   }
 
+  const enviadas = vagas.filter(
+    (item) => item.candidatura?.status === 'aceita' || item.candidatura?.status === 'confirmada',
+  ).length
+
   return (
     <div className="td-vagas">
       <header className="td-vagas-intro">
@@ -455,8 +459,18 @@ function VagasTab() {
           Empresas tomadoras em {prof.endereco.cidade} e até {prof.raioKm} km. A candidatura registra o interesse.
         </p>
       </header>
+      {vagas.length > 0 && (
+        <div className="td-vaga-resumo">
+          <span>
+            <b>{vagas.length}</b> {vagas.length === 1 ? 'aberta' : 'abertas'}
+          </span>
+          <span>
+            <b>{enviadas}</b> {enviadas === 1 ? 'candidatura sua' : 'candidaturas suas'}
+          </span>
+        </div>
+      )}
       {vagas.length === 0 && (
-        <section className="td-vaga">
+        <section className="td-vaga td-vaga--vazia">
           <strong>Nenhuma vaga no seu raio agora.</strong>
           <p>Quando uma empresa publicar uma vaga em {prof.endereco.cidade} ou até {prof.raioKm} km, ela aparece aqui.</p>
         </section>
@@ -464,44 +478,79 @@ function VagasTab() {
       {vagas.map(({ demanda, empresa, candidatura, dist }) => {
         const enviada = candidatura?.status === 'aceita' || candidatura?.status === 'confirmada'
         const confirmada = candidatura?.status === 'confirmada'
+        const periodo = `${dataCurta(demanda.data)}${demanda.dataFim ? ` a ${dataCurta(demanda.dataFim)}` : ''}`
+        const texto = demanda.atividades || demanda.descricao
         return (
           <article key={demanda.id} className="td-vaga">
             <div className="td-vaga-topo">
               <div>
-                <strong>{cargoLabel(demanda.cargo)}</strong>
+                {confirmada ? (
+                  <span className="td-vaga-selo td-vaga-selo--ok">Missão confirmada</span>
+                ) : enviada ? (
+                  <span className="td-vaga-selo">Candidatura enviada</span>
+                ) : candidatura?.status === 'pendente' ? (
+                  <span className="td-vaga-selo td-vaga-selo--convite">Convite da empresa</span>
+                ) : (
+                  <span className="td-vaga-selo td-vaga-selo--aberta">Aberta</span>
+                )}
+                <h3>{cargoLabel(demanda.cargo)}</h3>
                 <p className="td-vaga-empresa">{empresa?.nomeFantasia ?? 'Empresa tomadora'}</p>
               </div>
-              <b className="td-vaga-valor">{demanda.valorDiaria ? `${moeda(demanda.valorDiaria)} / dia` : 'A combinar'}</b>
+              <div className="td-vaga-valor">
+                <strong>{demanda.valorDiaria ? moeda(demanda.valorDiaria) : 'A combinar'}</strong>
+                <small>por dia</small>
+              </div>
             </div>
-            <p className="td-vaga-meta">
-              {demanda.endereco.cidade}/{demanda.endereco.estado}
-              {Number.isFinite(dist) ? ` · ${dist.toLocaleString('pt-BR', { maximumFractionDigits: 1 })} km` : ''}
-              {' · '}
-              {dataCurta(demanda.data)}
-              {demanda.dataFim ? ` a ${dataCurta(demanda.dataFim)}` : ''}
-              {' · '}
-              {demanda.horaInicio}–{demanda.horaFim}
-            </p>
-            <p>{demanda.atividades || demanda.descricao}</p>
+            <dl className="td-vaga-fatos">
+              <div>
+                <dt>Local</dt>
+                <dd>
+                  {demanda.endereco.cidade}/{demanda.endereco.estado}
+                </dd>
+              </div>
+              <div>
+                <dt>Distância</dt>
+                <dd>
+                  {Number.isFinite(dist)
+                    ? `${dist.toLocaleString('pt-BR', { maximumFractionDigits: 1 })} km`
+                    : 'Não calculada'}
+                </dd>
+              </div>
+              <div>
+                <dt>Período</dt>
+                <dd>{periodo}</dd>
+              </div>
+              <div>
+                <dt>Jornada</dt>
+                <dd>
+                  {demanda.horaInicio}–{demanda.horaFim}
+                </dd>
+              </div>
+            </dl>
+            {texto && <p className="td-vaga-texto">{texto}</p>}
             {(demanda.requisitos.length > 0 || demanda.beneficios) && (
               <div className="td-vaga-chips">
                 {demanda.requisitos.map((item) => (
-                  <span key={item} className="td-vaga-chip">{item}</span>
+                  <span key={item} className="td-vaga-chip">
+                    {item}
+                  </span>
                 ))}
                 {demanda.beneficios && <span className="td-vaga-chip td-vaga-chip--soft">{demanda.beneficios}</span>}
               </div>
             )}
             <div className="td-vaga-acoes">
               {confirmada ? (
-                <button type="button" className="td-vaga-btn" disabled>Você está nesta missão</button>
+                <p className="td-vaga-nota">Você está nesta missão. O contrato aparece em Missões.</p>
               ) : enviada ? (
-                <button type="button" className="td-vaga-btn" disabled>Candidatura enviada</button>
+                <p className="td-vaga-nota">Interesse registrado. O contrato só nasce quando a empresa confirma.</p>
               ) : (
                 <button type="button" className="td-vaga-btn" disabled={!aprovado} onClick={() => aplicar(demanda.id)}>
                   {aprovado ? 'Candidatar-se' : 'Cadastro em análise'}
                 </button>
               )}
-              {candidatura?.status === 'pendente' && aprovado && <span className="muted">A empresa já enviou um convite.</span>}
+              {candidatura?.status === 'pendente' && aprovado && (
+                <span className="td-vaga-nota">A empresa já enviou um convite.</span>
+              )}
             </div>
             {aviso?.id === demanda.id && <p className={aviso.ok ? 'success' : 'error'}>{aviso.texto}</p>}
           </article>
