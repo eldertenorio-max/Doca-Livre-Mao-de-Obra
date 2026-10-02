@@ -152,7 +152,7 @@ export function MapaMaoDeObra({ empresa }: { empresa: Empresa }) {
     const latlng = L.latLng(selecionado.endereco.lat, selecionado.endereco.lng)
     const colocar = () => {
       const ponto = mapa.latLngToContainerPoint(latlng)
-      const acima = ponto.y > 220
+      const acima = ponto.y > 280
       el.style.left = `${ponto.x}px`
       el.style.top = `${ponto.y}px`
       el.style.transform = acima ? 'translate(-50%, calc(-100% - 16px))' : 'translate(-50%, 22px)'
@@ -160,8 +160,9 @@ export function MapaMaoDeObra({ empresa }: { empresa: Empresa }) {
     }
     const ponto = mapa.latLngToContainerPoint(latlng)
     const tamanho = mapa.getSize()
-    const dx = ponto.x < 160 ? ponto.x - 160 : ponto.x > tamanho.x - 160 ? ponto.x - (tamanho.x - 160) : 0
-    const dy = ponto.y < 250 ? ponto.y - 250 : 0
+    const margemX = 200
+    const dx = ponto.x < margemX ? ponto.x - margemX : ponto.x > tamanho.x - margemX ? ponto.x - (tamanho.x - margemX) : 0
+    const dy = ponto.y < 300 ? ponto.y - 300 : 0
     if (dx !== 0 || dy !== 0) mapa.panBy([dx, dy], { animate: true })
     colocar()
     mapa.on('move zoom resize', colocar)
@@ -263,13 +264,26 @@ function FichaPessoa({
           <strong>{pessoa.nome}</strong>
           <small>
             {pessoa.endereco.cidade}, {pessoa.endereco.estado}
-            {Number.isFinite(distancia) ? ` · ${formatarDistancia(distancia)}` : ''}
           </small>
         </div>
         <button type="button" className="mapa-fechar" onClick={onFechar} aria-label="Fechar ficha">
           ×
         </button>
       </header>
+      <dl className="mapa-fatos">
+        <div>
+          <dt>Distância</dt>
+          <dd>{Number.isFinite(distancia) ? formatarDistancia(distancia).replace(' da empresa', '') : '—'}</dd>
+        </div>
+        <div>
+          <dt>Avaliação</dt>
+          <dd>{pessoa.avaliacaoMedia.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}</dd>
+        </div>
+        <div>
+          <dt>Comparecimento</dt>
+          <dd>{pessoa.taxaComparecimento}%</dd>
+        </div>
+      </dl>
       <div className="mapa-acoes">
         <button
           type="button"
@@ -285,43 +299,51 @@ function FichaPessoa({
           Ver currículo
         </button>
       </div>
-      <p className="mapa-nota">
-        Avaliação {pessoa.avaliacaoMedia.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} ·{' '}
-        {pessoa.taxaComparecimento}% de comparecimento
-      </p>
       {pessoa.profissoes.length > 0 && (
-        <div className="mapa-chips">
-          {pessoa.profissoes.map((id) => (
-            <span key={id}>{cargoLabel(id)}</span>
-          ))}
-        </div>
+        <section className="mapa-bloco">
+          <h3>Cargos</h3>
+          <div className="mapa-chips">
+            {pessoa.profissoes.map((id) => (
+              <span key={id}>{cargoLabel(id)}</span>
+            ))}
+          </div>
+        </section>
       )}
       {pessoa.experiencia.length > 0 && (
-        <ul className="mapa-exp">
-          {pessoa.experiencia.map((item) => (
-            <li key={`${item.empresa}-${item.inicio}`}>
-              <strong>{item.cargo}</strong>
-              <span>
-                {item.empresa} · {periodo(item.inicio, item.fim)}
-              </span>
-            </li>
-          ))}
-        </ul>
+        <section className="mapa-bloco">
+          <h3>Experiência</h3>
+          <ul className="mapa-exp">
+            {pessoa.experiencia.map((item) => (
+              <li key={`${item.empresa}-${item.inicio}`}>
+                <strong>{item.cargo}</strong>
+                <span>
+                  {item.empresa} · {periodo(item.inicio, item.fim)}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </section>
       )}
       {(pessoa.certificados.length > 0 || pessoa.cnhCategoria) && (
-        <div className="mapa-chips">
-          {pessoa.cnhCategoria && <span>CNH {pessoa.cnhCategoria}</span>}
-          {pessoa.certificados.map((item) => (
-            <span key={item.tipo}>{item.tipo}</span>
-          ))}
-        </div>
+        <section className="mapa-bloco">
+          <h3>Certificações</h3>
+          <div className="mapa-chips">
+            {pessoa.cnhCategoria && <span>CNH {pessoa.cnhCategoria}</span>}
+            {pessoa.certificados.map((item) => (
+              <span key={item.tipo}>{item.tipo}</span>
+            ))}
+          </div>
+        </section>
       )}
       {turnos.length > 0 && (
-        <div className="mapa-chips mapa-chips--soft">
-          {turnos.map((item) => (
-            <span key={item.key}>{item.label}</span>
-          ))}
-        </div>
+        <section className="mapa-bloco">
+          <h3>Disponibilidade</h3>
+          <div className="mapa-chips mapa-chips--soft">
+            {turnos.map((item) => (
+              <span key={item.key}>{item.label}</span>
+            ))}
+          </div>
+        </section>
       )}
       {perfilAberto && (
         <PerfilColaborador pessoa={pessoa} distancia={distancia} onFechar={() => setPerfilAberto(false)} />
