@@ -8,6 +8,7 @@ import { MapaMaoDeObra } from './MapaMaoDeObra'
 import { PerfilColaborador } from './PerfilColaborador'
 import { checklistProfissional, resumoDocumental } from '../../lib/documentos'
 import { distanciaKm } from '../../lib/matching'
+import { rotuloPeriodo } from '../../lib/periodoMissao'
 import type { DocumentoRegistro } from '../../lib/types'
 import {
   AVISO_FORMALIZACAO,
@@ -1411,7 +1412,7 @@ function PainelVagas({ empresaId, onPublicar }: { empresaId: string; onPublicar:
       <div className="cf-vaga-lista">
         {vagas.map((vaga) => {
           const inscritos = state.candidaturas.filter((item) => item.demandaId === vaga.id)
-          const periodo = `${formatarDataBr(vaga.data)}${vaga.dataFim ? ` a ${formatarDataBr(vaga.dataFim)}` : ''}`
+          const periodo = rotuloPeriodo(vaga.data, vaga.dataFim)
           const texto = vaga.atividades || vaga.descricao
           return (
             <article key={vaga.id} className="cf-vaga">
@@ -1591,7 +1592,7 @@ function PainelMissoes({ empresaId }: { empresaId: string }) {
           const convites = state.candidaturas.filter((item) => item.demandaId === missao.id)
           const confirmadosMissao = convites.filter((item) => item.status === 'confirmada').length
           const progresso = missao.quantidade > 0 ? Math.min(100, Math.round((confirmadosMissao / missao.quantidade) * 100)) : 0
-          const periodo = `${formatarDataBr(missao.data)}${missao.dataFim ? ` a ${formatarDataBr(missao.dataFim)}` : ''}`
+          const periodo = rotuloPeriodo(missao.data, missao.dataFim)
           return (
             <article key={missao.id} className="cf-missao">
               <header className="cf-missao-topo">

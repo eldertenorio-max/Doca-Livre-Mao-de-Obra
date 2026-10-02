@@ -6,6 +6,7 @@ import { DocumentacaoProfissionalPanel } from '../../components/DocumentacaoPane
 import { LevelBadge } from '../../components/LevelBadge'
 import { cargoLabel } from '../../data/categories'
 import { distanciaKm } from '../../lib/matching'
+import { formatarDistancia, rotuloPeriodo } from '../../lib/periodoMissao'
 import { checklistProfissional, resumoDocumental } from '../../lib/documentos'
 import { pendenciasParaIniciar } from '../../lib/dossieTemporario'
 import { BRAND_PRODUCT_NAME, LOGO_DOCA_LIVRE_SRC } from '../../lib/brandAssets'
@@ -14,6 +15,7 @@ import { useStore } from '../../lib/store'
 import type { CandidaturaStatus, Disponibilidade } from '../../lib/types'
 import { PerfilEmpresa, logoDaEmpresa } from './PerfilEmpresa'
 import { EditorPerfil, lerFotoPerfil } from './EditorPerfil'
+import { useLocalizacaoAparelho } from './useLocalizacaoAparelho'
 import '../empresa/contratar.css'
 import './perfil.css'
 
@@ -344,8 +346,7 @@ function HomeTab({ onIr }: { onIr: (aba: TabId) => void }) {
                 <small>{rotuloFila(c.status)}</small>
                 <strong>{cargoLabel(dem!.cargo)}</strong>
                 <em>
-                  {emp?.nomeFantasia ?? 'Empresa tomadora'} · {dem!.endereco.cidade} · {dataCurta(dem!.data)}
-                  {dem!.dataFim ? ` a ${dataCurta(dem!.dataFim)}` : ''}
+                  {emp?.nomeFantasia ?? 'Empresa tomadora'} · {dem!.endereco.cidade} · {rotuloPeriodo(dem!.data, dem!.dataFim)}
                 </em>
               </span>
               <b>{dem!.valorDiaria ? moeda(dem!.valorDiaria) : 'A combinar'}</b>
@@ -414,6 +415,7 @@ function VagasTab() {
   const prof = currentProfissional!
   const [aviso, setAviso] = useState<{ id: string; texto: string; ok: boolean } | null>(null)
   const [perfilId, setPerfilId] = useState<string | null>(null)
+  const { local, pedir } = useLocalizacaoAparelho()
   const aprovado = prof.status === 'aprovado'
   const verTodas = prof.verTodasVagas !== false
 
@@ -476,9 +478,17 @@ function VagasTab() {
           {verTodas
             ? `Empresas tomadoras em ${prof.endereco.cidade} e até ${prof.raioKm} km.`
             : `Somente publicações dos seus cargos, em ${prof.endereco.cidade} e até ${prof.raioKm} km.`}{' '}
-          A candidatura registra o interesse.
+          A candidatura registra o interesse. A distância de cada vaga sai da localização do celular ou do computador.
         </p>
       </header>
+      {local.estado !== 'pronta' && local.estado !== 'pedindo' && (
+        <div className="td-vaga-local">
+          <p>Ligue a localização do celular ou do computador e permita o acesso neste site para ver a distância exata.</p>
+          <button type="button" onClick={pedir}>
+            Ativar localização
+          </button>
+        </div>
+      )}
       {vagas.length > 0 && (
         <div className="td-vaga-resumo">
           <span>
@@ -499,11 +509,21 @@ function VagasTab() {
           </p>
         </section>
       )}
-      {vagas.map(({ demanda, empresa, candidatura, dist }) => {
+      {vagas.map(({ demanda, empresa, candidatura }) => {
         const enviada = candidatura?.status === 'aceita' || candidatura?.status === 'confirmada'
         const confirmada = candidatura?.status === 'confirmada'
-        const periodo = `${dataCurta(demanda.data)}${demanda.dataFim ? ` a ${dataCurta(demanda.dataFim)}` : ''}`
+        const periodo = rotuloPeriodo(demanda.data, demanda.dataFim)
         const texto = demanda.atividades || demanda.descricao
+        const kmAparelho =
+          local.estado === 'pronta' && local.lat != null && local.lng != null
+            ? distanciaKm({ lat: local.lat, lng: local.lng }, demanda.endereco)
+            : Number.NaN
+        const distancia =
+          local.estado === 'pedindo'
+            ? 'Localizando…'
+            : local.estado === 'pronta'
+              ? formatarDistancia(kmAparelho)
+              : 'Localização desligada'
         return (
           <Fragment key={demanda.id}>
           <article className="td-vaga">
@@ -553,12 +573,16 @@ function VagasTab() {
               <div>
                 <dt>Distância</dt>
                 <dd>
-                  {Number.isFinite(dist)
-                    ? `${dist.toLocaleString('pt-BR', { maximumFractionDigits: 1 })} km`
-                    : 'Não calculada'}
+                  {distancia}
+                  {local.estado === 'pronta' && <small>do seu aparelho</small>}
+                  {local.estado !== 'pronta' && local.estado !== 'pedindo' && (
+                    <button type="button" className="td-link" onClick={pedir}>
+                      Ativar localização
+                    </button>
+                  )}
                 </dd>
               </div>
-              <div>
+              <div className="td-vaga-periodo">
                 <dt>Período</dt>
                 <dd>{periodo}</dd>
               </div>
@@ -606,7 +630,8 @@ function VagasTab() {
             <PerfilEmpresa
               empresa={empresa}
               local={demanda.endereco}
-              distanciaKm={dist}
+              distanciaKm={Number.isFinite(kmAparelho) ? kmAparelho : undefined}
+              distanciaTexto={local.estado === 'pronta' ? formatarDistancia(kmAparelho) : undefined}
               onFechar={() => setPerfilId(null)}
             />
           )}
@@ -662,8 +687,7 @@ function AgendaTab() {
               <strong>Missão {dem.id.replace('dem_', '#')}</strong>
               <p>{cargoLabel(dem.cargo)}</p>
               <p className="muted">
-                {emp?.nomeFantasia} · {dem.data}
-                {dem.dataFim ? ` → ${dem.dataFim}` : ''}
+                {emp?.nomeFantasia} · {rotuloPeriodo(dem.data, dem.dataFim)}
               </p>
               <p>{encerrada ? 'Encerrada' : faltas.length ? 'Aguardando admissão' : 'Em andamento'}</p>
               {faltas.length > 0 && !encerrada && (
@@ -771,7 +795,7 @@ function FinanceiroTab() {
           cargo: demanda ? cargoLabel(demanda.cargo) : 'Missão temporária',
           empresa: empresa?.nomeFantasia ?? 'Empresa tomadora',
           detalhe: demanda
-            ? `${dataCurta(demanda.data)}${demanda.dataFim ? ` a ${dataCurta(demanda.dataFim)}` : ''} · ${demanda.horaInicio}–${demanda.horaFim}`
+            ? `${rotuloPeriodo(demanda.data, demanda.dataFim)} · ${demanda.horaInicio}–${demanda.horaFim}`
             : 'Pagamento da missão',
           status: tipo === 'pago' ? 'Pago' : tipo === 'estornado' ? 'Estornado' : 'A receber',
         }

@@ -25,11 +25,13 @@ export function PerfilEmpresa({
   empresa,
   local,
   distanciaKm,
+  distanciaTexto,
   onFechar,
 }: {
   empresa: Empresa
   local: Endereco
   distanciaKm?: number
+  distanciaTexto?: string
   onFechar: () => void
 }) {
   const logo = logoDaEmpresa(empresa)
@@ -78,10 +80,14 @@ export function PerfilEmpresa({
             <dt>CNPJ</dt>
             <dd>{empresa.cnpj}</dd>
           </div>
-          {distanciaKm != null && Number.isFinite(distanciaKm) && (
+          {(distanciaTexto || (distanciaKm != null && Number.isFinite(distanciaKm))) && (
             <div>
               <dt>Distância</dt>
-              <dd>{distanciaKm.toLocaleString('pt-BR', { maximumFractionDigits: 1 })} km</dd>
+              <dd>
+                {distanciaTexto ??
+                  `${distanciaKm!.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} km`}
+                {distanciaTexto && <small>do seu aparelho</small>}
+              </dd>
             </div>
           )}
         </dl>
