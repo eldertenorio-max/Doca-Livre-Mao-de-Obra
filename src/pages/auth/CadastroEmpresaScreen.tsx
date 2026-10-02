@@ -1,6 +1,6 @@
 import { useMemo, useRef, useState, type FormEvent } from 'react'
 import { LOCAIS_OPERACAO } from '../../data/cidades'
-import { analisarDocumentoCadastro, lerArquivoEmpresa } from '../../lib/analisarDocumentoCadastro'
+import { ACCEPT_DOCUMENTO_CADASTRO, analisarDocumentoCadastro, lerArquivoEmpresa } from '../../lib/analisarDocumentoCadastro'
 import { coordenadaDaCidade } from '../../lib/coordenadaCidade'
 import { useStore } from '../../lib/store'
 import type { EmpresaTipo } from '../../lib/types'
@@ -360,7 +360,7 @@ export function CadastroEmpresaScreen({ onBack, onDone }: Props) {
                     <span>{item.label}</span>
                     <input
                       type="file"
-                      accept="image/jpeg,image/png,image/webp,application/pdf"
+                      accept={ACCEPT_DOCUMENTO_CADASTRO}
                       onChange={(e) => void escolherDocumento(item.id, e.target.files?.[0])}
                     />
                     <small className="muted">{item.ajuda}</small>

@@ -2,13 +2,55 @@ export type PapelDocumento = 'documento' | 'verso' | 'selfie'
 
 export type FotoDocumento = {
   nome: string
-  mime: 'image/jpeg' | 'application/pdf'
+  mime: 'image/jpeg' | 'image/heic' | 'image/heif' | 'application/pdf'
   dados: string
 }
 
+export const ACCEPT_DOCUMENTO_CADASTRO =
+  'image/jpeg,image/png,image/webp,image/gif,image/bmp,image/heic,image/heif,application/pdf,.jpg,.jpeg,.png,.webp,.gif,.bmp,.heic,.heif,.pdf'
+
+function ehPdf(file: File) {
+  return file.type === 'application/pdf' || /\.pdf$/i.test(file.name)
+}
+
+function ehHeic(file: File) {
+  return /^image\/hei[cf]$/i.test(file.type) || /\.hei[cf]$/i.test(file.name)
+}
+
+function ehImagemComum(file: File) {
+  return /^image\/(jpeg|png|webp|gif|bmp)$/.test(file.type) || /\.(jpe?g|png|webp|gif|bmp)$/i.test(file.name)
+}
+
+function lerBinario(file: File, mime: FotoDocumento['mime']) {
+  if (file.size > 3_500_000) return Promise.reject(new Error('O arquivo ficou grande demais. Envie um menor.'))
+  return file.arrayBuffer().then((buffer) => {
+    const bytes = new Uint8Array(buffer)
+    let binario = ''
+    for (let i = 0; i < bytes.length; i += 0x8000) {
+      binario += String.fromCharCode(...bytes.subarray(i, i + 0x8000))
+    }
+    const dados = btoa(binario).replace(/\s/g, '')
+    if (dados.length < 80) throw new Error('Não foi possível ler o arquivo.')
+    return { nome: file.name, mime, dados }
+  })
+}
+
+export async function lerArquivoCadastro(file: File): Promise<FotoDocumento> {
+  if (ehPdf(file)) return lerBinario(file, 'application/pdf')
+  if (ehImagemComum(file)) return lerFotoDocumento(file)
+  if (ehHeic(file)) {
+    try {
+      return await lerFotoDocumento(file)
+    } catch {
+      return lerBinario(file, file.type === 'image/heif' ? 'image/heif' : 'image/heic')
+    }
+  }
+  throw new Error('Use uma foto JPG, PNG, WEBP, GIF ou um PDF.')
+}
+
 export async function lerFotoDocumento(file: File): Promise<FotoDocumento> {
-  const tipoOk = /^image\/(jpeg|png|webp)$/.test(file.type) || /\.(jpe?g|png|webp)$/i.test(file.name)
-  if (!tipoOk) throw new Error('Envie uma foto JPG, PNG ou WEBP.')
+  const tipoOk = ehImagemComum(file) || ehHeic(file)
+  if (!tipoOk) throw new Error('Use uma foto JPG, PNG, WEBP, GIF ou um PDF.')
 
   const url = URL.createObjectURL(file)
   try {
@@ -43,17 +85,7 @@ function carregarImagem(url: string) {
 }
 
 export async function lerArquivoEmpresa(file: File): Promise<FotoDocumento> {
-  const pdf = file.type === 'application/pdf' || /\.pdf$/i.test(file.name)
-  if (!pdf) return lerFotoDocumento(file)
-  if (file.size > 3_500_000) throw new Error('O PDF ficou grande demais. Envie um arquivo menor.')
-  const bytes = new Uint8Array(await file.arrayBuffer())
-  let binario = ''
-  for (let i = 0; i < bytes.length; i += 0x8000) {
-    binario += String.fromCharCode(...bytes.subarray(i, i + 0x8000))
-  }
-  const dados = btoa(binario).replace(/\s/g, '')
-  if (dados.length < 80) throw new Error('Não foi possível ler o arquivo.')
-  return { nome: file.name, mime: 'application/pdf', dados }
+  return lerArquivoCadastro(file)
 }
 
 export async function analisarDocumentoCadastro(input: {

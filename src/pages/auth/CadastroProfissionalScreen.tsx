@@ -3,8 +3,9 @@ import { CATEGORIES } from '../../data/categories'
 import { LOCAIS_OPERACAO } from '../../data/cidades'
 import { AvailabilityToggle } from '../../components/AvailabilityToggle'
 import {
+  ACCEPT_DOCUMENTO_CADASTRO,
   analisarDocumentoCadastro,
-  lerFotoDocumento,
+  lerArquivoCadastro,
   type FotoDocumento,
   type PapelDocumento,
 } from '../../lib/analisarDocumentoCadastro'
@@ -126,7 +127,7 @@ export function CadastroProfissionalScreen({ onBack, onDone }: Props) {
       return
     }
     try {
-      guardar(await lerFotoDocumento(file))
+      guardar(await lerArquivoCadastro(file))
     } catch (falha) {
       guardar(null)
       setError(falha instanceof Error ? falha.message : 'Não foi possível ler a foto.')
@@ -292,12 +293,12 @@ export function CadastroProfissionalScreen({ onBack, onDone }: Props) {
         )}
         {step === 2 && (
           <div className="docs-mock">
-            <p>Envie a foto do documento de identidade e uma selfie. A análise diz se o cadastro segue ou não.</p>
+            <p>Envie o documento de identidade e uma selfie, em foto ou PDF. A análise diz se o cadastro segue ou não.</p>
             <label className="field">
               <span>Documento (RG, CIN, CNH ou CPF)</span>
               <input
                 type="file"
-                accept="image/jpeg,image/png,image/webp"
+                accept={ACCEPT_DOCUMENTO_CADASTRO}
                 onChange={(e) => void escolherFoto(e.target.files?.[0], 'documento')}
               />
               {documento && <small className="muted">{documento.nome}</small>}
@@ -306,7 +307,7 @@ export function CadastroProfissionalScreen({ onBack, onDone }: Props) {
               <span>Verso, se tiver</span>
               <input
                 type="file"
-                accept="image/jpeg,image/png,image/webp"
+                accept={ACCEPT_DOCUMENTO_CADASTRO}
                 onChange={(e) => void escolherFoto(e.target.files?.[0], 'verso')}
               />
               {verso && <small className="muted">{verso.nome}</small>}
@@ -315,7 +316,7 @@ export function CadastroProfissionalScreen({ onBack, onDone }: Props) {
               <span>Selfie</span>
               <input
                 type="file"
-                accept="image/jpeg,image/png,image/webp"
+                accept={ACCEPT_DOCUMENTO_CADASTRO}
                 onChange={(e) => void escolherFoto(e.target.files?.[0], 'selfie')}
               />
               {selfie && <small className="muted">{selfie.nome}</small>}
