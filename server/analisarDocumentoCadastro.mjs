@@ -34,6 +34,17 @@ function limparMotivo(texto) {
     .slice(0, 280)
 }
 
+function limparCategoriaCnh(valor) {
+  const bruto = String(valor || '')
+    .toUpperCase()
+    .replace(/[^A-Z]/g, '')
+  if (!bruto || bruto === 'CNH') return ''
+  if (bruto === 'ACC') return 'ACC'
+  if (!/^[ABCDE]{1,5}$/.test(bruto)) return ''
+  if (new Set(bruto).size !== bruto.length) return ''
+  return ['A', 'B', 'C', 'D', 'E'].filter((letra) => bruto.includes(letra)).join('')
+}
+
 export function lerDecisao(texto) {
   const limpo = String(texto || '').replace(/```json|```/gi, '').trim()
   const inicio = limpo.indexOf('{')
@@ -47,7 +58,7 @@ export function lerDecisao(texto) {
     const motivo =
       limparMotivo(data.motivo) ||
       (aceito ? 'A foto serve para o cadastro.' : 'A foto não serve para o cadastro.')
-    return { aceito, motivo }
+    return { aceito, motivo, cnh: aceito ? limparCategoriaCnh(data.cnh) : '' }
   } catch {
     return null
   }
@@ -136,7 +147,9 @@ function promptUnico(nome, papel) {
   return (
     'Você confere um arquivo do cadastro de um trabalhador temporário no Brasil. ' +
     `O nome informado é: "${nome}". ${pedido} ` +
-    'Responda somente um JSON neste formato: {"aceito": true ou false, "motivo": "uma frase em português"}. ' +
+    'Responda somente um JSON neste formato: {"aceito": true ou false, "motivo": "uma frase em português", "cnh": ""}. ' +
+    'Se o arquivo for uma CNH e a categoria der para ler, coloque em cnh só as letras, como B, AB ou AE. ' +
+    'Se não for CNH ou a categoria não der para ler, deixe cnh vazio. Não invente a categoria. ' +
     'Aceite se o arquivo for legível e for desse tipo. ' +
     'Se o nome no documento der para ler e for claramente de outra pessoa, recuse. ' +
     'Recuse arquivo ilegível, escuro, cortado, em branco ou de outro assunto. ' +
@@ -238,7 +251,9 @@ export async function analisarDocumentoCadastro({ nome, arquivos, contexto, tipo
   try {
     for (const modelo of MODELOS) {
       const decisao = await consultarModelo(apiKey, modelo, nomeLimpo, arquivos, extra)
-      if (decisao) return { ok: true, status: 200, aceito: decisao.aceito, motivo: decisao.motivo }
+      if (decisao) {
+        return { ok: true, status: 200, aceito: decisao.aceito, motivo: decisao.motivo, cnh: decisao.cnh || '' }
+      }
     }
   } catch {
     return { ok: false, status: 503, erro: 'Não foi possível analisar o documento. Tente de novo.' }

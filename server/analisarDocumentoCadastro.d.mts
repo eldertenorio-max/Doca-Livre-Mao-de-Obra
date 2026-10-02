@@ -1,4 +1,4 @@
-export function lerDecisao(texto: string): { aceito: boolean; motivo: string } | null
+export function lerDecisao(texto: string): { aceito: boolean; motivo: string; cnh: string } | null
 
 export function analisarDocumentoCadastro(input: {
   nome?: string
@@ -9,6 +9,6 @@ export function analisarDocumentoCadastro(input: {
   cidade?: string
   env?: Record<string, string>
 }): Promise<
-  | { ok: true; status: number; aceito: boolean; motivo: string }
+  | { ok: true; status: number; aceito: boolean; motivo: string; cnh?: string }
   | { ok: false; status: number; erro: string }
 >

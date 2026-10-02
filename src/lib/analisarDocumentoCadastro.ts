@@ -95,7 +95,7 @@ export async function analisarDocumentoCadastro(input: {
   tipo?: string
   cnpj?: string
   cidade?: string
-}): Promise<{ ok: true; aceito: boolean; motivo: string } | { ok: false; erro: string }> {
+}): Promise<{ ok: true; aceito: boolean; motivo: string; cnh: string } | { ok: false; erro: string }> {
   try {
     const resposta = await fetch('/api/cadastro/analisar-documento', {
       method: 'POST',
@@ -103,7 +103,7 @@ export async function analisarDocumentoCadastro(input: {
       body: JSON.stringify(input),
     })
     const texto = await resposta.text()
-    let data: { ok?: boolean; aceito?: boolean; motivo?: string; erro?: string } = {}
+    let data: { ok?: boolean; aceito?: boolean; motivo?: string; erro?: string; cnh?: string } = {}
     try {
       data = JSON.parse(texto) as typeof data
     } catch {
@@ -112,7 +112,7 @@ export async function analisarDocumentoCadastro(input: {
     if (!resposta.ok || !data.ok || typeof data.aceito !== 'boolean') {
       return { ok: false, erro: data.erro || 'Não foi possível analisar o documento.' }
     }
-    return { ok: true, aceito: data.aceito, motivo: data.motivo || '' }
+    return { ok: true, aceito: data.aceito, motivo: data.motivo || '', cnh: data.cnh || '' }
   } catch {
     return { ok: false, erro: 'Não foi possível analisar o documento. Tente de novo.' }
   }

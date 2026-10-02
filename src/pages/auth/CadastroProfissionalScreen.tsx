@@ -52,6 +52,7 @@ export function CadastroProfissionalScreen({ onBack, onDone }: Props) {
     selfie: LINHA_VAZIA,
   })
   const geracaoDoc = useRef<Partial<Record<PapelDocumento, number>>>({})
+  const [cnhLida, setCnhLida] = useState('')
   const [form, setForm] = useState({
     nome: '',
     cpf: '',
@@ -172,6 +173,15 @@ export function CadastroProfissionalScreen({ onBack, onDone }: Props) {
           [papel]: { arquivo: foto, analise: { aceito: false, motivo: result.erro }, analisando: false },
         }))
         return
+      }
+      if (papel === 'documento' || papel === 'verso') {
+        if (result.aceito && result.cnh) {
+          set('cnhCategoria', result.cnh)
+          setCnhLida(result.cnh)
+        } else if (papel === 'documento') {
+          set('cnhCategoria', '')
+          setCnhLida('')
+        }
       }
       setLinhas((atual) => ({
         ...atual,
@@ -332,7 +342,14 @@ export function CadastroProfissionalScreen({ onBack, onDone }: Props) {
             <CampoDoc titulo="Selfie" papel="selfie" linha={linhas.selfie} onEscolher={escolherFoto} />
             <label className="field">
               <span>CNH (categoria, se aplicável)</span>
-              <input value={form.cnhCategoria} onChange={(e) => set('cnhCategoria', e.target.value)} placeholder="Ex: B, C, D, E" />
+              <input
+                value={form.cnhCategoria}
+                onChange={(e) => set('cnhCategoria', e.target.value.toUpperCase())}
+                placeholder="Lida da CNH anexada, se der para ver"
+              />
+              {cnhLida && form.cnhCategoria === cnhLida && (
+                <small className="muted">Categoria {cnhLida} lida do arquivo anexado. Dá para corrigir.</small>
+              )}
             </label>
           </div>
         )}

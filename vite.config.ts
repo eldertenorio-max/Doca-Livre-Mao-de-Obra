@@ -62,7 +62,9 @@ function portalApiDev(): Plugin {
               responderJson(
                 res,
                 result.ok ? 200 : result.status,
-                result.ok ? { ok: true, aceito: result.aceito, motivo: result.motivo } : { ok: false, erro: result.erro },
+                result.ok
+                  ? { ok: true, aceito: result.aceito, motivo: result.motivo, cnh: result.cnh || '' }
+                  : { ok: false, erro: result.erro },
               )
               return
             }

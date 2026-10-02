@@ -108,7 +108,7 @@ const server = createServer(async (req, res) => {
       res.end(
         JSON.stringify(
           result.ok
-            ? { ok: true, aceito: result.aceito, motivo: result.motivo }
+            ? { ok: true, aceito: result.aceito, motivo: result.motivo, cnh: result.cnh || '' }
             : { ok: false, erro: result.erro },
         ),
       )
