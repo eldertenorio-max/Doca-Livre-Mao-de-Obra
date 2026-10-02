@@ -47,6 +47,10 @@ export function AdminApp({
     ...ITEMS,
     ...(onOpenConfig ? [{ id: 'config', label: 'Hierarquia' }] : []),
   ]
+  const alertaAba: Record<string, number> = {
+    empresas: store.state.empresas.filter((empresa) => empresa.status === 'pendente').length,
+    profissionais: store.state.profissionais.filter((pessoa) => pessoa.status === 'pendente').length,
+  }
 
   return (
     <div className="px-shell px-shell--admin">
@@ -100,6 +104,9 @@ export function AdminApp({
                   <IconeAba id={item.id} />
                 </span>
                 <span>{item.label}</span>
+                {(alertaAba[item.id] ?? 0) > 0 && (
+                  <span className="ad-nav-alerta">{alertaAba[item.id]}</span>
+                )}
               </button>
             ))}
           </nav>
@@ -197,16 +204,30 @@ function IconeAba({ id }: { id: string }) {
   )
 }
 
+function ordemAprovacao(status: string) {
+  if (status === 'pendente') return 0
+  if (status === 'bloqueada' || status === 'bloqueado') return 2
+  return 1
+}
+
 function EmpresasAdmin() {
   const { state, setEmpresaStatus } = useStore()
+  const empresas = [...state.empresas].sort((a, b) => ordemAprovacao(a.status) - ordemAprovacao(b.status))
+  const pendentes = empresas.filter((empresa) => empresa.status === 'pendente').length
   return (
     <div className="px-page">
       <h1 className="px-title">Empresas</h1>
+      {pendentes > 0 && (
+        <p className="ad-pendente-nota">
+          {pendentes === 1 ? '1 empresa aguardando aprovação.' : `${pendentes} empresas aguardando aprovação.`}
+        </p>
+      )}
       <ul className="px-list">
-        {state.empresas.map((e) => (
-          <li key={e.id} className="px-list-card">
+        {empresas.map((e) => (
+          <li key={e.id} className={`px-list-card${e.status === 'pendente' ? ' px-list-card--pendente' : ''}`}>
             <div>
               <strong>{e.nomeFantasia}</strong>
+              {e.status === 'pendente' && <span className="ad-pendente-tag">Aguardando aprovação</span>}
               <p className="muted">{e.cnpj} · {e.tipo} · {e.plano} · {e.endereco.cidade}</p>
             </div>
             <div className="px-row-actions">
@@ -231,14 +252,26 @@ function EmpresasAdmin() {
 
 function ProfissionaisAdmin() {
   const { state, setProfissionalStatus } = useStore()
+  const profissionais = [...state.profissionais].sort(
+    (a, b) => ordemAprovacao(a.status) - ordemAprovacao(b.status),
+  )
+  const pendentes = profissionais.filter((pessoa) => pessoa.status === 'pendente').length
   return (
     <div className="px-page">
       <h1 className="px-title">Profissionais</h1>
+      {pendentes > 0 && (
+        <p className="ad-pendente-nota">
+          {pendentes === 1
+            ? '1 colaborador aguardando aprovação.'
+            : `${pendentes} colaboradores aguardando aprovação.`}
+        </p>
+      )}
       <ul className="px-list">
-        {state.profissionais.map((p) => (
-          <li key={p.id} className="px-list-card">
+        {profissionais.map((p) => (
+          <li key={p.id} className={`px-list-card${p.status === 'pendente' ? ' px-list-card--pendente' : ''}`}>
             <div>
               <strong>{p.nome}</strong>
+              {p.status === 'pendente' && <span className="ad-pendente-tag">Aguardando aprovação</span>}
               <p className="muted">
                 {p.profissoes.map(cargoLabel).join(', ')} · {p.endereco.cidade} · ★ {p.avaliacaoMedia.toFixed(1)}
               </p>
