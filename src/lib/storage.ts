@@ -1,3 +1,4 @@
+import { resumoAvaliacaoEmpresa } from './classificacao'
 import { createSeedState } from './seed'
 import { cadastroEttInicial } from './dossieTemporario'
 import type { AppState } from './types'
@@ -17,6 +18,23 @@ export function loadState(): AppState {
     if (!Array.isArray(parsed.documentos)) parsed.documentos = []
     if (!Array.isArray(parsed.pecas)) parsed.pecas = []
     if (!parsed.cadastroEtt) parsed.cadastroEtt = cadastroEttInicial()
+    if (Array.isArray(parsed.profissionais)) {
+      const avaliacoes = Array.isArray(parsed.avaliacoes) ? parsed.avaliacoes : []
+      let classificacaoMudou = false
+      for (const pessoa of parsed.profissionais) {
+        const resumo = resumoAvaliacaoEmpresa(avaliacoes, pessoa.userId)
+        const nivel = resumo.quantidade > 0 ? resumo.nivel : 'bronze'
+        if (pessoa.nivel !== nivel) {
+          pessoa.nivel = nivel
+          classificacaoMudou = true
+        }
+        if (resumo.quantidade > 0 && pessoa.avaliacaoMedia !== resumo.media) {
+          pessoa.avaliacaoMedia = resumo.media
+          classificacaoMudou = true
+        }
+      }
+      if (classificacaoMudou) saveState(parsed)
+    }
     if (parsed.profissionais?.some((pessoa) => !pessoa.foto)) {
       const fotos = new Map(
         createSeedState().profissionais.filter((pessoa) => pessoa.foto).map((pessoa) => [pessoa.id, pessoa.foto]),

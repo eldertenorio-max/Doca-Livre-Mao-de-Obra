@@ -19,6 +19,7 @@ import {
 import { distanciaKm, matchDemanda } from './matching'
 import { canAccessSistema, isLocalSuperUser } from './portalPermissoes'
 import { nowIso, uid } from './seed'
+import { mediaDaAvaliacao, nivelPelaMedia } from './classificacao'
 import { validarChavePix } from './pix'
 import { loadState, resetState, saveState, STORAGE_KEY } from './storage'
 import type {
@@ -194,13 +195,6 @@ const StoreContext = createContext<StoreApi | null>(null)
 function persist(next: AppState) {
   saveState(next)
   return next
-}
-
-function mediaDaAvaliacao(notas: Avaliacao['notas']) {
-  const valores = [notas.pontualidade, notas.qualidade, notas.educacao, notas.produtividade]
-  const validos = valores.filter((valor) => Number.isFinite(valor))
-  if (!validos.length) return 0
-  return validos.reduce((total, valor) => total + valor, 0) / validos.length
 }
 
 function diasDaMissao(demanda: Demanda) {
@@ -1155,7 +1149,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
                 )
                 const soma = notas.reduce((total, item) => total + mediaDaAvaliacao(item.notas), 0)
                 const media = Math.round((soma / notas.length) * 10) / 10
-                return { ...pessoa, avaliacaoMedia: media }
+                return { ...pessoa, avaliacaoMedia: media, nivel: nivelPelaMedia(media, notas.length) }
               })
             : s.profissionais
         return { ...s, avaliacoes, profissionais }
