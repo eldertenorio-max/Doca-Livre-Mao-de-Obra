@@ -73,15 +73,6 @@ export function AdminApp({
               Hierarquia / Permissões
             </button>
           )}
-          <button
-            type="button"
-            className="px-btn px-btn-outline"
-            onClick={() => {
-              if (confirm('Resetar dados para o seed inicial?')) store.resetDemo()
-            }}
-          >
-            Reset demo
-          </button>
           <button type="button" className="px-btn px-btn-ghost" onClick={onLogout}>
             Sair
           </button>
