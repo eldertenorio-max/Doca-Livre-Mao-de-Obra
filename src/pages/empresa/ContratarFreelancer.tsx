@@ -1257,7 +1257,7 @@ function PainelVagas({ empresaId, onPublicar }: { empresaId: string; onPublicar:
     <section className="cf-panel">
       <header className="cf-vaga-pagina">
         <div className="cf-intro">
-          <h1>Vagas</h1>
+          <h1>Vagas e candidatos</h1>
           <p>Vagas publicadas por esta empresa e quem já se candidatou.</p>
         </div>
         <button type="button" className="cf-primary" onClick={onPublicar}>
