@@ -22,7 +22,7 @@ import './perfil.css'
 const TABS = [
   { id: 'inicio', label: 'Início', icon: <IconeInicio /> },
   { id: 'vagas', label: 'Vagas', icon: <IconeVagas /> },
-  { id: 'agenda', label: 'Missões', icon: <IconeMissoes /> },
+  { id: 'agenda', label: 'Vagas aceitas', icon: <IconeMissoes /> },
   { id: 'financeiro', label: 'Financeiro', icon: <IconeFinanceiro /> },
   { id: 'perfil', label: 'Perfil', icon: <IconePerfil /> },
   { id: 'opcoes', label: 'Opções', icon: <IconeOpcoes /> },
@@ -319,7 +319,7 @@ function HomeTab({ onIr }: { onIr: (aba: TabId) => void }) {
           <small>{ofertas === 1 ? 'Aguardando você' : 'Na sua fila'}</small>
         </button>
         <button type="button" className="td-home-stat" onClick={() => onIr('agenda')}>
-          <span>Missões</span>
+          <span>Vagas aceitas</span>
           <strong>{missoes}</strong>
           <small>{missoes === 1 ? 'Confirmada' : 'Confirmadas'}</small>
         </button>
@@ -606,7 +606,7 @@ function VagasTab() {
             )}
             <div className="td-vaga-acoes">
               {confirmada ? (
-                <p className="td-vaga-nota">Você está nesta missão. O contrato aparece em Missões.</p>
+                <p className="td-vaga-nota">Você está nesta missão. O contrato aparece em Vagas aceitas.</p>
               ) : enviada ? (
                 <p className="td-vaga-nota">Interesse registrado. O contrato só nasce quando a empresa confirma.</p>
               ) : candidatura?.status === 'pendente' ? (
@@ -666,7 +666,7 @@ function AgendaTab() {
 
   return (
     <div className="panel panel--mobile">
-      <h2>Minhas missões</h2>
+      <h2>Vagas aceitas</h2>
       <ul className="list">
         {jobs.map(({ c, dem, emp, check, contrato }) => {
           const encerrada = dem.status === 'finalizada'

@@ -48,7 +48,7 @@ export const MODULOS_POR_SISTEMA: Record<SistemaId, { id: string; label: string 
   ],
   profissional: [
     { id: 'vagas', label: 'Vagas' },
-    { id: 'agenda', label: 'Agenda' },
+    { id: 'agenda', label: 'Vagas aceitas' },
     { id: 'documentos', label: 'Documentos' },
     { id: 'financeiro', label: 'Financeiro' },
     { id: 'perfil', label: 'Perfil' },
