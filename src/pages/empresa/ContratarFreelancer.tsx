@@ -1387,17 +1387,24 @@ function PainelMissoes({ empresaId }: { empresaId: string }) {
   const { state } = useStore()
   const missoes = state.demandas
     .filter((demanda) => demanda.empresaId === empresaId)
+    .filter(
+      (demanda) =>
+        demanda.status === 'em_andamento' ||
+        demanda.status === 'finalizada' ||
+        state.candidaturas.some((item) => item.demandaId === demanda.id),
+    )
     .slice()
     .sort((a, b) => b.data.localeCompare(a.data))
-
-  const abertas = missoes.filter((missao) => missao.status === 'aberta').length
-  const convitesTotal = state.candidaturas.filter((item) => missoes.some((missao) => missao.id === item.demandaId)).length
+  const emAndamento = missoes.filter((missao) => missao.status === 'em_andamento').length
+  const confirmados = state.candidaturas.filter(
+    (item) => missoes.some((missao) => missao.id === item.demandaId) && item.status === 'confirmada',
+  ).length
 
   return (
     <section className="cf-panel">
       <div className="cf-intro">
         <h1>Missões</h1>
-        <p>Andamento das missões temporárias e de cada convite.</p>
+        <p>Andamento de quem já foi chamado: convite, interesse, contrato e entrada.</p>
       </div>
       {missoes.length > 0 && (
         <div className="cf-vaga-resumo">
@@ -1405,109 +1412,103 @@ function PainelMissoes({ empresaId }: { empresaId: string }) {
             <b>{missoes.length}</b> {missoes.length === 1 ? 'missão' : 'missões'}
           </span>
           <span>
-            <b>{abertas}</b> {abertas === 1 ? 'aberta' : 'abertas'}
+            <b>{emAndamento}</b> em andamento
           </span>
           <span>
-            <b>{convitesTotal}</b> {convitesTotal === 1 ? 'convite' : 'convites'}
+            <b>{confirmados}</b> {confirmados === 1 ? 'confirmado' : 'confirmados'}
           </span>
         </div>
       )}
       {missoes.length === 0 && (
         <div className="cf-card cf-vaga-vazia">
-          <strong>Nenhuma missão ainda.</strong>
-          <p className="muted">Publique a vaga para os colaboradores verem e se candidatarem.</p>
+          <strong>Nenhuma missão em andamento.</strong>
+          <p className="muted">A missão aparece aqui quando alguém é convidado ou se candidata. A vaga publicada continua na aba Vagas.</p>
         </div>
       )}
-      <div className="cf-vaga-lista">
+      <div className="cf-missao-lista">
         {missoes.map((missao) => {
           const convites = state.candidaturas.filter((item) => item.demandaId === missao.id)
+          const confirmadosMissao = convites.filter((item) => item.status === 'confirmada').length
+          const progresso = missao.quantidade > 0 ? Math.min(100, Math.round((confirmadosMissao / missao.quantidade) * 100)) : 0
           const periodo = `${formatarDataBr(missao.data)}${missao.dataFim ? ` a ${formatarDataBr(missao.dataFim)}` : ''}`
-          const texto = missao.atividades || missao.descricao
           return (
-            <article key={missao.id} className="cf-vaga">
-              <div className="cf-vaga-corpo">
-                <div className="cf-vaga-topo">
-                  <div>
-                    <span className={`cf-status cf-status--${missao.status}`}>{rotuloStatusMissao(missao.status)}</span>
-                    <h2>{cargoLabel(missao.cargo)}</h2>
-                    <p>
-                      {missao.endereco.cidade}/{missao.endereco.estado}
-                    </p>
-                  </div>
-                  <div className="cf-vaga-valor">
-                    <strong>
-                      {missao.valorDiaria.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-                    </strong>
-                    <small>por dia</small>
-                  </div>
+            <article key={missao.id} className="cf-missao">
+              <header className="cf-missao-topo">
+                <div className="cf-missao-cabeca">
+                  <span className={`cf-status cf-status--${missao.status}`}>{rotuloStatusMissao(missao.status)}</span>
+                  <h2>{cargoLabel(missao.cargo)}</h2>
                 </div>
-                <dl className="cf-vaga-fatos">
-                  <div>
-                    <dt>Período</dt>
-                    <dd>{periodo}</dd>
+                <p>
+                  {periodo} · {missao.horaInicio}–{missao.horaFim} · {missao.endereco.cidade}/{missao.endereco.estado}
+                </p>
+                <div className="cf-missao-progresso">
+                  <div className="cf-missao-trilha" aria-hidden>
+                    <span style={{ width: `${progresso}%` }} />
                   </div>
-                  <div>
-                    <dt>Jornada</dt>
-                    <dd>
-                      {missao.horaInicio}–{missao.horaFim}
-                    </dd>
-                  </div>
-                  <div>
-                    <dt>Pessoas</dt>
-                    <dd>
-                      {missao.quantidade} {missao.quantidade === 1 ? 'trabalhador' : 'trabalhadores'}
-                    </dd>
-                  </div>
-                  <div>
-                    <dt>Convites</dt>
-                    <dd>{convites.length}</dd>
-                  </div>
-                </dl>
-                {texto && <p className="cf-vaga-texto">{texto}</p>}
-                {missao.requisitos.length > 0 && (
-                  <div className="cf-vaga-chips">
-                    {missao.requisitos.map((item) => (
-                      <span key={item}>{item}</span>
-                    ))}
-                  </div>
-                )}
-              </div>
-              <aside className="cf-vaga-pessoas">
-                <h3>
-                  Convites
-                  <span>{convites.length}</span>
-                </h3>
-                {convites.length === 0 ? (
-                  <p>Nenhum convite nesta missão.</p>
-                ) : (
-                  <ul>
-                    {convites.map((convite) => {
-                      const pessoa = state.profissionais.find((item) => item.id === convite.profissionalId)
-                      const nome = pessoa?.nome ?? 'Trabalhador'
-                      return (
-                        <li key={convite.id}>
-                          <span className="cf-vaga-avatar">
-                            {pessoa?.foto ? <img src={pessoa.foto} alt="" /> : iniciaisNome(nome)}
-                          </span>
-                          <span className="cf-vaga-nome">
-                            <strong>{nome}</strong>
-                            <small>
-                              {pessoa ? `${pessoa.endereco.cidade}/${pessoa.endereco.estado}` : 'Colaborador'}
-                            </small>
-                          </span>
-                          <span className={`cf-vaga-selo cf-vaga-selo--${convite.status}`}>{rotuloConvite(convite.status)}</span>
-                        </li>
-                      )
-                    })}
-                  </ul>
-                )}
-              </aside>
+                  <small>
+                    {confirmadosMissao} de {missao.quantidade} {missao.quantidade === 1 ? 'confirmado' : 'confirmados'}
+                  </small>
+                </div>
+              </header>
+              <ul className="cf-missao-fila">
+                {convites.length === 0 && <li className="cf-missao-vazio">Aguardando o primeiro convite ou candidatura.</li>}
+                {convites.map((convite) => {
+                  const pessoa = state.profissionais.find((item) => item.id === convite.profissionalId)
+                  const nome = pessoa?.nome ?? 'Trabalhador'
+                  const check = state.checkIns.find(
+                    (item) => item.demandaId === missao.id && item.profissionalId === convite.profissionalId,
+                  )
+                  const passo = passoDaMissao(convite.status, check)
+                  const contrato = state.contratos.find((item) => item.candidaturaId === convite.id)
+                  return (
+                    <li key={convite.id} className="cf-missao-pessoa">
+                      <span className="cf-vaga-avatar">
+                        {pessoa?.foto ? <img src={pessoa.foto} alt="" /> : iniciaisNome(nome)}
+                      </span>
+                      <span className="cf-vaga-nome">
+                        <strong>{nome}</strong>
+                        <small>
+                          {pessoa ? `${pessoa.endereco.cidade}/${pessoa.endereco.estado}` : 'Colaborador'}
+                          {contrato?.numero ? ` · Contrato ${contrato.numero}` : ''}
+                        </small>
+                      </span>
+                      {passo < 0 ? (
+                        <span className={`cf-vaga-selo cf-vaga-selo--${convite.status}`}>{rotuloConvite(convite.status)}</span>
+                      ) : (
+                        <ol className="cf-missao-etapas">
+                          {PASSOS_MISSAO.map((rotulo, indice) => (
+                            <li
+                              key={rotulo}
+                              className={
+                                indice < passo ? 'cf-missao-etapa cf-missao-etapa--feita' : indice === passo ? 'cf-missao-etapa cf-missao-etapa--agora' : 'cf-missao-etapa'
+                              }
+                            >
+                              <span />
+                              {rotulo}
+                            </li>
+                          ))}
+                        </ol>
+                      )}
+                    </li>
+                  )
+                })}
+              </ul>
             </article>
           )
         })}
       </div>
     </section>
   )
+}
+
+const PASSOS_MISSAO = ['Convite', 'Interesse', 'Contrato', 'Entrada']
+
+function passoDaMissao(status: string, check?: { checkInAt?: string; checkOutAt?: string }) {
+  if (status === 'recusada' || status === 'cancelada') return -1
+  if (check?.checkInAt || check?.checkOutAt) return 3
+  if (status === 'confirmada') return 2
+  if (status === 'aceita') return 1
+  return 0
 }
 
 function PainelContratacoes({ empresaId }: { empresaId: string }) {

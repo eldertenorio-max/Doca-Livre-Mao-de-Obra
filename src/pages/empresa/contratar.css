@@ -1682,6 +1682,139 @@
   border: 1px solid #dbeafe;
 }
 
+.cf-missao-lista {
+  display: grid;
+  gap: 14px;
+}
+
+.cf-missao {
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  overflow: hidden;
+  box-shadow: 0 10px 24px rgb(17 17 17 / 0.04);
+}
+
+.cf-missao-topo {
+  background: #111;
+  color: #fff;
+  padding: 18px 20px 16px;
+}
+
+.cf-missao-cabeca h2 {
+  margin: 8px 0 0;
+  color: #fff;
+  font-size: 1.35rem;
+  letter-spacing: -0.03em;
+}
+
+.cf-missao-topo > p {
+  margin: 8px 0 0;
+  color: #d1d5db;
+  font-weight: 700;
+}
+
+.cf-missao-progresso {
+  margin-top: 14px;
+}
+
+.cf-missao-trilha {
+  height: 8px;
+  border-radius: 999px;
+  background: #2a2a2a;
+  overflow: hidden;
+}
+
+.cf-missao-trilha span {
+  display: block;
+  height: 100%;
+  background: #f9db00;
+}
+
+.cf-missao-progresso small {
+  display: block;
+  margin-top: 6px;
+  color: #f9db00;
+  font-weight: 800;
+}
+
+.cf-missao-fila {
+  list-style: none;
+  margin: 0;
+  padding: 6px 8px 10px;
+}
+
+.cf-missao-vazio {
+  padding: 14px 12px;
+  color: #6b7280;
+}
+
+.cf-missao-pessoa {
+  display: grid;
+  grid-template-columns: 44px minmax(150px, 220px) minmax(0, 1fr);
+  gap: 12px;
+  align-items: center;
+  padding: 12px 10px;
+  border-bottom: 1px solid #eef0f3;
+}
+
+.cf-missao-pessoa:last-child {
+  border-bottom: 0;
+}
+
+.cf-missao-etapas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.cf-missao-etapa {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #9ca3af;
+  font-size: 0.75rem;
+  font-weight: 800;
+}
+
+.cf-missao-etapa span {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 2px solid #e5e7eb;
+  background: #fff;
+}
+
+.cf-missao-etapa:not(:last-child)::after {
+  content: '';
+  width: 18px;
+  height: 2px;
+  margin-left: 6px;
+  background: #e5e7eb;
+}
+
+.cf-missao-etapa--feita {
+  color: #111;
+}
+
+.cf-missao-etapa--feita span,
+.cf-missao-etapa--feita:not(:last-child)::after {
+  background: #111;
+  border-color: #111;
+}
+
+.cf-missao-etapa--agora {
+  color: #111;
+}
+
+.cf-missao-etapa--agora span {
+  background: #f9db00;
+  border-color: #111;
+}
+
 @media (max-width: 860px) {
   .cf-topbar-user small,
   .cf-product {
@@ -1760,5 +1893,14 @@
   .cf-vaga-pessoas {
     border-left: 0;
     border-top: 1px solid #eef0f3;
+  }
+
+  .cf-missao-pessoa {
+    grid-template-columns: 44px minmax(0, 1fr);
+  }
+
+  .cf-missao-etapas {
+    grid-column: 1 / -1;
+    flex-wrap: wrap;
   }
 }
