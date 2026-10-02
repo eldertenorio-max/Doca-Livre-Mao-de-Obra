@@ -22,7 +22,7 @@ type Props = {
 
 type LinhaDoc = {
   arquivo: FotoDocumento | null
-  analise: { aceito: boolean; motivo: string } | null
+  analise: { aceito: boolean; motivo: string; falha?: boolean } | null
   analisando: boolean
 }
 
@@ -170,7 +170,7 @@ export function CadastroProfissionalScreen({ onBack, onDone }: Props) {
       if (!result.ok) {
         setLinhas((atual) => ({
           ...atual,
-          [papel]: { arquivo: foto, analise: { aceito: false, motivo: result.erro }, analisando: false },
+          [papel]: { arquivo: foto, analise: { aceito: false, motivo: result.erro, falha: true }, analisando: false },
         }))
         return
       }
@@ -193,7 +193,7 @@ export function CadastroProfissionalScreen({ onBack, onDone }: Props) {
         ...atual,
         [papel]: {
           arquivo: atual[papel].arquivo,
-          analise: { aceito: false, motivo: falha instanceof Error ? falha.message : 'Não foi possível ler o arquivo.' },
+          analise: { aceito: false, motivo: falha instanceof Error ? falha.message : 'Não foi possível ler o arquivo.', falha: true },
           analisando: false,
         },
       }))

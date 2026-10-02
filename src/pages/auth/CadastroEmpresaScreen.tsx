@@ -35,7 +35,7 @@ type DocEmpresaId = (typeof DOCS_EMPRESA_CADASTRO)[number]['id']
 
 type EstadoDoc = {
   arquivo: string
-  analise: { aceito: boolean; motivo: string } | null
+  analise: { aceito: boolean; motivo: string; falha?: boolean } | null
   analisando: boolean
 }
 
@@ -135,7 +135,7 @@ export function CadastroEmpresaScreen({ onBack, onDone }: Props) {
       if (!result.ok) {
         setDocs((atual) => ({
           ...atual,
-          [id]: { arquivo: foto.nome, analise: { aceito: false, motivo: result.erro }, analisando: false },
+          [id]: { arquivo: foto.nome, analise: { aceito: false, motivo: result.erro, falha: true }, analisando: false },
         }))
         return
       }
@@ -149,7 +149,7 @@ export function CadastroEmpresaScreen({ onBack, onDone }: Props) {
         ...atual,
         [id]: {
           arquivo: atual[id].arquivo || file.name,
-          analise: { aceito: false, motivo: falha instanceof Error ? falha.message : 'Não foi possível ler o arquivo.' },
+          analise: { aceito: false, motivo: falha instanceof Error ? falha.message : 'Não foi possível ler o arquivo.', falha: true },
           analisando: false,
         },
       }))

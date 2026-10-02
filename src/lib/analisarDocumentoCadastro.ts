@@ -1,3 +1,6 @@
+import workerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url'
+import { loadSupabaseConfig } from './supabaseConfig'
+
 export type PapelDocumento = 'documento' | 'verso' | 'selfie'
 
 export type FotoDocumento = {
@@ -35,8 +38,65 @@ function lerBinario(file: File, mime: FotoDocumento['mime']) {
   })
 }
 
+async function lerPdfComoJpeg(file: File): Promise<FotoDocumento> {
+  if (file.size > 12_000_000) throw new Error('O arquivo ficou grande demais. Envie um menor.')
+  const { getDocument, GlobalWorkerOptions } = await import('pdfjs-dist')
+  GlobalWorkerOptions.workerSrc = workerUrl
+  const pdf = await getDocument({ data: new Uint8Array(await file.arrayBuffer()) }).promise
+  const total = Math.min(pdf.numPages, 2)
+  if (total < 1) throw new Error('Não foi possível ler o PDF.')
+  const folhas: HTMLCanvasElement[] = []
+  for (let numero = 1; numero <= total; numero += 1) {
+    const page = await pdf.getPage(numero)
+    const base = page.getViewport({ scale: 1 })
+    const escala = Math.min(2, 1200 / Math.max(base.width, 1))
+    const viewport = page.getViewport({ scale: escala })
+    const canvas = document.createElement('canvas')
+    canvas.width = Math.max(1, Math.floor(viewport.width))
+    canvas.height = Math.max(1, Math.floor(viewport.height))
+    await page.render({ canvas, viewport }).promise
+    folhas.push(canvas)
+  }
+  const largura = Math.max(...folhas.map((folha) => folha.width))
+  const altura = folhas.reduce((soma, folha) => soma + folha.height, 0)
+  const junto = document.createElement('canvas')
+  junto.width = largura
+  junto.height = altura
+  const ctx = junto.getContext('2d')
+  if (!ctx) throw new Error('Não foi possível ler o PDF.')
+  ctx.fillStyle = '#ffffff'
+  ctx.fillRect(0, 0, largura, altura)
+  let topo = 0
+  for (const folha of folhas) {
+    ctx.drawImage(folha, 0, topo)
+    topo += folha.height
+  }
+  let qualidade = 0.82
+  let dados = ''
+  for (let tentativa = 0; tentativa < 4; tentativa += 1) {
+    dados = (junto.toDataURL('image/jpeg', qualidade).split(',')[1] || '').replace(/\s/g, '')
+    if (dados.length <= 1_800_000) break
+    qualidade -= 0.16
+  }
+  if (dados.length < 80 || dados.length > 2_000_000) {
+    throw new Error('O arquivo ficou grande demais. Envie uma foto do documento.')
+  }
+  return { nome: file.name, mime: 'image/jpeg', dados }
+}
+
 export async function lerArquivoCadastro(file: File): Promise<FotoDocumento> {
-  if (ehPdf(file)) return lerBinario(file, 'application/pdf')
+  if (ehPdf(file)) {
+    try {
+      return await lerPdfComoJpeg(file)
+    } catch (falha) {
+      const msg = falha instanceof Error ? falha.message : ''
+      if (/password/i.test(msg)) {
+        throw new Error('Não foi possível ler o PDF protegido por senha. Envie uma foto do documento.')
+      }
+      if (/grande demais/.test(msg)) throw falha
+      return lerBinario(file, 'application/pdf')
+    }
+  }
   if (ehImagemComum(file)) return lerFotoDocumento(file)
   if (ehHeic(file)) {
     try {
@@ -96,24 +156,50 @@ export async function analisarDocumentoCadastro(input: {
   cnpj?: string
   cidade?: string
 }): Promise<{ ok: true; aceito: boolean; motivo: string; cnh: string } | { ok: false; erro: string }> {
-  try {
-    const resposta = await fetch('/api/cadastro/analisar-documento', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(input),
+  const cfg = await loadSupabaseConfig()
+  const tentativas: { url: string; headers: Record<string, string> }[] = []
+  if (cfg.url && cfg.anonKey) {
+    tentativas.push({
+      url: `${cfg.url.replace(/\/$/, '')}/functions/v1/analisar-documento`,
+      headers: {
+        'Content-Type': 'application/json',
+        apikey: cfg.anonKey,
+        Authorization: `Bearer ${cfg.anonKey}`,
+      },
     })
-    const texto = await resposta.text()
-    let data: { ok?: boolean; aceito?: boolean; motivo?: string; erro?: string; cnh?: string } = {}
-    try {
-      data = JSON.parse(texto) as typeof data
-    } catch {
-      return { ok: false, erro: 'Não foi possível analisar o documento. Tente de novo.' }
-    }
-    if (!resposta.ok || !data.ok || typeof data.aceito !== 'boolean') {
-      return { ok: false, erro: data.erro || 'Não foi possível analisar o documento.' }
-    }
-    return { ok: true, aceito: data.aceito, motivo: data.motivo || '', cnh: data.cnh || '' }
-  } catch {
-    return { ok: false, erro: 'Não foi possível analisar o documento. Tente de novo.' }
   }
+  tentativas.push({
+    url: '/api/cadastro/analisar-documento',
+    headers: { 'Content-Type': 'application/json' },
+  })
+
+  let ultimo = 'Não foi possível analisar o documento. Tente de novo.'
+  for (const tentativa of tentativas) {
+    try {
+      const resposta = await fetch(tentativa.url, {
+        method: 'POST',
+        headers: tentativa.headers,
+        body: JSON.stringify(input),
+      })
+      const texto = await resposta.text()
+      type RespostaAnalise = { ok?: boolean; aceito?: boolean; motivo?: string; erro?: string; cnh?: string }
+      let data: RespostaAnalise | null = null
+      try {
+        data = JSON.parse(texto) as RespostaAnalise
+      } catch {
+        data = null
+      }
+      if (!data) continue
+      if (resposta.ok && data.ok && typeof data.aceito === 'boolean') {
+        return { ok: true, aceito: data.aceito, motivo: data.motivo || '', cnh: data.cnh || '' }
+      }
+      if (data.erro) {
+        ultimo = data.erro
+        if (resposta.status !== 404) return { ok: false, erro: data.erro }
+      }
+    } catch {
+      /* tenta o próximo caminho */
+    }
+  }
+  return { ok: false, erro: ultimo }
 }

@@ -415,3 +415,6 @@ enabled = true
 
 [functions.enviar-codigo]
 verify_jwt = false
+
+[functions.analisar-documento]
+verify_jwt = false
