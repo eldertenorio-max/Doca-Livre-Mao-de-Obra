@@ -18,7 +18,6 @@ import './perfil.css'
 const TABS = [
   { id: 'inicio', label: 'Início', icon: <IconeInicio /> },
   { id: 'vagas', label: 'Vagas', icon: <IconeVagas /> },
-  { id: 'oportunidades', label: 'Oportunidades', icon: <IconeOportunidades /> },
   { id: 'agenda', label: 'Missões', icon: <IconeMissoes /> },
   { id: 'financeiro', label: 'Financeiro', icon: <IconeFinanceiro /> },
   { id: 'perfil', label: 'Perfil', icon: <IconePerfil /> },
@@ -135,7 +134,6 @@ export function ProfissionalApp({ onLogout }: { onLogout: () => void }) {
           <div className="cf-wrap">
             {tab === 'inicio' && <HomeTab onIr={setTab} />}
             {tab === 'vagas' && <VagasTab />}
-            {tab === 'oportunidades' && <OportunidadesTab />}
             {tab === 'agenda' && <AgendaTab />}
             {tab === 'financeiro' && <FinanceiroTab />}
             {tab === 'perfil' && <PerfilTab />}
@@ -169,15 +167,6 @@ function IconeVagas() {
       <rect x="6" y="3.5" width="12" height="17" rx="2" stroke="currentColor" strokeWidth="1.75" />
       <path d="M9 3.5h6v2.8H9z" stroke="currentColor" strokeWidth="1.75" />
       <path d="M9 11h6M9 14.5h4" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" />
-    </IconeBase>
-  )
-}
-
-function IconeOportunidades() {
-  return (
-    <IconeBase>
-      <circle cx="11" cy="11" r="6.5" stroke="currentColor" strokeWidth="1.75" />
-      <path d="m16 16 4 4" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" />
     </IconeBase>
   )
 }
@@ -320,7 +309,7 @@ function HomeTab({ onIr }: { onIr: (aba: TabId) => void }) {
           <strong>★ {nota}</strong>
           <small>Responde em {prof.tempoRespostaMin} min</small>
         </button>
-        <button type="button" className="td-home-stat" onClick={() => onIr('oportunidades')}>
+        <button type="button" className="td-home-stat" onClick={() => onIr('vagas')}>
           <span>Ofertas</span>
           <strong>{ofertas}</strong>
           <small>{ofertas === 1 ? 'Aguardando você' : 'Na sua fila'}</small>
@@ -340,9 +329,6 @@ function HomeTab({ onIr }: { onIr: (aba: TabId) => void }) {
               <button type="button" className="td-home-link" onClick={() => onIr('vagas')}>
                 Vagas
               </button>
-              <button type="button" className="td-home-link" onClick={() => onIr('oportunidades')}>
-                Ver todas
-              </button>
             </div>
           </header>
           {fila.map(({ c, dem, emp }) => (
@@ -350,7 +336,7 @@ function HomeTab({ onIr }: { onIr: (aba: TabId) => void }) {
               key={c.id}
               type="button"
               className="td-home-oferta"
-              onClick={() => onIr(c.status === 'confirmada' ? 'agenda' : 'oportunidades')}
+              onClick={() => onIr(c.status === 'confirmada' ? 'agenda' : 'vagas')}
             >
               <span>
                 <small>{rotuloFila(c.status)}</small>
@@ -422,7 +408,7 @@ function HomeTab({ onIr }: { onIr: (aba: TabId) => void }) {
 }
 
 function VagasTab() {
-  const { currentProfissional, state, candidatar } = useStore()
+  const { currentProfissional, state, candidatar, refuseOferta } = useStore()
   const prof = currentProfissional!
   const [aviso, setAviso] = useState<{ id: string; texto: string; ok: boolean } | null>(null)
   const [perfilId, setPerfilId] = useState<string | null>(null)
@@ -454,6 +440,15 @@ function VagasTab() {
         return da - db
       })
   }, [prof.endereco, prof.id, prof.profissoes, prof.raioKm, state.candidaturas, state.demandas, state.empresas, verTodas])
+
+  function recusar(demandaId: string) {
+    refuseOferta(demandaId, prof.id)
+    setAviso({
+      id: demandaId,
+      ok: true,
+      texto: 'Convite recusado. A vaga continua aberta se você mudar de ideia.',
+    })
+  }
 
   function aplicar(demandaId: string) {
     const resp = candidatar(demandaId, prof.id)
@@ -588,13 +583,19 @@ function VagasTab() {
                 <p className="td-vaga-nota">Você está nesta missão. O contrato aparece em Missões.</p>
               ) : enviada ? (
                 <p className="td-vaga-nota">Interesse registrado. O contrato só nasce quando a empresa confirma.</p>
+              ) : candidatura?.status === 'pendente' ? (
+                <>
+                  <button type="button" className="td-vaga-btn" disabled={!aprovado} onClick={() => aplicar(demanda.id)}>
+                    Tenho interesse
+                  </button>
+                  <button type="button" className="td-vaga-btn td-vaga-btn--ghost" disabled={!aprovado} onClick={() => recusar(demanda.id)}>
+                    Não tenho interesse
+                  </button>
+                </>
               ) : (
                 <button type="button" className="td-vaga-btn" disabled={!aprovado} onClick={() => aplicar(demanda.id)}>
                   {aprovado ? 'Candidatar-se' : 'Cadastro em análise'}
                 </button>
-              )}
-              {candidatura?.status === 'pendente' && aprovado && (
-                <span className="td-vaga-nota">A empresa já enviou um convite.</span>
               )}
             </div>
             {aviso?.id === demanda.id && <p className={aviso.ok ? 'success' : 'error'}>{aviso.texto}</p>}
@@ -616,70 +617,6 @@ function VagasTab() {
 
 function semAcento(value: string) {
   return value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
-}
-
-function OportunidadesTab() {
-  const { currentProfissional, state, acceptOferta, refuseOferta } = useStore()
-  const prof = currentProfissional!
-
-  const ofertas = useMemo(() => {
-    return state.candidaturas
-      .filter((c) => c.profissionalId === prof.id && (c.status === 'pendente' || c.status === 'aceita'))
-      .map((c) => {
-        const dem = state.demandas.find((d) => d.id === c.demandaId)
-        const emp = dem ? state.empresas.find((e) => e.id === dem.empresaId) : null
-        return { c, dem, emp }
-      })
-      .filter((x) => x.dem && x.dem.status === 'aberta')
-  }, [state, prof.id])
-
-  return (
-    <div className="panel panel--mobile">
-      <h2>Oportunidades</h2>
-      <ul className="list">
-        {ofertas.map(({ c, dem, emp }) => (
-          <li key={c.id} className="opportunity-card">
-            <div className="opportunity-head">
-              <strong>{c.status === 'pendente' ? 'Nova oportunidade' : 'Interesse registrado'}</strong>
-              <span className="price">{dem!.valorDiaria ? `R$ ${dem!.valorDiaria}` : 'A combinar'}</span>
-            </div>
-            <p>
-              <strong>{cargoLabel(dem!.cargo)}</strong>
-            </p>
-            <p className="muted">Empresa: {emp?.nomeFantasia}</p>
-            <p className="muted">Local: {dem!.endereco.cidade}</p>
-            <p className="muted">
-              Período: {dem!.data}
-              {dem!.dataFim ? ` → ${dem!.dataFim}` : ''}
-            </p>
-            <p className="muted">
-              Horário: {dem!.horaInicio} → {dem!.horaFim}
-            </p>
-            {dem!.motivo && <p className="muted">Motivo da contratação temporária informado pela tomadora.</p>}
-            <p>{dem!.descricao || dem!.atividades || 'Missão temporária'}</p>
-            <div className="row-actions">
-              {c.status === 'pendente' && (
-                <>
-                  <button type="button" className="btn btn-accent" onClick={() => acceptOferta(dem!.id, prof.id)}>
-                    Tenho interesse
-                  </button>
-                  <button type="button" className="btn btn-ghost" onClick={() => refuseOferta(dem!.id, prof.id)}>
-                    Não tenho interesse
-                  </button>
-                </>
-              )}
-              {c.status === 'aceita' && (
-                <span className="success">Interesse registrado. Segue a validação documental e o contrato temporário.</span>
-              )}
-            </div>
-          </li>
-        ))}
-        {ofertas.length === 0 && (
-          <p className="muted">Nenhuma missão no momento. Mantenha o perfil e a disponibilidade atualizados.</p>
-        )}
-      </ul>
-    </div>
-  )
 }
 
 function AgendaTab() {

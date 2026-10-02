@@ -39,7 +39,7 @@ No painel admin há o botão **Reset demo** para restaurar o seed.
 ## Fluxo ponta a ponta
 
 1. Entre como **empresa** → Nova demanda → Publicar  
-2. Entre como **profissional** compatível → Oportunidades → Aceitar  
+2. Entre como **profissional** compatível → Vagas → Candidatar-se  
 3. Volte na empresa → Candidatos → Aceitar  
 4. No profissional → Agenda → Check-in / Check-out  
 5. Finalize a demanda na empresa (libera pagamento mock)  
