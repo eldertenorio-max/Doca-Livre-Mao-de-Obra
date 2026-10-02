@@ -1036,7 +1036,7 @@ export function ContratarFreelancer({ onLogout }: { onLogout: () => void }) {
                 </label>
 
                 <label className="cf-field">
-                  <span>Remuneração prevista (R$)</span>
+                  <span>Remuneração prevista por dia (R$)</span>
                   <input
                     ref={remuneracaoRef}
                     inputMode="decimal"
