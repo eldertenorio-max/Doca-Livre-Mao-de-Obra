@@ -6,6 +6,7 @@ import { analisarCurriculos, requisitosDoCargo, rotuloAnos, type CurriculoAnalis
 import { abrirCurriculoPdf } from '../../lib/curriculoPdf'
 import { MapaMaoDeObra } from './MapaMaoDeObra'
 import { SinoEmpresa } from './SinoEmpresa'
+import { AvaliacaoTrabalhador } from './AvaliacaoTrabalhador'
 import { PerfilColaborador } from './PerfilColaborador'
 import { checklistProfissional, resumoDocumental } from '../../lib/documentos'
 import { distanciaKm } from '../../lib/matching'
@@ -1728,6 +1729,10 @@ function PainelContratacoes({ empresaId }: { empresaId: string }) {
         status: rotuloContrato(contrato.status),
         statusClasse: contrato.status === 'rescindido' ? 'cancelada' : contrato.status === 'concluido' ? 'finalizada' : 'em_andamento',
         servicos: contrato.tiposServico.filter(Boolean),
+        demandaId: contrato.demandaId,
+        profissionalUserId: profissional?.userId ?? '',
+        encerrada:
+          demanda?.status === 'finalizada' || contrato.status === 'concluido' || contrato.status === 'rescindido',
       }
     }),
     ...confirmadasSemContrato.map((candidatura) => {
@@ -1749,16 +1754,33 @@ function PainelContratacoes({ empresaId }: { empresaId: string }) {
         status: 'Confirmada',
         statusClasse: 'em_andamento',
         servicos: [] as string[],
+        demandaId: candidatura.demandaId,
+        profissionalUserId: profissional?.userId ?? '',
+        encerrada: demanda?.status === 'finalizada',
       }
     }),
   ].sort((a, b) => b.quando.localeCompare(a.quando))
+  const pendentes = linhas.filter((linha) => {
+    if (!linha.encerrada || !linha.profissionalUserId) return false
+    return !state.avaliacoes.some(
+      (item) =>
+        item.demandaId === linha.demandaId && item.paraUserId === linha.profissionalUserId && item.deRole === 'empresa',
+    )
+  }).length
 
   return (
     <section className="cf-panel">
       <div className="cf-intro">
         <h1>Minhas contratações</h1>
-        <p>Contratos temporários já gerados por esta empresa, com o serviço e o profissional de cada um.</p>
+        <p>Contratos temporários desta empresa. Quando um contrato encerra, a avaliação do trabalhador aparece aqui.</p>
       </div>
+      {pendentes > 0 && (
+        <p className="cf-avaliar-aviso">
+          {pendentes === 1
+            ? '1 contrato encerrado espera a sua avaliação.'
+            : `${pendentes} contratos encerrados esperam a sua avaliação.`}
+        </p>
+      )}
       {linhas.length === 0 && (
         <div className="cf-card">
           <strong>Nenhuma contratação ainda.</strong>
@@ -1793,6 +1815,13 @@ function PainelContratacoes({ empresaId }: { empresaId: string }) {
               {linha.motivo ? ` · ${rotuloMotivo(linha.motivo)}` : ''}
             </p>
             {linha.atividades && <p>{linha.atividades}</p>}
+            {linha.encerrada && linha.profissionalUserId && (
+              <AvaliacaoTrabalhador
+                demandaId={linha.demandaId}
+                profissionalUserId={linha.profissionalUserId}
+                nome={linha.profissional}
+              />
+            )}
           </article>
         ))}
       </div>

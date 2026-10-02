@@ -16,7 +16,7 @@ export function SinoEmpresa({
   onIr,
 }: {
   empresaId: string
-  onIr: (aba: 'vagas' | 'missoes') => void
+  onIr: (aba: 'vagas' | 'missoes' | 'contratacoes') => void
 }) {
   const { state } = useStore()
   const avisos = useMemo(
@@ -26,8 +26,10 @@ export function SinoEmpresa({
         demandas: state.demandas,
         candidaturas: state.candidaturas,
         profissionais: state.profissionais,
+        avaliacoes: state.avaliacoes,
+        pagamentos: state.pagamentos,
       }),
-    [empresaId, state.candidaturas, state.demandas, state.profissionais],
+    [empresaId, state.avaliacoes, state.candidaturas, state.demandas, state.pagamentos, state.profissionais],
   )
   const [lidas, setLidas] = useState<string[] | null>(null)
   const [aberto, setAberto] = useState(false)

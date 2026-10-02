@@ -427,6 +427,87 @@
   gap: 16px;
 }
 
+.cf-avaliar-aviso {
+  margin: 0 0 14px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: #fff6cc;
+  font-weight: 750;
+}
+
+.cf-avaliar {
+  margin-top: 14px;
+  padding: 14px;
+  border-radius: 14px;
+  background: #fff8d6;
+}
+
+.cf-avaliar--feita {
+  background: #f6f7f9;
+}
+
+.cf-avaliar h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.cf-avaliar p {
+  margin: 6px 0 0;
+}
+
+.cf-avaliar-linha {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.cf-avaliar-linha > span:first-child {
+  font-weight: 750;
+}
+
+.cf-estrelas {
+  display: flex;
+  gap: 4px;
+}
+
+.cf-estrelas button {
+  width: 34px;
+  height: 34px;
+  border: 0;
+  border-radius: 8px;
+  background: #fff;
+  color: #d1d5db;
+  font-size: 1.05rem;
+  cursor: pointer;
+}
+
+.cf-estrelas button.on {
+  background: #f9db00;
+  color: #111;
+}
+
+.cf-avaliar textarea {
+  width: 100%;
+  margin-top: 12px;
+  min-height: 72px;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 8px 10px;
+  font: inherit;
+  resize: vertical;
+}
+
+.cf-avaliar .cf-btn {
+  margin-top: 10px;
+}
+
+.cf-avaliar .error {
+  margin: 8px 0 0;
+}
+
 .cf-mission-list {
   display: grid;
   gap: 12px;

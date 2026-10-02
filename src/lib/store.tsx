@@ -188,6 +188,13 @@ function persist(next: AppState) {
   return next
 }
 
+function mediaDaAvaliacao(notas: Avaliacao['notas']) {
+  const valores = [notas.pontualidade, notas.qualidade, notas.educacao, notas.produtividade]
+  const validos = valores.filter((valor) => Number.isFinite(valor))
+  if (!validos.length) return 0
+  return validos.reduce((total, valor) => total + valor, 0) / validos.length
+}
+
 function diasDaMissao(demanda: Demanda) {
   if (!demanda.dataFim) return 1
   const a = new Date(`${demanda.data}T12:00:00`)
@@ -219,6 +226,11 @@ function finishDemandaState(s: AppState, demandaId: string): AppState {
     ...s,
     demandas: s.demandas.map((d) =>
       d.id === demandaId ? { ...d, status: 'finalizada' as const } : d,
+    ),
+    contratos: s.contratos.map((contrato) =>
+      contrato.demandaId === demandaId && contrato.status !== 'rescindido'
+        ? { ...contrato, status: 'concluido' as const }
+        : contrato,
     ),
     pagamentos: [...pagamentos, ...s.pagamentos],
     profissionais: s.profissionais.map((p) =>
@@ -1101,13 +1113,31 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     },
 
     addAvaliacao(data) {
-      update((s) => ({
-        ...s,
-        avaliacoes: [
-          { ...data, id: uid('av'), createdAt: nowIso() },
-          ...s.avaliacoes,
-        ],
-      }))
+      update((s) => {
+        const repetida = s.avaliacoes.some(
+          (item) =>
+            item.demandaId === data.demandaId &&
+            item.deUserId === data.deUserId &&
+            item.paraUserId === data.paraUserId &&
+            item.deRole === data.deRole,
+        )
+        if (repetida) return s
+        const avaliacao: Avaliacao = { ...data, id: uid('av'), createdAt: nowIso() }
+        const avaliacoes = [avaliacao, ...s.avaliacoes]
+        const profissionais =
+          data.deRole === 'empresa'
+            ? s.profissionais.map((pessoa) => {
+                if (pessoa.userId !== data.paraUserId) return pessoa
+                const notas = avaliacoes.filter(
+                  (item) => item.paraUserId === pessoa.userId && item.deRole === 'empresa',
+                )
+                const soma = notas.reduce((total, item) => total + mediaDaAvaliacao(item.notas), 0)
+                const media = Math.round((soma / notas.length) * 10) / 10
+                return { ...pessoa, avaliacaoMedia: media }
+              })
+            : s.profissionais
+        return { ...s, avaliacoes, profissionais }
+      })
     },
 
     updateDisponibilidade(profissionalId, disp) {

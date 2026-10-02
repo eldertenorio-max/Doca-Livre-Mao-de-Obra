@@ -1,16 +1,16 @@
 import { cargoLabel } from '../data/categories'
-import type { Candidatura, Demanda, Profissional } from './types'
+import type { Avaliacao, Candidatura, Demanda, Pagamento, Profissional } from './types'
 
 export const CHAVE_NOTIFICACOES = 'doca-livre-notificacoes-empresa-v1'
 
 export type AvisoEmpresa = {
   id: string
-  tipo: 'candidatura' | 'convite'
+  tipo: 'candidatura' | 'convite' | 'avaliacao'
   quando: string
   nome: string
   texto: string
   extra: string
-  aba: 'vagas' | 'missoes'
+  aba: 'vagas' | 'missoes' | 'contratacoes'
   legado: boolean
 }
 
@@ -27,6 +27,8 @@ export function montarAvisosEmpresa(input: {
   demandas: Demanda[]
   candidaturas: Candidatura[]
   profissionais: Profissional[]
+  avaliacoes?: Avaliacao[]
+  pagamentos?: Pagamento[]
 }): AvisoEmpresa[] {
   const demandas = new Map(
     input.demandas.filter((item) => item.empresaId === input.empresaId).map((item) => [item.id, item]),
@@ -56,7 +58,38 @@ export function montarAvisosEmpresa(input: {
     })
   }
 
-  avisos.sort((a, b) => b.quando.localeCompare(a.quando))
+  const avaliacoes = input.avaliacoes ?? []
+  const pagamentos = input.pagamentos ?? []
+  for (const demanda of demandas.values()) {
+    if (demanda.status !== 'finalizada') continue
+    const cargo = cargoLabel(demanda.cargo)
+    const confirmados = input.candidaturas.filter(
+      (item) => item.demandaId === demanda.id && item.status === 'confirmada',
+    )
+    for (const cand of confirmados) {
+      const pessoa = pessoas.get(cand.profissionalId)
+      if (!pessoa) continue
+      const jaAvaliou = avaliacoes.some(
+        (item) => item.demandaId === demanda.id && item.paraUserId === pessoa.userId && item.deRole === 'empresa',
+      )
+      if (jaAvaliou) continue
+      const pagamento = pagamentos.find(
+        (item) => item.demandaId === demanda.id && item.profissionalId === pessoa.id,
+      )
+      avisos.push({
+        id: `avaliacao:${demanda.id}:${pessoa.id}`,
+        tipo: 'avaliacao',
+        quando: pagamento?.createdAt || demanda.createdAt,
+        nome: pessoa.nome,
+        texto: `${pessoa.nome} encerrou o contrato de ${cargo}. Avalie o trabalho.`,
+        extra: `${demanda.endereco.cidade}/${demanda.endereco.estado}`,
+        aba: 'contratacoes',
+        legado: false,
+      })
+    }
+  }
+
+  avisos.sort((a, b) => b.quando.localeCompare(a.quando) || (a.tipo === 'avaliacao' ? -1 : 1))
   return avisos
 }
 
