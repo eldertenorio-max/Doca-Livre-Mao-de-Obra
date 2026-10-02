@@ -96,7 +96,6 @@ export function PortalLoginScreen({ portal, onSuccess, onBack }: Props) {
   const [identificador, setIdentificador] = useState('')
   const [codigo, setCodigo] = useState('')
   const [verifyToken, setVerifyToken] = useState('')
-  const [debugCodigo, setDebugCodigo] = useState<string | null>(null)
 
   const [erro, setErro] = useState<string | null>(null)
   const [info, setInfo] = useState<string | null>(null)
@@ -105,7 +104,6 @@ export function PortalLoginScreen({ portal, onSuccess, onBack }: Props) {
   function resetMessages() {
     setErro(null)
     setInfo(null)
-    setDebugCodigo(null)
   }
 
   function goMode(next: Mode) {
@@ -117,7 +115,6 @@ export function PortalLoginScreen({ portal, onSuccess, onBack }: Props) {
     setConfirmarSenha('')
     setErro(null)
     setInfo(null)
-    setDebugCodigo(null)
     if (next === 'cadastro') setUsuario('')
   }
 
@@ -158,7 +155,6 @@ export function PortalLoginScreen({ portal, onSuccess, onBack }: Props) {
         return
       }
       setInfo(result.mensagem)
-      if (result.debug_codigo) setDebugCodigo(result.debug_codigo)
       setStep('codigo')
     } finally {
       setLoading(false)
@@ -236,7 +232,6 @@ export function PortalLoginScreen({ portal, onSuccess, onBack }: Props) {
       }
       setEmail(result.email)
       setInfo(result.mensagem)
-      if (result.debug_codigo) setDebugCodigo(result.debug_codigo)
       setStep('codigo')
     } finally {
       setLoading(false)
@@ -357,12 +352,9 @@ export function PortalLoginScreen({ portal, onSuccess, onBack }: Props) {
 
         {mode === 'cadastro' && step === 'codigo' && (
           <form className="portal-login__form" onSubmit={handleCadastroVerificar}>
-            <p className="portal-login__hint">Digite o código enviado para {email}</p>
-            {debugCodigo && (
-              <p className="portal-login__info">
-                Código de desenvolvimento: <strong>{debugCodigo}</strong>
-              </p>
-            )}
+            <p className="portal-login__hint">
+              Enviamos um código para <strong>{email}</strong>. Abra o e-mail, copie o código e cole abaixo.
+            </p>
             <label className="portal-login__label" htmlFor="pl-otp">
               Código
             </label>
@@ -372,11 +364,12 @@ export function PortalLoginScreen({ portal, onSuccess, onBack }: Props) {
               value={codigo}
               onChange={(e) => setCodigo(e.target.value.replace(/\D/g, '').slice(0, 6))}
               inputMode="numeric"
+              autoComplete="one-time-code"
               maxLength={6}
               required
             />
             {erro && <p className="portal-login__erro">{erro}</p>}
-            <button type="submit" className="portal-login__submit" disabled={loading}>
+            <button type="submit" className="portal-login__submit" disabled={loading || codigo.length < 6}>
               {loading ? 'Verificando…' : 'Verificar código'}
             </button>
           </form>
@@ -447,12 +440,9 @@ export function PortalLoginScreen({ portal, onSuccess, onBack }: Props) {
 
         {mode === 'senha' && step === 'codigo' && (
           <form className="portal-login__form" onSubmit={handleSenhaVerificar}>
-            <p className="portal-login__hint">Digite o código enviado para {email}</p>
-            {debugCodigo && (
-              <p className="portal-login__info">
-                Código de desenvolvimento: <strong>{debugCodigo}</strong>
-              </p>
-            )}
+            <p className="portal-login__hint">
+              Enviamos um código para <strong>{email}</strong>. Abra o e-mail, copie o código e cole abaixo.
+            </p>
             <label className="portal-login__label" htmlFor="pl-otp-s">
               Código
             </label>
@@ -462,11 +452,12 @@ export function PortalLoginScreen({ portal, onSuccess, onBack }: Props) {
               value={codigo}
               onChange={(e) => setCodigo(e.target.value.replace(/\D/g, '').slice(0, 6))}
               inputMode="numeric"
+              autoComplete="one-time-code"
               maxLength={6}
               required
             />
             {erro && <p className="portal-login__erro">{erro}</p>}
-            <button type="submit" className="portal-login__submit" disabled={loading}>
+            <button type="submit" className="portal-login__submit" disabled={loading || codigo.length < 6}>
               {loading ? 'Verificando…' : 'Verificar código'}
             </button>
           </form>

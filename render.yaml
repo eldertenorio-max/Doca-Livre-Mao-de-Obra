@@ -2,19 +2,19 @@
 services:
   - type: web
     name: doca-livre-mao-de-obra
-    runtime: static
+    runtime: node
     branch: main
     autoDeployTrigger: commit
     buildCommand: npm ci --no-audit --no-fund && node scripts/write-supabase-config.mjs && npm run build
-    staticPublishPath: ./dist
-    routes:
-      - type: rewrite
-        source: /*
-        destination: /index.html
+    startCommand: node server/index.mjs
     envVars:
       - key: NODE_VERSION
         value: "20.19.0"
       - key: VITE_SUPABASE_URL
         sync: false
       - key: VITE_SUPABASE_ANON_KEY
+        sync: false
+      - key: RESEND_API_KEY
+        sync: false
+      - key: RESEND_FROM
         sync: false

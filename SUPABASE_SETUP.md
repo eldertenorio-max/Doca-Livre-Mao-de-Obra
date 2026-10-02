@@ -28,11 +28,11 @@ Sem essas variáveis o app roda em modo local (localStorage + código OTP na tel
 > `postgresql://postgres.<ref>:[SENHA]@aws-1-sa-east-1.pooler.supabase.com:6543/postgres`
 
 ## 4. Render
-No serviço static, defina as mesmas variáveis de ambiente. O build roda:
+O serviço é Node (`node server/index.mjs`): ele publica a pasta `dist` e envia o código de acesso. Defina as mesmas variáveis do Supabase e também `RESEND_API_KEY` e `RESEND_FROM` (as mesmas do WMS Pro). O build roda:
 
 `node scripts/write-supabase-config.mjs && npm run build`
 
 gerando `public/supabase-config.json` para o runtime.
 
-## 5. E-mail OTP (produção)
-Hoje o código é exibido na tela quando não há SMTP (igual ao modo debug do WMS). Para produção, configure Edge Function + provedor (Resend/SendGrid) para enviar o código e remova `debug_codigo` da resposta.
+## 5. E-mail OTP
+O código de cadastro e de troca de senha sai por e-mail (Resend), no mesmo formato do WMS Pro. A tela só pede para abrir a caixa de entrada. Sem `RESEND_API_KEY` o envio falha e o código não aparece na tela. `onboarding@resend.dev` só entrega para o dono da conta Resend; use `RESEND_FROM` de um domínio verificado para chegar em qualquer e-mail.
