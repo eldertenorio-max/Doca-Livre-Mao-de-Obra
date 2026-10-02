@@ -267,7 +267,7 @@ function valorNumero(texto: string) {
 const ABAS_EMPRESA = [
   { id: 'missao', label: 'Vaga temporária', icon: <IconeVaga /> },
   { id: 'vagas', label: 'Vagas Publicadas', icon: <IconeVagasLista /> },
-  { id: 'missoes', label: 'Missões', icon: <IconeMissoes /> },
+  { id: 'missoes', label: 'Convites enviados', icon: <IconeMissoes /> },
   { id: 'mapa', label: 'Mapa Mão de Obra', icon: <IconeMapa /> },
   { id: 'contratacoes', label: 'Minhas contratações', icon: <IconeContratacoes /> },
   { id: 'documentos', label: 'Documentação', icon: <IconeDocs /> },
@@ -1403,7 +1403,7 @@ function PainelMissoes({ empresaId }: { empresaId: string }) {
   return (
     <section className="cf-panel">
       <div className="cf-intro">
-        <h1>Missões</h1>
+        <h1>Convites enviados</h1>
         <p>Andamento de quem já foi chamado: convite, interesse, contrato e entrada.</p>
       </div>
       {missoes.length > 0 && (
