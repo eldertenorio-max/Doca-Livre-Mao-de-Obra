@@ -15,7 +15,7 @@ import {
   criarEncerramento,
   criarPecasIniciais,
 } from './dossieTemporario'
-import { matchDemanda } from './matching'
+import { distanciaKm, matchDemanda } from './matching'
 import { canAccessSistema, isLocalSuperUser } from './portalPermissoes'
 import { nowIso, uid } from './seed'
 import { loadState, resetState, saveState } from './storage'
@@ -68,6 +68,8 @@ type StoreApi = {
   completeEmpresaPerfil: (empresa: Omit<Empresa, 'id' | 'userId' | 'status' | 'avaliacaoMedia' | 'favoritos' | 'bloqueados' | 'docsOk' | 'saldo' | 'limitePosPago' | 'diasTaxaZero' | 'metaTaxaZero' | 'diasAgenciados' | 'rankingDias' | 'economiaTotal'>) => { ok: boolean; error?: string }
   completeProfissionalPerfil: (profissional: Omit<Profissional, 'id' | 'userId' | 'status' | 'nivel' | 'avaliacaoMedia' | 'taxaComparecimento' | 'faltas' | 'tempoRespostaMin' | 'ganhosMes' | 'saldo'>) => { ok: boolean; error?: string }
   createDemanda: (data: Omit<Demanda, 'id' | 'createdAt' | 'status' | 'categoria'>) => Demanda
+  publicarVaga: (data: Omit<Demanda, 'id' | 'createdAt' | 'status' | 'categoria'>) => Demanda
+  candidatar: (demandaId: string, profissionalId: string) => { ok: boolean; error?: string }
   convidarParaMissao: (input: {
     demandaId?: string | null
     profissionalId: string
@@ -572,6 +574,81 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       })
 
       return demanda
+    },
+
+    publicarVaga(data) {
+      const demanda: Demanda = {
+        ...data,
+        id: uid('dem'),
+        categoria: cargoCategoria(data.cargo),
+        status: 'aberta',
+        createdAt: nowIso(),
+      }
+      update((s) => ({
+        ...s,
+        demandas: [demanda, ...s.demandas],
+        auditLogs: [
+          {
+            id: uid('log'),
+            at: nowIso(),
+            actorId: s.sessionUserId ?? 'system',
+            action: 'publicar_vaga',
+            detail: `${demanda.cargo} · ${demanda.endereco.cidade}`,
+          },
+          ...s.auditLogs,
+        ],
+      }))
+      return demanda
+    },
+
+    candidatar(demandaId, profissionalId) {
+      const atual = state
+      const demanda = atual.demandas.find((item) => item.id === demandaId)
+      const profissional = atual.profissionais.find((item) => item.id === profissionalId)
+      if (!demanda || !profissional) return { ok: false, error: 'Vaga não encontrada.' }
+      if (demanda.status !== 'aberta') return { ok: false, error: 'Esta vaga não está aberta.' }
+      const empresa = atual.empresas.find((item) => item.id === demanda.empresaId)
+      if (empresa?.bloqueados.includes(profissionalId)) {
+        return { ok: false, error: 'Esta empresa não está recebendo a sua candidatura.' }
+      }
+      const distancia = Math.round(distanciaKm(profissional.endereco, demanda.endereco) * 10) / 10
+      update((s) => {
+        const existente = s.candidaturas.find(
+          (item) => item.demandaId === demandaId && item.profissionalId === profissionalId,
+        )
+        if (existente?.status === 'aceita' || existente?.status === 'confirmada') return s
+        const candidaturas = existente
+          ? s.candidaturas.map((item) =>
+              item.id === existente.id ? { ...item, status: 'aceita' as const } : item,
+            )
+          : [
+              {
+                id: uid('cand'),
+                demandaId,
+                profissionalId,
+                status: 'aceita' as const,
+                score: 0,
+                distanciaKm: Number.isFinite(distancia) ? distancia : 0,
+                createdAt: nowIso(),
+              },
+              ...s.candidaturas,
+            ]
+        return {
+          ...s,
+          candidaturas,
+          auditLogs: [
+            {
+              id: uid('log'),
+              at: nowIso(),
+              actorId: s.sessionUserId ?? 'system',
+              action: 'candidatar_vaga',
+              detail: `${profissional.nome} — ${demanda.cargo}`,
+            },
+            ...s.auditLogs,
+          ],
+        }
+      })
+      return { ok: true }
     },
 
     convidarParaMissao(input) {

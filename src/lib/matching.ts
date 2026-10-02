@@ -23,6 +23,14 @@ function haversineKm(
   return R * 2 * Math.atan2(Math.sqrt(x), Math.sqrt(1 - x))
 }
 
+export function distanciaKm(
+  a: { lat: number; lng: number },
+  b: { lat: number; lng: number },
+): number {
+  if (![a.lat, a.lng, b.lat, b.lng].every((n) => Number.isFinite(n))) return Number.NaN
+  return haversineKm(a, b)
+}
+
 function disponibilidadeOk(p: Profissional, demanda: Demanda): boolean {
   const d = new Date(demanda.data + 'T12:00:00')
   const today = new Date()

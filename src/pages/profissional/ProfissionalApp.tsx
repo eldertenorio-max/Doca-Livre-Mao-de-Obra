@@ -5,6 +5,7 @@ import { ContratoViewer } from '../../components/ContratoViewer'
 import { DocumentacaoProfissionalPanel } from '../../components/DocumentacaoPanel'
 import { LevelBadge } from '../../components/LevelBadge'
 import { cargoLabel } from '../../data/categories'
+import { distanciaKm } from '../../lib/matching'
 import { checklistProfissional, resumoDocumental } from '../../lib/documentos'
 import { pendenciasParaIniciar } from '../../lib/dossieTemporario'
 import { BRAND_PRODUCT_NAME, LOGO_DOCA_LIVRE_SRC } from '../../lib/brandAssets'
@@ -15,6 +16,7 @@ import './perfil.css'
 
 const TABS = [
   { id: 'inicio', label: 'Início', icon: <IconeInicio /> },
+  { id: 'vagas', label: 'Vagas', icon: <IconeVagas /> },
   { id: 'oportunidades', label: 'Oportunidades', icon: <IconeOportunidades /> },
   { id: 'agenda', label: 'Missões', icon: <IconeMissoes /> },
   { id: 'financeiro', label: 'Financeiro', icon: <IconeFinanceiro /> },
@@ -130,6 +132,7 @@ export function ProfissionalApp({ onLogout }: { onLogout: () => void }) {
         <main className="cf-main">
           <div className="cf-wrap">
             {tab === 'inicio' && <HomeTab onIr={setTab} />}
+            {tab === 'vagas' && <VagasTab />}
             {tab === 'oportunidades' && <OportunidadesTab />}
             {tab === 'agenda' && <AgendaTab />}
             {tab === 'financeiro' && <FinanceiroTab />}
@@ -153,6 +156,16 @@ function IconeInicio() {
   return (
     <IconeBase>
       <path d="M4 11.5 12 4l8 7.5V20a1 1 0 0 1-1 1h-5v-6H10v6H5a1 1 0 0 1-1-1v-8.5z" stroke="currentColor" strokeWidth="1.75" strokeLinejoin="round" />
+    </IconeBase>
+  )
+}
+
+function IconeVagas() {
+  return (
+    <IconeBase>
+      <rect x="6" y="3.5" width="12" height="17" rx="2" stroke="currentColor" strokeWidth="1.75" />
+      <path d="M9 3.5h6v2.8H9z" stroke="currentColor" strokeWidth="1.75" />
+      <path d="M9 11h6M9 14.5h4" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" />
     </IconeBase>
   )
 }
@@ -306,9 +319,14 @@ function HomeTab({ onIr }: { onIr: (aba: TabId) => void }) {
         <section className="td-home-card">
           <header>
             <h3>Para você agora</h3>
-            <button type="button" className="td-home-link" onClick={() => onIr('oportunidades')}>
-              Ver todas
-            </button>
+            <div className="td-home-links">
+              <button type="button" className="td-home-link" onClick={() => onIr('vagas')}>
+                Vagas
+              </button>
+              <button type="button" className="td-home-link" onClick={() => onIr('oportunidades')}>
+                Ver todas
+              </button>
+            </div>
           </header>
           {fila.map(({ c, dem, emp }) => (
             <button
@@ -329,7 +347,7 @@ function HomeTab({ onIr }: { onIr: (aba: TabId) => void }) {
             </button>
           ))}
           {fila.length === 0 && (
-            <p className="td-home-vazio">Nenhuma oferta ou missão agora. Mantenha a disponibilidade atualizada.</p>
+            <p className="td-home-vazio">Nenhuma oferta ou missão agora. As vagas publicadas ficam na aba Vagas.</p>
           )}
         </section>
 
@@ -384,6 +402,117 @@ function HomeTab({ onIr }: { onIr: (aba: TabId) => void }) {
       </section>
     </div>
   )
+}
+
+function VagasTab() {
+  const { currentProfissional, state, candidatar } = useStore()
+  const prof = currentProfissional!
+  const [aviso, setAviso] = useState<{ id: string; texto: string; ok: boolean } | null>(null)
+  const aprovado = prof.status === 'aprovado'
+
+  const vagas = useMemo(() => {
+    return state.demandas
+      .filter((demanda) => demanda.status === 'aberta')
+      .map((demanda) => {
+        const empresa = state.empresas.find((item) => item.id === demanda.empresaId)
+        const candidatura = state.candidaturas.find(
+          (item) => item.demandaId === demanda.id && item.profissionalId === prof.id,
+        )
+        const dist = distanciaKm(prof.endereco, demanda.endereco)
+        return { demanda, empresa, candidatura, dist }
+      })
+      .filter((item) => {
+        if (item.empresa?.bloqueados.includes(prof.id)) return false
+        const mesmaCidade = semAcento(item.demanda.endereco.cidade) === semAcento(prof.endereco.cidade)
+        const noRaio = Number.isFinite(item.dist) && item.dist <= prof.raioKm
+        const semCoordenada = !Number.isFinite(item.dist)
+        return mesmaCidade || noRaio || semCoordenada
+      })
+      .sort((a, b) => {
+        const da = Number.isFinite(a.dist) ? a.dist : 9999
+        const db = Number.isFinite(b.dist) ? b.dist : 9999
+        return da - db
+      })
+  }, [prof.endereco, prof.id, prof.raioKm, state.candidaturas, state.demandas, state.empresas])
+
+  function aplicar(demandaId: string) {
+    const resp = candidatar(demandaId, prof.id)
+    setAviso({
+      id: demandaId,
+      ok: resp.ok,
+      texto: resp.ok
+        ? 'Candidatura enviada. O contrato só nasce quando a empresa confirma.'
+        : resp.error || 'Não foi possível enviar a candidatura.',
+    })
+  }
+
+  return (
+    <div className="td-vagas">
+      <header className="td-vagas-intro">
+        <p className="td-home-kicker">Vagas</p>
+        <h2>Vagas abertas</h2>
+        <p>
+          Empresas tomadoras em {prof.endereco.cidade} e até {prof.raioKm} km. A candidatura registra o interesse.
+        </p>
+      </header>
+      {vagas.length === 0 && (
+        <section className="td-vaga">
+          <strong>Nenhuma vaga no seu raio agora.</strong>
+          <p>Quando uma empresa publicar uma vaga em {prof.endereco.cidade} ou até {prof.raioKm} km, ela aparece aqui.</p>
+        </section>
+      )}
+      {vagas.map(({ demanda, empresa, candidatura, dist }) => {
+        const enviada = candidatura?.status === 'aceita' || candidatura?.status === 'confirmada'
+        const confirmada = candidatura?.status === 'confirmada'
+        return (
+          <article key={demanda.id} className="td-vaga">
+            <div className="td-vaga-topo">
+              <div>
+                <strong>{cargoLabel(demanda.cargo)}</strong>
+                <p className="td-vaga-empresa">{empresa?.nomeFantasia ?? 'Empresa tomadora'}</p>
+              </div>
+              <b className="td-vaga-valor">{demanda.valorDiaria ? `${moeda(demanda.valorDiaria)} / dia` : 'A combinar'}</b>
+            </div>
+            <p className="td-vaga-meta">
+              {demanda.endereco.cidade}/{demanda.endereco.estado}
+              {Number.isFinite(dist) ? ` · ${dist.toLocaleString('pt-BR', { maximumFractionDigits: 1 })} km` : ''}
+              {' · '}
+              {dataCurta(demanda.data)}
+              {demanda.dataFim ? ` a ${dataCurta(demanda.dataFim)}` : ''}
+              {' · '}
+              {demanda.horaInicio}–{demanda.horaFim}
+            </p>
+            <p>{demanda.atividades || demanda.descricao}</p>
+            {(demanda.requisitos.length > 0 || demanda.beneficios) && (
+              <div className="td-vaga-chips">
+                {demanda.requisitos.map((item) => (
+                  <span key={item} className="td-vaga-chip">{item}</span>
+                ))}
+                {demanda.beneficios && <span className="td-vaga-chip td-vaga-chip--soft">{demanda.beneficios}</span>}
+              </div>
+            )}
+            <div className="td-vaga-acoes">
+              {confirmada ? (
+                <button type="button" className="td-vaga-btn" disabled>Você está nesta missão</button>
+              ) : enviada ? (
+                <button type="button" className="td-vaga-btn" disabled>Candidatura enviada</button>
+              ) : (
+                <button type="button" className="td-vaga-btn" disabled={!aprovado} onClick={() => aplicar(demanda.id)}>
+                  {aprovado ? 'Candidatar-se' : 'Cadastro em análise'}
+                </button>
+              )}
+              {candidatura?.status === 'pendente' && aprovado && <span className="muted">A empresa já enviou um convite.</span>}
+            </div>
+            {aviso?.id === demanda.id && <p className={aviso.ok ? 'success' : 'error'}>{aviso.texto}</p>}
+          </article>
+        )
+      })}
+    </div>
+  )
+}
+
+function semAcento(value: string) {
+  return value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
 }
 
 function OportunidadesTab() {

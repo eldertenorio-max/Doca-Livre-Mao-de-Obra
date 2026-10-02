@@ -372,7 +372,7 @@ function diasEntre(inicio: string, fim: string) {
 }
 
 export function ContratarFreelancer({ onLogout }: { onLogout: () => void }) {
-  const { currentEmpresa, state, convidarParaMissao, confirmCandidato } = useStore()
+  const { currentEmpresa, state, convidarParaMissao, confirmCandidato, publicarVaga } = useStore()
   const empresa = currentEmpresa!
   const [cargoId, setCargoId] = useState('empilhadeira')
   const [requisitos, setRequisitos] = useState<string[]>(() => requisitosDoCargo('empilhadeira').padrao)
@@ -412,6 +412,8 @@ export function ContratarFreelancer({ onLogout }: { onLogout: () => void }) {
   const [analisados, setAnalisados] = useState(0)
   const [aberto, setAberto] = useState<string | null>(null)
   const [missaoId, setMissaoId] = useState<string | null>(null)
+  const [vagaPublicadaChave, setVagaPublicadaChave] = useState('')
+  const [avisoPublicacao, setAvisoPublicacao] = useState('')
   const [modelo, setModelo] = useState<ModeloMissao | null>(() => lerModelo(empresa.id))
   const [aba, setAba] = useState<AbaEmpresa>('missao')
   const [menuFixo, setMenuFixo] = useState(false)
@@ -518,47 +520,104 @@ export function ContratarFreelancer({ onLogout }: { onLogout: () => void }) {
 
   const beneficiosTexto = beneficios.join(', ')
 
+  function chaveDaVaga(remuneracaoFinal = finalizarMoeda(remuneracao)) {
+    return [
+      cargoId,
+      requisitos.join('|'),
+      diferenciais.join('|'),
+      inicio,
+      fim,
+      horaInicio,
+      horaFim,
+      String(quantidade),
+      motivo,
+      atividades.trim(),
+      remuneracaoFinal,
+      beneficiosTexto,
+      cidade,
+      estado,
+      observacoes.trim(),
+    ].join('§')
+  }
+
+  function pedidoDaVaga(remuneracaoFinal: string) {
+    const cidadeMissao = cidade || empresa.endereco.cidade
+    return {
+      empresaId: empresa.id,
+      cargo: cargoId,
+      quantidade,
+      data: inicio,
+      dataFim: fim,
+      horaInicio,
+      horaFim,
+      endereco: {
+        ...empresa.endereco,
+        cidade: cidadeMissao,
+        estado: estado || empresa.endereco.estado,
+        ...pontoOperacao(cidadeMissao, estado, empresa, [
+          ...state.empresas.map((item) => item.endereco),
+          ...state.profissionais.map((item) => item.endereco),
+        ]),
+      },
+      valorDiaria: valorNumero(remuneracaoFinal),
+      descricao: atividades,
+      epis: beneficiosTexto,
+      observacoes,
+      requisitos,
+      diferenciais,
+      motivo,
+      atividades,
+      beneficios: beneficiosTexto,
+    }
+  }
+
+  function validarPedido() {
+    if (!empresaValidada) {
+      setErro('A empresa tomadora precisa estar validada antes de publicar uma missão temporária.')
+      return null
+    }
+    if (!cargoId) {
+      setErro('Escolha o cargo.')
+      return null
+    }
+    if (!motivo) {
+      setErro('Informe o motivo da contratação temporária. Sem isso a missão não pode ser publicada.')
+      return null
+    }
+    if (!atividades.trim()) {
+      setErro('Descreva as atividades que serão realizadas.')
+      return null
+    }
+    const remuneracaoFinal = finalizarMoeda(remuneracao)
+    if (!remuneracaoFinal) {
+      setErro('Informe a remuneração prevista. Ela entra no contrato com a empresa tomadora.')
+      return null
+    }
+    setRemuneracao(remuneracaoFinal)
+    if (quantidade < 1) {
+      setErro('Informe quantos trabalhadores a missão precisa.')
+      return null
+    }
+    if (!horaInicio || !horaFim) {
+      setErro('Informe a jornada.')
+      return null
+    }
+    const aviso = validarNecessidade('temporario', inicio, fim)
+    if (aviso.nivel === 'bloqueio') {
+      setErro(aviso.texto)
+      return null
+    }
+    setErro('')
+    return remuneracaoFinal
+  }
+
   function alternarBeneficio(item: string) {
     setBeneficios((atual) => (atual.includes(item) ? atual.filter((b) => b !== item) : [...atual, item]))
   }
 
   function analisar() {
-    if (!empresaValidada) {
-      setErro('A empresa tomadora precisa estar validada antes de publicar uma missão temporária.')
-      return
-    }
-    if (!cargoId) {
-      setErro('Escolha o cargo.')
-      return
-    }
-    if (!motivo) {
-      setErro('Informe o motivo da contratação temporária. Sem isso a missão não pode ser publicada.')
-      return
-    }
-    if (!atividades.trim()) {
-      setErro('Descreva as atividades que serão realizadas.')
-      return
-    }
-    const remuneracaoFinal = finalizarMoeda(remuneracao)
-    if (!remuneracaoFinal) {
-      setErro('Informe a remuneração prevista. Ela entra no contrato com a empresa tomadora.')
-      return
-    }
-    setRemuneracao(remuneracaoFinal)
-    if (quantidade < 1) {
-      setErro('Informe quantos trabalhadores a missão precisa.')
-      return
-    }
-    if (!horaInicio || !horaFim) {
-      setErro('Informe a jornada.')
-      return
-    }
-    const aviso = validarNecessidade('temporario', inicio, fim)
-    if (aviso.nivel === 'bloqueio') {
-      setErro(aviso.texto)
-      return
-    }
-    setErro('')
+    const remuneracaoFinal = validarPedido()
+    if (!remuneracaoFinal) return
     const salvo: ModeloMissao = {
       titulo: `${cargoLabel(cargoId)} — ${cidade || empresa.endereco.cidade}${estado ? `/${estado}` : ''}`,
       cargoId,
@@ -580,7 +639,8 @@ export function ContratarFreelancer({ onLogout }: { onLogout: () => void }) {
     setModelo(salvo)
     setAnalisando(true)
     setResultados(null)
-    setMissaoId(null)
+    const chave = chaveDaVaga(remuneracaoFinal)
+    setMissaoId((atual) => (atual && vagaPublicadaChave === chave ? atual : null))
     if (esperaBusca.current) window.clearTimeout(esperaBusca.current)
     esperaBusca.current = window.setTimeout(() => {
       const busca = analisarCurriculos({
@@ -621,42 +681,27 @@ export function ContratarFreelancer({ onLogout }: { onLogout: () => void }) {
     }, 5000)
   }
 
+  function publicar() {
+    const remuneracaoFinal = validarPedido()
+    if (!remuneracaoFinal) return
+    const chave = chaveDaVaga(remuneracaoFinal)
+    if (missaoId && vagaPublicadaChave === chave) {
+      setAvisoPublicacao('Esta vaga já está publicada. Os colaboradores podem se candidatar.')
+      return
+    }
+    const criada = publicarVaga(pedidoDaVaga(remuneracaoFinal))
+    setMissaoId(criada.id)
+    setVagaPublicadaChave(chave)
+    setAvisoPublicacao('Vaga publicada. Os colaboradores já podem ver e se candidatar.')
+  }
+
   function convidar(item: CurriculoAnalisado) {
-    const cidadeMissao = cidade || empresa.endereco.cidade
     const resp = convidarParaMissao({
       demandaId: missaoId,
       profissionalId: item.profissional.id,
       score: item.score,
       distanciaKm: item.distanciaKm,
-      pedido: missaoId
-        ? undefined
-        : {
-            empresaId: empresa.id,
-            cargo: cargoId,
-            quantidade,
-            data: inicio,
-            dataFim: fim,
-            horaInicio,
-            horaFim,
-            endereco: {
-              ...empresa.endereco,
-              cidade: cidadeMissao,
-              estado: estado || empresa.endereco.estado,
-              ...pontoOperacao(cidadeMissao, estado, empresa, [
-                ...state.empresas.map((item) => item.endereco),
-                ...state.profissionais.map((item) => item.endereco),
-              ]),
-            },
-            valorDiaria: valorNumero(finalizarMoeda(remuneracao)),
-            descricao: atividades,
-            epis: beneficiosTexto,
-            observacoes,
-            requisitos,
-            diferenciais,
-            motivo,
-            atividades,
-            beneficios: beneficiosTexto,
-          },
+      pedido: missaoId ? undefined : pedidoDaVaga(finalizarMoeda(remuneracao)),
     })
     if (resp) setMissaoId(resp.demandaId)
   }
@@ -665,6 +710,7 @@ export function ContratarFreelancer({ onLogout }: { onLogout: () => void }) {
   const incompletos = resultados?.filter((r) => r.situacao !== 'bloqueado' && !r.atendeObrigatorios) ?? []
   const bloqueadosPeriodo = resultados?.filter((r) => r.situacao === 'bloqueado') ?? []
   const atendemTudo = compativeis.length
+  const vagaJaPublicada = Boolean(missaoId && vagaPublicadaChave === chaveDaVaga())
 
   function conviteDe(profissionalId: string) {
     if (!missaoId) return null
@@ -999,6 +1045,7 @@ export function ContratarFreelancer({ onLogout }: { onLogout: () => void }) {
               </div>
             )}
             {erro && <p className="error">{erro}</p>}
+            {avisoPublicacao && <p className="success">{avisoPublicacao}</p>}
             <div className="cf-actions">
               <button
                 type="button"
@@ -1008,7 +1055,15 @@ export function ContratarFreelancer({ onLogout }: { onLogout: () => void }) {
               >
                 {analisando ? 'Analisando currículos' : 'Encontrar profissionais'}
               </button>
-              <span className="muted">A análise mostra o encaixe. A empresa decide o convite.</span>
+              <button
+                type="button"
+                className="cf-btn cf-btn--dark"
+                onClick={publicar}
+                disabled={analisando || avisoPrazo.nivel === 'bloqueio' || !motivo || !empresaValidada || vagaJaPublicada}
+              >
+                {vagaJaPublicada ? 'Vaga publicada' : 'Publicar vaga'}
+              </button>
+              <span className="muted">Publicar deixa a vaga visível para o colaborador se candidatar. A análise mostra o encaixe.</span>
             </div>
           </section>
 
@@ -1191,7 +1246,7 @@ function PainelMissoes({ empresaId }: { empresaId: string }) {
       {missoes.length === 0 && (
         <div className="cf-card">
           <strong>Nenhuma missão ainda.</strong>
-          <p className="muted">A vaga nasce quando a empresa convida um profissional.</p>
+          <p className="muted">Publique a vaga para os colaboradores verem e se candidatarem.</p>
         </div>
       )}
       <div className="cf-mission-list">
@@ -1213,7 +1268,7 @@ function PainelMissoes({ empresaId }: { empresaId: string }) {
                 {missao.valorDiaria.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })} por dia
               </p>
               {convites.length === 0 ? (
-                <p className="muted">Nenhum convite nesta missão.</p>
+                <p className="muted">Nenhuma candidatura ainda.</p>
               ) : (
                 <ul className="cf-invite-list">
                   {convites.map((convite) => {
@@ -1390,7 +1445,7 @@ function rotuloStatusMissao(status: string) {
 }
 
 function rotuloConvite(status: string) {
-  if (status === 'aceita') return 'Tem interesse'
+  if (status === 'aceita') return 'Candidatou-se'
   if (status === 'confirmada') return 'Contrato gerado'
   if (status === 'recusada') return 'Sem interesse'
   if (status === 'cancelada') return 'Cancelado'

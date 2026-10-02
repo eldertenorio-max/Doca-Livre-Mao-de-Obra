@@ -608,6 +608,16 @@
   cursor: not-allowed;
 }
 
+.cf-actions .cf-btn--dark {
+  border-radius: 10px;
+  padding: 12px 16px;
+}
+
+.cf-actions .cf-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
 .cf-results {
   display: grid;
   gap: 16px;
