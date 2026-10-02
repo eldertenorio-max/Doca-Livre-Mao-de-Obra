@@ -1,0 +1,268 @@
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  height: 100dvh;
+}
+
+.cf-shell,
+.auth-screen,
+.auth-screen--scroll,
+.portal-login,
+.portal-select,
+.pconfig {
+  height: 100%;
+  min-height: 0;
+  overflow: auto;
+}
+
+.cf-shell {
+  overflow: hidden;
+}
+
+@media (max-width: 860px) {
+  .portal-select,
+  .portal-login,
+  .auth-screen,
+  .pconfig {
+    align-items: flex-start;
+    justify-content: flex-start;
+    padding: max(16px, env(safe-area-inset-top)) 14px calc(24px + env(safe-area-inset-bottom));
+  }
+
+  .auth-card,
+  .auth-card--wide,
+  .portal-login__card {
+    width: 100%;
+    padding: 20px 16px;
+  }
+
+  .form-grid,
+  .role-grid,
+  .bib-pastas,
+  .bib-form {
+    grid-template-columns: 1fr;
+  }
+
+  .cf-topbar {
+    height: calc(54px + env(safe-area-inset-top, 0px));
+    padding: env(safe-area-inset-top, 0px) 8px 0 6px;
+    gap: 8px;
+  }
+
+  .cf-topbar-logo {
+    height: 32px;
+    max-width: min(168px, 46vw);
+  }
+
+  .cf-topbar-menu,
+  .cf-sair {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  .cf-topbar-user > span:not(.cf-avatar-topo) {
+    display: none;
+  }
+
+  .cf-menu.cf-menu--pinned {
+    padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .cf-menu-link {
+    min-height: 48px;
+    justify-content: flex-start;
+    padding: 12px 10px;
+  }
+
+  .cf-main {
+    overflow-x: hidden;
+    overflow-y: auto;
+    padding: 14px 12px calc(108px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .cf-intro h1,
+  .td-vagas-intro h2,
+  .td-home h2,
+  .panel h2 {
+    font-size: 1.35rem;
+    overflow-wrap: anywhere;
+  }
+
+  .cf-field input,
+  .cf-field select,
+  .cf-field textarea,
+  .field input:not([type='checkbox']):not([type='radio']),
+  .field select,
+  .field textarea {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    font-size: 16px;
+  }
+
+  .cf-actions {
+    align-items: stretch;
+  }
+
+  .cf-actions .cf-primary,
+  .cf-actions .cf-btn,
+  .cf-actions .muted {
+    flex: 1 1 100%;
+  }
+
+  .cf-vaga-topo,
+  .cf-modelo,
+  .bib-peca header,
+  .bib-alerta,
+  .list-item {
+    align-items: flex-start;
+  }
+
+  .cf-vaga-topo {
+    flex-direction: column;
+  }
+
+  .cf-vaga-valor {
+    align-self: flex-start;
+  }
+
+  .cf-modelo {
+    width: 100%;
+  }
+
+  .cf-modelo > button:first-child {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .cf-mission-chip {
+    white-space: normal;
+    border-radius: 14px;
+  }
+
+  .cf-stat strong {
+    font-size: 1.45rem;
+  }
+
+  .cf-bar {
+    grid-template-columns: 1fr;
+  }
+
+  .cf-bar small {
+    grid-column: 1;
+  }
+
+  .cf-missao-etapas {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    width: 100%;
+    justify-content: stretch;
+  }
+
+  .cf-missao-etapa:not(:last-child)::after {
+    display: none;
+  }
+
+  .cf-pro-id h3,
+  .cf-pro-id p,
+  .cf-vaga-nome strong,
+  .cf-vaga-nome small {
+    overflow-wrap: anywhere;
+  }
+
+  .mapa-page {
+    min-width: 0;
+  }
+
+  .mapa-palco {
+    height: min(52dvh, 420px);
+    min-height: 240px;
+  }
+
+  .mapa-ficha {
+    max-height: min(280px, 46dvh);
+  }
+
+  .mapa-fatos {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .mapa-flutuante {
+    width: min(348px, calc(100vw - 24px));
+  }
+
+  .td-hero {
+    height: min(58dvh, 480px);
+    min-height: 280px;
+    border-radius: 20px;
+  }
+
+  .td-home-hero {
+    gap: 12px;
+    padding: 14px 14px 14px 18px;
+  }
+
+  .td-home-foto {
+    width: 72px;
+    height: 72px;
+  }
+
+  .td-home-stat,
+  .td-vaga-btn,
+  .td-fin-filtros button,
+  .row-actions .btn {
+    min-height: 44px;
+  }
+
+  .td-vaga-acoes .td-vaga-btn {
+    flex: 1 1 160px;
+  }
+
+  .td-empresa-folha,
+  .pc-folha {
+    width: 100%;
+    max-height: calc(100dvh - 24px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+  }
+
+  .td-empresa-fundo,
+  .pc-fundo {
+    padding: max(12px, env(safe-area-inset-top)) 12px max(12px, env(safe-area-inset-bottom));
+  }
+
+  .td-empresa-mapa {
+    height: 200px;
+  }
+
+  .opportunity-card,
+  .panel {
+    overflow-wrap: anywhere;
+  }
+
+  .row-actions {
+    width: 100%;
+  }
+
+  .row-actions .btn {
+    flex: 1 1 140px;
+  }
+}
+
+@media (max-width: 420px) {
+  .td-home-stats,
+  .td-vaga-fatos,
+  .cf-vaga-fatos,
+  .td-empresa-fatos,
+  .cf-missao-etapas {
+    grid-template-columns: 1fr;
+  }
+
+  .cf-topbar-logo {
+    max-width: 38vw;
+  }
+}
