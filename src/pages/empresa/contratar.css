@@ -1856,11 +1856,40 @@ button.cf-vaga-nome:disabled {
   border-bottom: 0;
 }
 
+.cf-vaga-aceite,
+.cf-vaga-espera {
+  grid-column: 1 / -1;
+  margin-top: 6px;
+}
+
+.cf-vaga-espera {
+  color: #6b7280;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.cf-vaga-aceite {
+  justify-self: start;
+  border-radius: 10px;
+  padding: 8px 12px;
+}
+
+.cf-missao-lado {
+  display: grid;
+  gap: 8px;
+  min-width: 180px;
+}
+
 .cf-missao-quem {
   display: flex;
   align-items: center;
   gap: 12px;
-  min-width: 180px;
+  min-width: 0;
+}
+
+.cf-missao-lado .cf-vaga-aceite,
+.cf-missao-lado .cf-vaga-espera {
+  grid-column: auto;
 }
 
 .cf-missao-pessoa .cf-vaga-avatar,

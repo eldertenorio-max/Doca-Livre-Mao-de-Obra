@@ -2,7 +2,7 @@ import { createSeedState } from './seed'
 import { cadastroEttInicial } from './dossieTemporario'
 import type { AppState } from './types'
 
-const STORAGE_KEY = 'doca-livre-mao-de-obra-v7'
+export const STORAGE_KEY = 'doca-livre-mao-de-obra-v7'
 
 export function loadState(): AppState {
   try {

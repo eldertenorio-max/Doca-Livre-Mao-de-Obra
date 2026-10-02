@@ -2,6 +2,7 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useState,
   type ReactNode,
@@ -18,7 +19,7 @@ import {
 import { distanciaKm, matchDemanda } from './matching'
 import { canAccessSistema, isLocalSuperUser } from './portalPermissoes'
 import { nowIso, uid } from './seed'
-import { loadState, resetState, saveState } from './storage'
+import { loadState, resetState, saveState, STORAGE_KEY } from './storage'
 import type {
   AppState,
   Avaliacao,
@@ -177,6 +178,20 @@ function finishDemandaState(s: AppState, demandaId: string): AppState {
 
 export function StoreProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<AppState>(() => loadState())
+
+  useEffect(() => {
+    function aoStorage(event: StorageEvent) {
+      if (event.key !== STORAGE_KEY || !event.newValue) return
+      try {
+        const remoto = JSON.parse(event.newValue) as AppState
+        setState((atual) => ({ ...remoto, sessionUserId: atual.sessionUserId }))
+      } catch {
+        /* a outra aba gravou um estado ilegível */
+      }
+    }
+    window.addEventListener('storage', aoStorage)
+    return () => window.removeEventListener('storage', aoStorage)
+  }, [])
 
   const update = useCallback((fn: (s: AppState) => AppState) => {
     setState((prev) => persist(fn(prev)))
@@ -753,7 +768,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     confirmCandidato(candidaturaId) {
       update((s) => {
         const cand = s.candidaturas.find((c) => c.id === candidaturaId)
-        if (!cand) return s
+        if (!cand || cand.status !== 'aceita') return s
         const demanda = s.demandas.find((d) => d.id === cand.demandaId)
         const profissional = s.profissionais.find((p) => p.id === cand.profissionalId)
         const empresa = demanda

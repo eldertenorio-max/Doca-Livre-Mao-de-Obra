@@ -1,6 +1,6 @@
 import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type ChangeEvent, type ReactNode } from 'react'
 import { BibliotecaDocumental } from '../../components/BibliotecaDocumental'
-import { CATEGORIES, allCargos, cargoLabel } from '../../data/categories'
+import { CATEGORIES, allCargos, cargoCategoria, cargoLabel } from '../../data/categories'
 import { LOCAIS_OPERACAO } from '../../data/cidades'
 import { analisarCurriculos, requisitosDoCargo, rotuloAnos, type CurriculoAnalisado } from '../../lib/analiseCurriculo'
 import { abrirCurriculoPdf } from '../../lib/curriculoPdf'
@@ -433,7 +433,7 @@ function diasEntre(inicio: string, fim: string) {
 }
 
 export function ContratarFreelancer({ onLogout }: { onLogout: () => void }) {
-  const { currentEmpresa, state, convidarParaMissao, confirmCandidato, publicarVaga } = useStore()
+  const { currentEmpresa, state, convidarParaMissao, confirmCandidato, publicarVaga, patchState } = useStore()
   const empresa = currentEmpresa!
   const [cargoId, setCargoId] = useState('empilhadeira')
   const [requisitos, setRequisitos] = useState<string[]>(() => requisitosDoCargo('empilhadeira').padrao)
@@ -779,10 +779,34 @@ export function ContratarFreelancer({ onLogout }: { onLogout: () => void }) {
     const chave = chaveDaVaga(remuneracaoFinal)
     if (missaoId && vagaPublicadaChave === chave) {
       setAvisoPublicacao('Esta vaga já está publicada. Os colaboradores podem se candidatar.')
+      setAba('vagas')
       return
     }
-    const criada = publicarVaga(pedidoDaVaga(remuneracaoFinal))
-    setMissaoId(criada.id)
+    const pedido = pedidoDaVaga(remuneracaoFinal)
+    const aberta = missaoId
+      ? state.demandas.find((item) => item.id === missaoId && item.empresaId === empresa.id && item.status === 'aberta')
+      : undefined
+    if (aberta) {
+      patchState((s) => ({
+        ...s,
+        demandas: s.demandas.map((item) =>
+          item.id === aberta.id
+            ? {
+                ...item,
+                ...pedido,
+                id: item.id,
+                createdAt: item.createdAt,
+                status: item.status,
+                categoria: cargoCategoria(pedido.cargo),
+              }
+            : item,
+        ),
+      }))
+      setMissaoId(aberta.id)
+    } else {
+      const criada = publicarVaga(pedido)
+      setMissaoId(criada.id)
+    }
     setVagaPublicadaChave(chave)
     setAvisoPublicacao('Vaga publicada. Os colaboradores já podem ver e se candidatar.')
     setAba('vagas')
@@ -1472,6 +1496,12 @@ function PainelVagas({ empresaId, onPublicar }: { empresaId: string; onPublicar:
                             </small>
                           </button>
                           <span className={`cf-vaga-selo cf-vaga-selo--${inscrito.status}`}>{rotuloConvite(inscrito.status)}</span>
+                          <AceiteCandidatura
+                            candidaturaId={inscrito.id}
+                            status={inscrito.status}
+                            profissionalId={inscrito.profissionalId}
+                            requisitos={vaga.requisitos}
+                          />
                         </li>
                       )
                     })}
@@ -1593,6 +1623,7 @@ function PainelMissoes({ empresaId }: { empresaId: string }) {
                   const contrato = state.contratos.find((item) => item.candidaturaId === convite.id)
                   return (
                     <li key={convite.id} className="cf-missao-pessoa">
+                      <div className="cf-missao-lado">
                       <div className="cf-missao-quem">
                         <span className="cf-vaga-avatar">
                           {pessoa?.foto ? <img src={pessoa.foto} alt="" /> : iniciaisNome(nome)}
@@ -1613,6 +1644,13 @@ function PainelMissoes({ empresaId }: { empresaId: string }) {
                             {contrato?.numero ? ` · Contrato ${contrato.numero}` : ''}
                           </small>
                         </button>
+                      </div>
+                      <AceiteCandidatura
+                        candidaturaId={convite.id}
+                        status={convite.status}
+                        profissionalId={convite.profissionalId}
+                        requisitos={missao.requisitos}
+                      />
                       </div>
                       {passo < 0 ? (
                         <span className={`cf-vaga-selo cf-vaga-selo--${convite.status}`}>{rotuloConvite(convite.status)}</span>
@@ -1843,6 +1881,32 @@ function PainelDados() {
         </footer>
       </article>
     </section>
+  )
+}
+
+function AceiteCandidatura({
+  candidaturaId,
+  status,
+  profissionalId,
+  requisitos,
+}: {
+  candidaturaId: string
+  status: string
+  profissionalId: string
+  requisitos: string[]
+}) {
+  const { state, confirmCandidato } = useStore()
+  if (status !== 'aceita') return null
+  const pessoa = state.profissionais.find((item) => item.id === profissionalId)
+  if (!pessoa) return null
+  const docs = resumoDocumental(checklistProfissional(pessoa, state.documentos, requisitos))
+  if (!docs.completo) {
+    return <span className="cf-vaga-espera">Documentação em {docs.pct}%. O aceite espera a validação.</span>
+  }
+  return (
+    <button type="button" className="cf-btn cf-btn--yellow cf-vaga-aceite" onClick={() => confirmCandidato(candidaturaId)}>
+      Aceitar candidatura
+    </button>
   )
 }
 
