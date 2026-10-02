@@ -38,7 +38,14 @@ import type {
   UserRole,
 } from './types'
 
-type DocumentoCadastro = { tipoId: string; arquivoNome: string; observacao: string }
+type DocumentoCadastro = {
+  tipoId: string
+  arquivoNome: string
+  observacao: string
+  arquivoDados?: string
+  versoNome?: string
+  versoDados?: string
+}
 
 export function avisoAcessoEmpresa(status: Empresa['status']): string | null {
   if (status === 'aprovada') return null
@@ -62,13 +69,16 @@ function documentosDeCadastro(
     tipoId: item.tipoId,
     donoTipo,
     donoId,
-    status: 'aprovado',
+    status: 'em_analise',
     arquivoNome: item.arquivoNome,
+    arquivoDados: item.arquivoDados,
     enviadoEm: agora,
-    revisadoEm: agora,
-    revisadoPor: 'ia',
     observacao: item.observacao,
-    meta: { origem: 'cadastro' },
+    meta: {
+      origem: 'cadastro',
+      ...(item.versoNome ? { versoNome: item.versoNome } : {}),
+      ...(item.versoDados ? { versoDados: item.versoDados } : {}),
+    },
   }))
   return [
     ...novos,

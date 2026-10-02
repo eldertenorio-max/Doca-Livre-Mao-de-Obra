@@ -326,6 +326,8 @@ export type DocumentoRegistro = {
   donoId: string
   status: DocumentoStatus
   arquivoNome?: string
+  /** Cópia para a validação manual. Ausente nos registros antigos. */
+  arquivoDados?: string
   validade?: string
   enviadoEm: string
   revisadoEm?: string

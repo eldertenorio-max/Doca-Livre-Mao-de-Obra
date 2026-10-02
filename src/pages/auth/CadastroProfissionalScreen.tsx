@@ -2,17 +2,10 @@ import { useMemo, useRef, useState, type FormEvent } from 'react'
 import { CATEGORIES } from '../../data/categories'
 import { LOCAIS_OPERACAO } from '../../data/cidades'
 import { AvailabilityToggle } from '../../components/AvailabilityToggle'
-import {
-  ACCEPT_DOCUMENTO_CADASTRO,
-  analisarDocumentoCadastro,
-  lerArquivoCadastro,
-  type FotoDocumento,
-  type PapelDocumento,
-} from '../../lib/analisarDocumentoCadastro'
+import { ACCEPT_DOCUMENTO_CADASTRO, lerArquivoCadastro, type FotoDocumento, type PapelDocumento } from '../../lib/analisarDocumentoCadastro'
 import { coordenadaDaCidade } from '../../lib/coordenadaCidade'
 import { validarChavePix } from '../../lib/pix'
 import { useStore } from '../../lib/store'
-import { SeloDocumento } from './SeloDocumento'
 import type { Disponibilidade } from '../../lib/types'
 
 type Props = {
@@ -22,11 +15,13 @@ type Props = {
 
 type LinhaDoc = {
   arquivo: FotoDocumento | null
-  analise: { aceito: boolean; motivo: string; falha?: boolean } | null
-  analisando: boolean
 }
 
-const LINHA_VAZIA: LinhaDoc = { arquivo: null, analise: null, analisando: false }
+const LINHA_VAZIA: LinhaDoc = { arquivo: null }
+
+function copiaDocumento(foto: FotoDocumento) {
+  return `data:${foto.mime};base64,${foto.dados}`
+}
 
 const CERTS = ['NR11', 'NR35', 'NR10', 'NR20', 'MOPP', 'Munck', 'Ponte Rolante']
 const RAIOS = [10, 25, 50, 100]
@@ -52,7 +47,6 @@ export function CadastroProfissionalScreen({ onBack, onDone }: Props) {
     selfie: LINHA_VAZIA,
   })
   const geracaoDoc = useRef<Partial<Record<PapelDocumento, number>>>({})
-  const [cnhLida, setCnhLida] = useState('')
   const [form, setForm] = useState({
     nome: '',
     cpf: '',
@@ -118,29 +112,29 @@ export function CadastroProfissionalScreen({ onBack, onDone }: Props) {
   }
 
   function documentosProntos() {
-    const frente = linhas.documento.analise?.aceito && linhas.documento.arquivo
-    const face = linhas.selfie.analise?.aceito && linhas.selfie.arquivo
-    const costas = !linhas.verso.arquivo || linhas.verso.analise?.aceito
-    return Boolean(frente && face && costas)
+    return Boolean(linhas.documento.arquivo && linhas.selfie.arquivo)
   }
 
-  function algumAnalisando() {
-    return linhas.documento.analisando || linhas.verso.analisando || linhas.selfie.analisando
-  }
-
-  function documentosAceitos() {
-    const frente = linhas.documento
-    const face = linhas.selfie
-    const costas = linhas.verso
-    if (!frente.arquivo || !frente.analise?.aceito || !face.arquivo || !face.analise?.aceito) return []
-    if (costas.arquivo && !costas.analise?.aceito) return []
+  function documentosEnviados() {
+    const frente = linhas.documento.arquivo
+    const face = linhas.selfie.arquivo
+    const costas = linhas.verso.arquivo
+    if (!frente || !face) return []
     return [
       {
         tipoId: 'rg_cpf',
-        arquivoNome: [frente.arquivo.nome, costas.arquivo?.nome].filter(Boolean).join(', '),
-        observacao: [frente.analise.motivo, costas.analise?.motivo].filter(Boolean).join(' '),
+        arquivoNome: [frente.nome, costas?.nome].filter(Boolean).join(', '),
+        observacao: 'Aguardando validação manual.',
+        arquivoDados: copiaDocumento(frente),
+        versoNome: costas?.nome,
+        versoDados: costas ? copiaDocumento(costas) : undefined,
       },
-      { tipoId: 'selfie', arquivoNome: face.arquivo.nome, observacao: face.analise.motivo },
+      {
+        tipoId: 'selfie',
+        arquivoNome: face.nome,
+        observacao: 'Aguardando validação manual.',
+        arquivoDados: copiaDocumento(face),
+      },
     ]
   }
 
@@ -152,65 +146,22 @@ export function CadastroProfissionalScreen({ onBack, onDone }: Props) {
       setLinhas((atual) => ({ ...atual, [papel]: LINHA_VAZIA }))
       return
     }
-    if (form.nome.trim().length < 3) {
-      setError('Volte e informe o nome antes de enviar o documento.')
-      return
-    }
-    setLinhas((atual) => ({ ...atual, [papel]: { arquivo: { nome: file.name, mime: 'image/jpeg', dados: '' }, analise: null, analisando: true } }))
     try {
       const foto = await lerArquivoCadastro(file)
       if (geracaoDoc.current[papel] !== vez) return
-      setLinhas((atual) => ({ ...atual, [papel]: { arquivo: foto, analise: null, analisando: true } }))
-      const result = await analisarDocumentoCadastro({
-        nome: form.nome.trim(),
-        contexto: 'trabalhador',
-        arquivos: [{ papel, mime: foto.mime, dados: foto.dados }],
-      })
-      if (geracaoDoc.current[papel] !== vez) return
-      if (!result.ok) {
-        setLinhas((atual) => ({
-          ...atual,
-          [papel]: { arquivo: foto, analise: { aceito: false, motivo: result.erro, falha: true }, analisando: false },
-        }))
-        return
-      }
-      if (papel === 'documento' || papel === 'verso') {
-        if (result.aceito && result.cnh) {
-          set('cnhCategoria', result.cnh)
-          setCnhLida(result.cnh)
-        } else if (papel === 'documento') {
-          set('cnhCategoria', '')
-          setCnhLida('')
-        }
-      }
-      setLinhas((atual) => ({
-        ...atual,
-        [papel]: { arquivo: foto, analise: { aceito: result.aceito, motivo: result.motivo }, analisando: false },
-      }))
+      setLinhas((atual) => ({ ...atual, [papel]: { arquivo: foto } }))
     } catch (falha) {
       if (geracaoDoc.current[papel] !== vez) return
-      setLinhas((atual) => ({
-        ...atual,
-        [papel]: {
-          arquivo: atual[papel].arquivo,
-          analise: { aceito: false, motivo: falha instanceof Error ? falha.message : 'Não foi possível ler o arquivo.', falha: true },
-          analisando: false,
-        },
-      }))
+      setLinhas((atual) => ({ ...atual, [papel]: LINHA_VAZIA }))
+      setError(falha instanceof Error ? falha.message : 'Não foi possível ler o arquivo.')
     }
   }
 
   function next() {
     setError('')
-    if (step === 2) {
-      if (algumAnalisando()) {
-        setError('Espere a análise do arquivo terminar.')
-        return
-      }
-      if (!documentosProntos()) {
-        setError('Envie o documento e a selfie. Cada um precisa ser aceito para continuar.')
-        return
-      }
+    if (step === 2 && !documentosProntos()) {
+      setError('Envie o documento e a selfie para continuar.')
+      return
     }
     if (step === 3 && form.profissoes.length === 0) {
       setError('Selecione ao menos um cargo.')
@@ -237,8 +188,8 @@ export function CadastroProfissionalScreen({ onBack, onDone }: Props) {
 
   function submit(e: FormEvent) {
     e.preventDefault()
-    if (!documentosProntos() || algumAnalisando()) {
-      setError('O documento e a selfie precisam ser aceitos antes de concluir.')
+    if (!documentosProntos()) {
+      setError('Envie o documento e a selfie antes de concluir.')
       setStep(2)
       return
     }
@@ -293,7 +244,7 @@ export function CadastroProfissionalScreen({ onBack, onDone }: Props) {
       raioKm: form.raioKm,
       pix: chave.chave,
     }
-    const documentos = documentosAceitos()
+    const documentos = documentosEnviados()
     const res = completing
       ? completeProfissionalPerfil(profissionalPayload, documentos)
       : registerProfissional({ email: form.email, senha: form.senha }, profissionalPayload, documentos)
@@ -336,7 +287,7 @@ export function CadastroProfissionalScreen({ onBack, onDone }: Props) {
         )}
         {step === 2 && (
           <div className="docs-mock">
-            <p>Envie o documento e a selfie. A análise começa na hora e diz se cada arquivo foi aceito.</p>
+            <p>Envie o documento e a selfie. A validação é manual, um arquivo por vez, no painel administrativo.</p>
             <CampoDoc titulo="Documento (RG, CIN, CNH ou CPF)" papel="documento" linha={linhas.documento} onEscolher={escolherFoto} />
             <CampoDoc titulo="Verso, se tiver" papel="verso" linha={linhas.verso} onEscolher={escolherFoto} />
             <CampoDoc titulo="Selfie" papel="selfie" linha={linhas.selfie} onEscolher={escolherFoto} />
@@ -345,11 +296,8 @@ export function CadastroProfissionalScreen({ onBack, onDone }: Props) {
               <input
                 value={form.cnhCategoria}
                 onChange={(e) => set('cnhCategoria', e.target.value.toUpperCase())}
-                placeholder="Lida da CNH anexada, se der para ver"
+                placeholder="Ex: B, C, D, E"
               />
-              {cnhLida && form.cnhCategoria === cnhLida && (
-                <small className="muted">Categoria {cnhLida} lida do arquivo anexado. Dá para corrigir.</small>
-              )}
             </label>
           </div>
         )}
@@ -476,8 +424,8 @@ export function CadastroProfissionalScreen({ onBack, onDone }: Props) {
         )}
 
         {error && <p className="error">{error}</p>}
-        <button type="submit" className="btn btn-accent btn-block" disabled={step === 2 && algumAnalisando()}>
-          {step === ETAPAS.length ? 'Concluir cadastro' : step === 2 && algumAnalisando() ? 'Analisando…' : 'Continuar'}
+        <button type="submit" className="btn btn-accent btn-block">
+          {step === ETAPAS.length ? 'Concluir cadastro' : 'Continuar'}
         </button>
       </form>
     </div>
@@ -506,7 +454,6 @@ function CampoDoc({
         />
         {linha.arquivo && <small className="muted">{linha.arquivo.nome}</small>}
       </label>
-      <SeloDocumento analisando={linha.analisando} analise={linha.analise} />
     </div>
   )
 }

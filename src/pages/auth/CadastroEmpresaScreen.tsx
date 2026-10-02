@@ -1,9 +1,8 @@
 import { useMemo, useRef, useState, type FormEvent } from 'react'
 import { LOCAIS_OPERACAO } from '../../data/cidades'
-import { ACCEPT_DOCUMENTO_CADASTRO, analisarDocumentoCadastro, lerArquivoEmpresa } from '../../lib/analisarDocumentoCadastro'
+import { ACCEPT_DOCUMENTO_CADASTRO, lerArquivoEmpresa, type FotoDocumento } from '../../lib/analisarDocumentoCadastro'
 import { coordenadaDaCidade } from '../../lib/coordenadaCidade'
 import { useStore } from '../../lib/store'
-import { SeloDocumento } from './SeloDocumento'
 import type { EmpresaTipo } from '../../lib/types'
 
 type Props = {
@@ -34,12 +33,14 @@ const DOCS_EMPRESA_CADASTRO = [
 type DocEmpresaId = (typeof DOCS_EMPRESA_CADASTRO)[number]['id']
 
 type EstadoDoc = {
-  arquivo: string
-  analise: { aceito: boolean; motivo: string; falha?: boolean } | null
-  analisando: boolean
+  arquivo: FotoDocumento | null
 }
 
-const DOC_VAZIO: EstadoDoc = { arquivo: '', analise: null, analisando: false }
+const DOC_VAZIO: EstadoDoc = { arquivo: null }
+
+function copiaDocumento(foto: FotoDocumento) {
+  return `data:${foto.mime};base64,${foto.dados}`
+}
 
 const ETAPAS = [
   'Dados da empresa',
@@ -91,20 +92,20 @@ export function CadastroEmpresaScreen({ onBack, onDone }: Props) {
     setForm((f) => ({ ...f, [key]: value }))
   }
 
-  function documentosAceitos() {
-    return DOCS_EMPRESA_CADASTRO.filter((item) => docs[item.id].analise?.aceito).map((item) => ({
-      tipoId: item.id,
-      arquivoNome: docs[item.id].arquivo,
-      observacao: docs[item.id].analise?.motivo || '',
-    }))
+  function documentosEnviados() {
+    return DOCS_EMPRESA_CADASTRO.filter((item) => docs[item.id].arquivo).map((item) => {
+      const foto = docs[item.id].arquivo
+      return {
+        tipoId: item.id,
+        arquivoNome: foto?.nome || '',
+        observacao: 'Aguardando validação manual.',
+        arquivoDados: foto ? copiaDocumento(foto) : undefined,
+      }
+    })
   }
 
-  function todosDocumentosAceitos() {
-    return DOCS_EMPRESA_CADASTRO.every((item) => docs[item.id].analise?.aceito)
-  }
-
-  function algumDocumentoAnalisando() {
-    return DOCS_EMPRESA_CADASTRO.some((item) => docs[item.id].analisando)
+  function todosDocumentosEnviados() {
+    return DOCS_EMPRESA_CADASTRO.every((item) => docs[item.id].arquivo)
   }
 
   async function escolherDocumento(id: DocEmpresaId, file: File | undefined) {
@@ -115,44 +116,14 @@ export function CadastroEmpresaScreen({ onBack, onDone }: Props) {
       setDocs((atual) => ({ ...atual, [id]: DOC_VAZIO }))
       return
     }
-    if (form.razaoSocial.trim().length < 3) {
-      setError('Volte e informe a razão social antes de enviar o documento.')
-      return
-    }
-    setDocs((atual) => ({ ...atual, [id]: { arquivo: file.name, analise: null, analisando: true } }))
     try {
       const foto = await lerArquivoEmpresa(file)
       if (geracaoDoc.current[id] !== vez) return
-      const result = await analisarDocumentoCadastro({
-        nome: form.razaoSocial.trim(),
-        contexto: 'empresa',
-        tipo: id,
-        cnpj: form.cnpj.trim(),
-        cidade: `${form.cidade.trim()}/${form.estado.trim()}`,
-        arquivos: [{ papel: 'documento', mime: foto.mime, dados: foto.dados }],
-      })
-      if (geracaoDoc.current[id] !== vez) return
-      if (!result.ok) {
-        setDocs((atual) => ({
-          ...atual,
-          [id]: { arquivo: foto.nome, analise: { aceito: false, motivo: result.erro, falha: true }, analisando: false },
-        }))
-        return
-      }
-      setDocs((atual) => ({
-        ...atual,
-        [id]: { arquivo: foto.nome, analise: { aceito: result.aceito, motivo: result.motivo }, analisando: false },
-      }))
+      setDocs((atual) => ({ ...atual, [id]: { arquivo: foto } }))
     } catch (falha) {
       if (geracaoDoc.current[id] !== vez) return
-      setDocs((atual) => ({
-        ...atual,
-        [id]: {
-          arquivo: atual[id].arquivo || file.name,
-          analise: { aceito: false, motivo: falha instanceof Error ? falha.message : 'Não foi possível ler o arquivo.', falha: true },
-          analisando: false,
-        },
-      }))
+      setDocs((atual) => ({ ...atual, [id]: DOC_VAZIO }))
+      setError(falha instanceof Error ? falha.message : 'Não foi possível ler o arquivo.')
     }
   }
 
@@ -162,15 +133,9 @@ export function CadastroEmpresaScreen({ onBack, onDone }: Props) {
       setError('Informe a cidade e o estado da operação.')
       return
     }
-    if (step === 6) {
-      if (algumDocumentoAnalisando()) {
-        setError('Espere a análise do documento terminar.')
-        return
-      }
-      if (!todosDocumentosAceitos()) {
-        setError('Envie os três documentos. Cada um precisa ser aceito para continuar.')
-        return
-      }
+    if (step === 6 && !todosDocumentosEnviados()) {
+      setError('Envie os três documentos para continuar.')
+      return
     }
     setStep((s) => Math.min(ETAPAS.length, s + 1))
   }
@@ -183,8 +148,8 @@ export function CadastroEmpresaScreen({ onBack, onDone }: Props) {
 
   function submit(e: FormEvent) {
     e.preventDefault()
-    if (!todosDocumentosAceitos() || algumDocumentoAnalisando()) {
-      setError('Os três documentos precisam ser aceitos antes de concluir.')
+    if (!todosDocumentosEnviados()) {
+      setError('Envie os três documentos antes de concluir.')
       setStep(6)
       return
     }
@@ -215,7 +180,7 @@ export function CadastroEmpresaScreen({ onBack, onDone }: Props) {
         ]),
       },
     }
-    const documentos = documentosAceitos()
+    const documentos = documentosEnviados()
     const res = completing
       ? completeEmpresaPerfil(empresaPayload, documentos)
       : registerEmpresa({ email: form.email, senha: form.senha }, empresaPayload, documentos)
@@ -360,7 +325,7 @@ export function CadastroEmpresaScreen({ onBack, onDone }: Props) {
 
         {step === 6 && (
           <div className="docs-mock">
-            <p>Envie os três documentos. A análise começa na hora e diz se cada um está aceito.</p>
+            <p>Envie os três documentos. A validação é manual, um arquivo por vez, no painel administrativo.</p>
             {DOCS_EMPRESA_CADASTRO.map((item) => {
               const atual = docs[item.id]
               return (
@@ -373,9 +338,8 @@ export function CadastroEmpresaScreen({ onBack, onDone }: Props) {
                       onChange={(e) => void escolherDocumento(item.id, e.target.files?.[0])}
                     />
                     <small className="muted">{item.ajuda}</small>
-                    {atual.arquivo && <small className="muted">{atual.arquivo}</small>}
+                    {atual.arquivo && <small className="muted">{atual.arquivo.nome}</small>}
                   </label>
-                  <SeloDocumento analisando={atual.analisando} analise={atual.analise} />
                 </div>
               )
             })}
@@ -415,14 +379,14 @@ export function CadastroEmpresaScreen({ onBack, onDone }: Props) {
             </div>
             <div>
               <dt>Documentos</dt>
-              <dd>{DOCS_EMPRESA_CADASTRO.map((item) => item.label).join(' · ')} · aceitos</dd>
+              <dd>{DOCS_EMPRESA_CADASTRO.map((item) => item.label).join(' · ')} · aguardando validação</dd>
             </div>
           </dl>
         )}
 
         {error && <p className="error">{error}</p>}
-        <button type="submit" className="btn btn-accent btn-block" disabled={step === 6 && algumDocumentoAnalisando()}>
-          {step === ETAPAS.length ? 'Concluir cadastro' : algumDocumentoAnalisando() && step === 6 ? 'Analisando…' : 'Continuar'}
+        <button type="submit" className="btn btn-accent btn-block">
+          {step === ETAPAS.length ? 'Concluir cadastro' : 'Continuar'}
         </button>
       </form>
     </div>

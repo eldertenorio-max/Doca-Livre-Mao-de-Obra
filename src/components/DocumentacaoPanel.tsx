@@ -117,6 +117,17 @@ export function DocumentacaoPrestadorResumo({
   )
 }
 
+function abrirCopia(dataUrl: string) {
+  const partes = dataUrl.split(',')
+  const mime = /data:([^;]+)/.exec(partes[0] || '')?.[1] || 'application/octet-stream'
+  const binario = atob(partes[1] || '')
+  const bytes = new Uint8Array(binario.length)
+  for (let i = 0; i < binario.length; i += 1) bytes[i] = binario.charCodeAt(i)
+  const url = URL.createObjectURL(new Blob([bytes], { type: mime }))
+  window.open(url, '_blank', 'noopener')
+  window.setTimeout(() => URL.revokeObjectURL(url), 60_000)
+}
+
 export function CentralDocumentacaoAdmin() {
   const { state, revisarDocumento } = useStore()
   const [filtro, setFiltro] = useState<'todos' | 'em_analise' | 'vencendo' | 'vencido' | 'recusado'>('em_analise')
@@ -143,7 +154,7 @@ export function CentralDocumentacaoAdmin() {
     <div className="px-page">
       <h1 className="px-title">Central de documentação</h1>
       <p className="muted">
-        Aprovação, recusa e monitoramento de validade (CNH, NRs, ASO, GR, docs empresariais).
+        Abra cada arquivo, aprove ou recuse. A validade de CNH, NRs, ASO e documentos da empresa continua nesta lista.
       </p>
 
       <div className="px-stat-3" style={{ marginBottom: 16 }}>
@@ -189,10 +200,26 @@ export function CentralDocumentacaoAdmin() {
                   {d.donoTipo} · {dono ?? d.donoId} · {d.arquivoNome ?? 'sem arquivo'}
                   {d.validade ? ` · val. ${d.validade}${dias != null ? ` (${dias}d)` : ''}` : ''}
                 </p>
-                {d.observacao && <p className="error">Obs.: {d.observacao}</p>}
+                {d.observacao && <p className={d.status === 'recusado' ? 'error' : 'muted'}>{d.observacao}</p>}
+                {d.arquivoDados?.startsWith('data:image/') && (
+                  <img src={d.arquivoDados} alt="" className="docs-preview" />
+                )}
+                {d.meta?.versoDados?.startsWith('data:image/') && (
+                  <img src={d.meta.versoDados} alt="" className="docs-preview" />
+                )}
               </div>
               <div className="px-row-actions">
                 <StatusBadge status={status} />
+                {d.arquivoDados && (
+                  <button type="button" className="px-btn px-btn-ghost" onClick={() => abrirCopia(d.arquivoDados || '')}>
+                    Abrir arquivo
+                  </button>
+                )}
+                {d.meta?.versoDados && (
+                  <button type="button" className="px-btn px-btn-ghost" onClick={() => abrirCopia(d.meta?.versoDados || '')}>
+                    Abrir verso
+                  </button>
+                )}
                 {d.status === 'em_analise' && d.arquivoNome?.trim() && (
                   <>
                     <button

@@ -685,6 +685,15 @@
   padding-bottom: 0;
 }
 
+.docs-preview {
+  display: block;
+  width: min(220px, 100%);
+  max-height: 160px;
+  object-fit: contain;
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
 .docs-selo {
   display: flex;
   align-items: flex-start;
