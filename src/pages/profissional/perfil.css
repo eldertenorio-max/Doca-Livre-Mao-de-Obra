@@ -1078,6 +1078,63 @@
   font-size: 1.05rem;
 }
 
+.td-opcoes {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.td-opcao {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 20px;
+  padding: 18px;
+  box-shadow: 0 8px 18px rgb(17 17 17 / 0.04);
+}
+
+.td-opcao h3 {
+  margin: 0 0 6px;
+}
+
+.td-opcao > p {
+  margin: 0 0 14px;
+  color: #4b5563;
+}
+
+.td-opcao-escolha {
+  display: grid;
+  gap: 8px;
+}
+
+.td-opcao-escolha button {
+  display: grid;
+  gap: 4px;
+  text-align: left;
+  border: 1.5px solid #e5e7eb;
+  background: #fff;
+  border-radius: 14px;
+  padding: 12px 14px;
+  cursor: pointer;
+}
+
+.td-opcao-escolha button span {
+  color: #6b7280;
+  font-weight: 650;
+}
+
+.td-opcao-escolha button.on {
+  border-color: #111;
+  background: #fff8d6;
+}
+
+.td-opcao .td-vaga-btn {
+  margin-top: 0;
+}
+
+.td-opcao .td-vaga-chips {
+  margin-top: 12px;
+}
+
 @media (max-width: 860px) {
   .td-home-stats {
     grid-template-columns: 1fr 1fr;

@@ -191,6 +191,8 @@ export type Profissional = {
   endereco: Endereco
   raioKm: number
   pix: string
+  /** Quando falso, a aba Vagas mostra só publicações dos cargos do perfil. */
+  verTodasVagas?: boolean
   banco?: string
   status: 'pendente' | 'aprovado' | 'bloqueado'
   consentimentoPrivacidade?: {

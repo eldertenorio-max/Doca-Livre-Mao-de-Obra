@@ -53,6 +53,7 @@ export const MODULOS_POR_SISTEMA: Record<SistemaId, { id: string; label: string 
     { id: 'documentos', label: 'Documentos' },
     { id: 'financeiro', label: 'Financeiro' },
     { id: 'perfil', label: 'Perfil' },
+    { id: 'opcoes', label: 'Opções' },
   ],
   admin: [
     { id: 'dashboard', label: 'Dashboard' },

@@ -102,6 +102,7 @@ type StoreApi = {
   doCheckOut: (demandaId: string, profissionalId: string) => void
   addAvaliacao: (data: Omit<Avaliacao, 'id' | 'createdAt'>) => void
   updateDisponibilidade: (profissionalId: string, disp: Disponibilidade) => void
+  definirVerTodasVagas: (profissionalId: string, verTodas: boolean) => void
   toggleFavorito: (empresaId: string, profissionalId: string) => void
   toggleBloqueado: (empresaId: string, profissionalId: string) => void
   setEmpresaStatus: (id: string, status: Empresa['status']) => void
@@ -1021,6 +1022,15 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         ...s,
         profissionais: s.profissionais.map((p) =>
           p.id === profissionalId ? { ...p, disponibilidade: disp } : p,
+        ),
+      }))
+    },
+
+    definirVerTodasVagas(profissionalId, verTodas) {
+      update((s) => ({
+        ...s,
+        profissionais: s.profissionais.map((p) =>
+          p.id === profissionalId ? { ...p, verTodasVagas: verTodas } : p,
         ),
       }))
     },

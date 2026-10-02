@@ -21,6 +21,7 @@ const TABS = [
   { id: 'agenda', label: 'Missões', icon: <IconeMissoes /> },
   { id: 'financeiro', label: 'Financeiro', icon: <IconeFinanceiro /> },
   { id: 'perfil', label: 'Perfil', icon: <IconePerfil /> },
+  { id: 'opcoes', label: 'Opções', icon: <IconeOpcoes /> },
 ] as const
 
 type TabId = (typeof TABS)[number]['id']
@@ -137,6 +138,7 @@ export function ProfissionalApp({ onLogout }: { onLogout: () => void }) {
             {tab === 'agenda' && <AgendaTab />}
             {tab === 'financeiro' && <FinanceiroTab />}
             {tab === 'perfil' && <PerfilTab />}
+            {tab === 'opcoes' && <OpcoesTab onIr={setTab} />}
           </div>
         </main>
       </div>
@@ -204,6 +206,20 @@ function IconePerfil() {
     <IconeBase>
       <circle cx="12" cy="8" r="3.2" stroke="currentColor" strokeWidth="1.75" />
       <path d="M5 19.5c1.2-3 3.6-4.5 7-4.5s5.8 1.5 7 4.5" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" />
+    </IconeBase>
+  )
+}
+
+function IconeOpcoes() {
+  return (
+    <IconeBase>
+      <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="1.75" />
+      <path
+        d="M12 3.5v2.2M12 18.3V20.5M3.5 12h2.2M18.3 12H20.5M5.8 5.8l1.6 1.6M16.6 16.6l1.6 1.6M18.2 5.8l-1.6 1.6M7.4 16.6l-1.6 1.6"
+        stroke="currentColor"
+        strokeWidth="1.75"
+        strokeLinecap="round"
+      />
     </IconeBase>
   )
 }
@@ -409,6 +425,7 @@ function VagasTab() {
   const prof = currentProfissional!
   const [aviso, setAviso] = useState<{ id: string; texto: string; ok: boolean } | null>(null)
   const aprovado = prof.status === 'aprovado'
+  const verTodas = prof.verTodasVagas !== false
 
   const vagas = useMemo(() => {
     return state.demandas
@@ -423,6 +440,7 @@ function VagasTab() {
       })
       .filter((item) => {
         if (item.empresa?.bloqueados.includes(prof.id)) return false
+        if (!verTodas && !prof.profissoes.includes(item.demanda.cargo)) return false
         const mesmaCidade = semAcento(item.demanda.endereco.cidade) === semAcento(prof.endereco.cidade)
         const noRaio = Number.isFinite(item.dist) && item.dist <= prof.raioKm
         const semCoordenada = !Number.isFinite(item.dist)
@@ -433,7 +451,7 @@ function VagasTab() {
         const db = Number.isFinite(b.dist) ? b.dist : 9999
         return da - db
       })
-  }, [prof.endereco, prof.id, prof.raioKm, state.candidaturas, state.demandas, state.empresas])
+  }, [prof.endereco, prof.id, prof.profissoes, prof.raioKm, state.candidaturas, state.demandas, state.empresas, verTodas])
 
   function aplicar(demandaId: string) {
     const resp = candidatar(demandaId, prof.id)
@@ -456,7 +474,10 @@ function VagasTab() {
         <p className="td-home-kicker">Vagas</p>
         <h2>Vagas abertas</h2>
         <p>
-          Empresas tomadoras em {prof.endereco.cidade} e até {prof.raioKm} km. A candidatura registra o interesse.
+          {verTodas
+            ? `Empresas tomadoras em ${prof.endereco.cidade} e até ${prof.raioKm} km.`
+            : `Somente publicações dos seus cargos, em ${prof.endereco.cidade} e até ${prof.raioKm} km.`}{' '}
+          A candidatura registra o interesse.
         </p>
       </header>
       {vagas.length > 0 && (
@@ -472,7 +493,11 @@ function VagasTab() {
       {vagas.length === 0 && (
         <section className="td-vaga td-vaga--vazia">
           <strong>Nenhuma vaga no seu raio agora.</strong>
-          <p>Quando uma empresa publicar uma vaga em {prof.endereco.cidade} ou até {prof.raioKm} km, ela aparece aqui.</p>
+          <p>
+            {verTodas
+              ? `Quando uma empresa publicar uma vaga em ${prof.endereco.cidade} ou até ${prof.raioKm} km, ela aparece aqui.`
+              : 'Nenhuma publicação dos seus cargos neste raio. Em Opções dá para ver todas as publicações.'}
+          </p>
         </section>
       )}
       {vagas.map(({ demanda, empresa, candidatura, dist }) => {
@@ -900,6 +925,52 @@ function diasDaMissao(inicio: string, fim?: string) {
   const b = new Date(`${fim}T12:00:00`)
   if (Number.isNaN(a.getTime()) || Number.isNaN(b.getTime()) || b < a) return 1
   return Math.round((b.getTime() - a.getTime()) / 86400000) + 1
+}
+
+function OpcoesTab({ onIr }: { onIr: (aba: TabId) => void }) {
+  const { currentProfissional, definirVerTodasVagas } = useStore()
+  const prof = currentProfissional!
+  const verTodas = prof.verTodasVagas !== false
+
+  return (
+    <div className="td-opcoes">
+      <header className="td-vagas-intro">
+        <p className="td-home-kicker">Opções</p>
+        <h2>Preferências</h2>
+        <p>Configure o perfil e escolha quais publicações aparecem nas vagas.</p>
+      </header>
+      <section className="td-opcao">
+        <h3>Perfil</h3>
+        <p>Foto, dados, documentos e o que as empresas veem sobre você.</p>
+        <button type="button" className="td-vaga-btn" onClick={() => onIr('perfil')}>
+          Configurar perfil
+        </button>
+      </section>
+      <section className="td-opcao">
+        <h3>Publicações</h3>
+        <p>Defina se a aba Vagas mostra tudo no seu raio ou só o que combina com o seu cargo.</p>
+        <div className="td-opcao-escolha">
+          <button type="button" className={verTodas ? 'on' : ''} onClick={() => definirVerTodasVagas(prof.id, true)}>
+            <strong>Todas as publicações</strong>
+            <span>Vagas abertas na sua cidade e no seu raio, de qualquer cargo.</span>
+          </button>
+          <button type="button" className={!verTodas ? 'on' : ''} onClick={() => definirVerTodasVagas(prof.id, false)}>
+            <strong>Somente as da minha vaga</strong>
+            <span>Apenas publicações dos cargos cadastrados no seu perfil.</span>
+          </button>
+        </div>
+        {prof.profissoes.length > 0 && (
+          <div className="td-vaga-chips">
+            {prof.profissoes.map((id) => (
+              <span key={id} className="td-vaga-chip">
+                {cargoLabel(id)}
+              </span>
+            ))}
+          </div>
+        )}
+      </section>
+    </div>
+  )
 }
 
 function PerfilTab() {
