@@ -266,7 +266,7 @@ function valorNumero(texto: string) {
 
 const ABAS_EMPRESA = [
   { id: 'missao', label: 'Vaga temporária', icon: <IconeVaga /> },
-  { id: 'vagas', label: 'Vagas', icon: <IconeVagasLista /> },
+  { id: 'vagas', label: 'Vagas Publicadas', icon: <IconeVagasLista /> },
   { id: 'missoes', label: 'Missões', icon: <IconeMissoes /> },
   { id: 'mapa', label: 'Mapa Mão de Obra', icon: <IconeMapa /> },
   { id: 'contratacoes', label: 'Minhas contratações', icon: <IconeContratacoes /> },
