@@ -1,0 +1,89 @@
+.px-shell--admin .px-sidebar {
+  width: 260px;
+  background: #fff;
+}
+
+.px-shell--admin .px-sidebar-nav {
+  padding: 16px 12px 28px;
+  gap: 4px;
+}
+
+.px-shell--admin .px-sidebar-kicker {
+  margin: 4px 8px 8px;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #8a97ab;
+}
+
+.px-shell--admin .px-nav-link {
+  gap: 12px;
+  min-height: 48px;
+  padding: 6px 8px 6px 6px;
+  border-radius: 14px;
+  font-weight: 600;
+  color: #3d4f6a;
+}
+
+.px-shell--admin .px-nav-link:hover {
+  background: #f6f8fb;
+}
+
+.px-shell--admin .px-nav-ico {
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  border-radius: 11px;
+  background: #f3f6fa;
+  color: #1a2b4a;
+  opacity: 1;
+}
+
+.px-shell--admin .px-nav-ico svg {
+  width: 20px;
+  height: 20px;
+}
+
+.px-shell--admin .px-nav-link--active {
+  background: #fff8d1;
+  color: #1a2b4a;
+  font-weight: 700;
+}
+
+.px-shell--admin .px-nav-link--active .px-nav-ico {
+  background: #f9db00;
+  color: #1a2b4a;
+}
+
+@media (max-width: 800px) {
+  .px-shell--admin .px-body {
+    flex-direction: column;
+  }
+
+  .px-shell--admin .px-sidebar {
+    display: block;
+    width: 100%;
+    border-right: none;
+    border-bottom: 1px solid var(--px-border);
+  }
+
+  .px-shell--admin .px-sidebar-kicker {
+    display: none;
+  }
+
+  .px-shell--admin .px-sidebar-nav {
+    flex-direction: row;
+    overflow-x: auto;
+    padding: 10px 12px;
+    gap: 8px;
+  }
+
+  .px-shell--admin .px-nav-link {
+    width: auto;
+    flex: 0 0 auto;
+    white-space: nowrap;
+  }
+}

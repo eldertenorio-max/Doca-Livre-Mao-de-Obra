@@ -6,15 +6,16 @@ import { cargoLabel } from '../../data/categories'
 import { LOGO_DOCA_LIVRE_SRC } from '../../lib/brandAssets'
 import { useStore } from '../../lib/store'
 import '../empresa/empresa-px.css'
+import './admin.css'
 
 const ITEMS = [
-  { id: 'dashboard', label: 'Dashboard', icon: 'D' },
-  { id: 'empresas', label: 'Empresas', icon: 'E' },
-  { id: 'profissionais', label: 'Profissionais', icon: 'P' },
-  { id: 'documentacao', label: 'Documentação', icon: '📄' },
-  { id: 'demandas', label: 'Demandas', icon: 'L' },
-  { id: 'financeiro', label: 'Financeiro', icon: '$' },
-  { id: 'auditoria', label: 'Auditoria', icon: 'A' },
+  { id: 'dashboard', label: 'Dashboard' },
+  { id: 'empresas', label: 'Empresas' },
+  { id: 'profissionais', label: 'Profissionais' },
+  { id: 'documentacao', label: 'Documentação' },
+  { id: 'demandas', label: 'Demandas' },
+  { id: 'financeiro', label: 'Financeiro' },
+  { id: 'auditoria', label: 'Auditoria' },
 ]
 
 export function AdminApp({
@@ -43,11 +44,11 @@ export function AdminApp({
 
   const navItems = [
     ...ITEMS,
-    ...(onOpenConfig ? [{ id: 'config', label: 'Hierarquia', icon: '⚙' }] : []),
+    ...(onOpenConfig ? [{ id: 'config', label: 'Hierarquia' }] : []),
   ]
 
   return (
-    <div className="px-shell">
+    <div className="px-shell px-shell--admin">
       <div className="px-banner-switch">
         <span>
           Este é o <strong>Admin</strong>. O painel estilo PX (Contratos, Prestadores, Campanhas) fica no login de
@@ -89,6 +90,7 @@ export function AdminApp({
       <div className="px-body">
         <aside className="px-sidebar">
           <nav className="px-sidebar-nav">
+            <p className="px-sidebar-kicker">Painel</p>
             {navItems.map((item) => (
               <button
                 key={item.id}
@@ -103,7 +105,7 @@ export function AdminApp({
                 }}
               >
                 <span className="px-nav-ico" aria-hidden>
-                  {item.icon}
+                  <IconeAba id={item.id} />
                 </span>
                 <span>{item.label}</span>
               </button>
@@ -130,6 +132,76 @@ export function AdminApp({
         💬
       </button>
     </div>
+  )
+}
+
+function IconeAba({ id }: { id: string }) {
+  const traco = {
+    stroke: 'currentColor',
+    strokeWidth: 1.75,
+    strokeLinecap: 'round' as const,
+    strokeLinejoin: 'round' as const,
+  }
+  return (
+    <svg viewBox="0 0 24 24" fill="none">
+      {id === 'dashboard' && (
+        <>
+          <rect x="3.5" y="3.5" width="7" height="7" rx="1.6" {...traco} />
+          <rect x="13.5" y="3.5" width="7" height="7" rx="1.6" {...traco} />
+          <rect x="3.5" y="13.5" width="7" height="7" rx="1.6" {...traco} />
+          <rect x="13.5" y="13.5" width="7" height="7" rx="1.6" {...traco} />
+        </>
+      )}
+      {id === 'empresas' && (
+        <>
+          <path d="M4 20V6.5A1.5 1.5 0 0 1 5.5 5H13v15" {...traco} />
+          <path d="M13 9h5.5A1.5 1.5 0 0 1 20 10.5V20" {...traco} />
+          <path d="M7.5 8.5h2.5M7.5 12h2.5M7.5 15.5h2.5M16 13h1.5M16 16.5h1.5" {...traco} />
+        </>
+      )}
+      {id === 'profissionais' && (
+        <>
+          <circle cx="9" cy="8" r="2.4" {...traco} />
+          <circle cx="16" cy="9" r="2" {...traco} />
+          <path d="M4.5 18.5c.6-2.6 2.5-4 4.5-4s3.9 1.4 4.5 4" {...traco} />
+          <path d="M13.5 14.8c1.3-.5 2.6-.4 3.7.4 1.1.8 1.7 2 2 3.3" {...traco} />
+        </>
+      )}
+      {id === 'documentacao' && (
+        <>
+          <path d="M7 3.5h7l4 4V20a1.5 1.5 0 0 1-1.5 1.5H7A1.5 1.5 0 0 1 5.5 20V5A1.5 1.5 0 0 1 7 3.5z" {...traco} />
+          <path d="M14 3.8V8h4.2M8.5 12h7M8.5 15.5h5" {...traco} />
+        </>
+      )}
+      {id === 'demandas' && (
+        <>
+          <path d="M8 6.5h11M8 12h11M8 17.5h11" {...traco} />
+          <circle cx="4.6" cy="6.5" r="1.15" fill="currentColor" />
+          <circle cx="4.6" cy="12" r="1.15" fill="currentColor" />
+          <circle cx="4.6" cy="17.5" r="1.15" fill="currentColor" />
+        </>
+      )}
+      {id === 'financeiro' && (
+        <>
+          <rect x="3.5" y="6" width="17" height="12" rx="2" {...traco} />
+          <path d="M3.5 10h17" {...traco} />
+          <path d="M7 14.5h4" {...traco} />
+        </>
+      )}
+      {id === 'auditoria' && (
+        <>
+          <path d="M12 3.5l7 2.4v5.4c0 4.2-2.8 7.2-7 8.7-4.2-1.5-7-4.5-7-8.7V5.9l7-2.4z" {...traco} />
+          <path d="M8.8 12.1l2.1 2.1 4.3-4.4" {...traco} />
+        </>
+      )}
+      {id === 'config' && (
+        <>
+          <circle cx="8" cy="8" r="2.2" {...traco} />
+          <circle cx="16" cy="16" r="2.2" {...traco} />
+          <path d="M10.1 9.2l3.8 5.6M8 10.2V20M16 4v9.6" {...traco} />
+        </>
+      )}
+    </svg>
   )
 }
 
