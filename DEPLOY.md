@@ -38,4 +38,4 @@ Repo: https://github.com/eldertenorio-max/Doca-Livre-M-o-de-Obra
 - Super: `Diego` ou `Elder` / `demo123` (só no **Admin**)
 
 ## E-mail do código
-Cadastro e troca de senha enviam o código de 6 dígitos pelo Resend. A tela não mostra o código. Sem `RESEND_API_KEY` o envio falha. `onboarding@resend.dev` só chega no dono da conta; use `RESEND_FROM` de um domínio verificado.
+O site publicado é estático e chama a função Supabase `enviar-codigo`. No projeto **Doca Livre Mão de Obra**, em Edge Functions → Secrets, defina `RESEND_API_KEY` e `RESEND_FROM` (as mesmas do WMS Pro). Sem a chave, a tela avisa que o envio ainda não está configurado. `onboarding@resend.dev` só chega no dono da conta Resend; use um remetente de domínio verificado. No computador, o Vite também aceita `POST /api/portal/enviar-codigo`.

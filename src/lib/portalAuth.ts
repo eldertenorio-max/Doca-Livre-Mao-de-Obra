@@ -1,4 +1,5 @@
 import { isLocalSuperUser } from './portalPermissoes'
+import { loadSupabaseConfig } from './supabaseConfig'
 
 const OTP_KEY = 'mao-portal-otp-v1'
 const TOKEN_TTL_MS = 15 * 60 * 1000
@@ -57,26 +58,49 @@ function emEspera(store: OtpStore, finalidade: OtpRecord['finalidade'], email: s
 }
 
 async function enviarCodigoPorEmail(email: string, codigo: string, finalidade: OtpRecord['finalidade']) {
-  try {
-    const resposta = await fetch('/api/portal/enviar-codigo', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, codigo, finalidade }),
+  const cfg = await loadSupabaseConfig()
+  const tentativas: { url: string; headers: Record<string, string> }[] = []
+  if (cfg.url && cfg.anonKey) {
+    tentativas.push({
+      url: `${cfg.url.replace(/\/$/, '')}/functions/v1/enviar-codigo`,
+      headers: {
+        'Content-Type': 'application/json',
+        apikey: cfg.anonKey,
+        Authorization: `Bearer ${cfg.anonKey}`,
+      },
     })
-    const texto = await resposta.text()
-    let data: { ok?: boolean; erro?: string } = {}
-    try {
-      data = JSON.parse(texto) as { ok?: boolean; erro?: string }
-    } catch {
-      return { ok: false as const, erro: 'Não foi possível enviar o e-mail. Tente de novo em instantes.' }
-    }
-    if (!resposta.ok || !data.ok) {
-      return { ok: false as const, erro: data.erro || 'Não foi possível enviar o e-mail.' }
-    }
-    return { ok: true as const }
-  } catch {
-    return { ok: false as const, erro: 'Não foi possível enviar o e-mail. Tente de novo em instantes.' }
   }
+  tentativas.push({
+    url: '/api/portal/enviar-codigo',
+    headers: { 'Content-Type': 'application/json' },
+  })
+
+  let ultimo = 'Não foi possível enviar o e-mail. Tente de novo em instantes.'
+  for (const tentativa of tentativas) {
+    try {
+      const resposta = await fetch(tentativa.url, {
+        method: 'POST',
+        headers: tentativa.headers,
+        body: JSON.stringify({ email, codigo, finalidade }),
+      })
+      const texto = await resposta.text()
+      let data: { ok?: boolean; erro?: string } | null = null
+      try {
+        data = JSON.parse(texto) as { ok?: boolean; erro?: string }
+      } catch {
+        data = null
+      }
+      if (!data) continue
+      if (resposta.ok && data.ok) return { ok: true as const }
+      if (data.erro) {
+        ultimo = data.erro
+        if (resposta.status !== 404) return { ok: false as const, erro: data.erro }
+      }
+    } catch {
+      /* tenta o próximo caminho */
+    }
+  }
+  return { ok: false as const, erro: ultimo }
 }
 
 export type PortalRole = 'empresa' | 'profissional'
