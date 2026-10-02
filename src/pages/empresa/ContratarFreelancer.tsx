@@ -316,6 +316,56 @@ function valorNumero(texto: string) {
   return match ? Number(match[0]) : 0
 }
 
+function listaChave(itens?: string[]) {
+  return [...(itens ?? [])]
+    .map((item) => item.trim())
+    .filter(Boolean)
+    .sort()
+    .join('|')
+}
+
+function chaveVaga(dados: {
+  cargo: string
+  requisitos?: string[]
+  diferenciais?: string[]
+  inicio: string
+  fim?: string
+  horaInicio: string
+  horaFim: string
+  quantidade: number
+  motivo?: string
+  atividades?: string
+  valorDiaria: number
+  beneficios?: string
+  cidade: string
+  estado: string
+  observacoes?: string
+}) {
+  const beneficios = (dados.beneficios ?? '')
+    .split(',')
+    .map((item) => item.trim())
+    .filter(Boolean)
+    .sort()
+    .join('|')
+  return [
+    dados.cargo,
+    listaChave(dados.requisitos),
+    listaChave(dados.diferenciais),
+    dados.inicio,
+    dados.fim ?? '',
+    dados.horaInicio,
+    dados.horaFim,
+    String(dados.quantidade),
+    dados.motivo ?? '',
+    (dados.atividades ?? '').trim(),
+    String(Math.round((dados.valorDiaria || 0) * 100)),
+    beneficios,
+    semAcento(dados.cidade.trim()),
+    semAcento(dados.estado.trim()),
+    (dados.observacoes ?? '').trim(),
+  ].join('§')
+}
+
 const ABAS_EMPRESA = [
   { id: 'missao', label: 'Vaga temporária', icon: <IconeVaga /> },
   { id: 'vagas', label: 'Vagas Publicadas', icon: <IconeVagasLista /> },
@@ -478,6 +528,7 @@ export function ContratarFreelancer({ onLogout }: { onLogout: () => void }) {
   const [missaoId, setMissaoId] = useState<string | null>(null)
   const [vagaPublicadaChave, setVagaPublicadaChave] = useState('')
   const [avisoPublicacao, setAvisoPublicacao] = useState('')
+  const publicando = useRef(false)
   const [modelos, setModelos] = useState<ModeloMissao[]>(() => lerModelos(empresa.id))
   const [avisoModelo, setAvisoModelo] = useState('')
   const [aba, setAba] = useState<AbaEmpresa>('missao')
@@ -634,23 +685,49 @@ export function ContratarFreelancer({ onLogout }: { onLogout: () => void }) {
   }
 
   function chaveDaVaga(remuneracaoFinal = finalizarMoeda(remuneracao)) {
-    return [
-      cargoId,
-      requisitos.join('|'),
-      diferenciais.join('|'),
+    return chaveVaga({
+      cargo: cargoId,
+      requisitos,
+      diferenciais,
       inicio,
       fim,
       horaInicio,
       horaFim,
-      String(quantidade),
+      quantidade,
       motivo,
-      atividades.trim(),
-      remuneracaoFinal,
-      beneficiosTexto,
-      cidade,
-      estado,
-      observacoes.trim(),
-    ].join('§')
+      atividades,
+      valorDiaria: valorNumero(remuneracaoFinal),
+      beneficios: beneficiosTexto,
+      cidade: cidade || empresa.endereco.cidade,
+      estado: estado || empresa.endereco.estado,
+      observacoes,
+    })
+  }
+
+  function chaveDemanda(demanda: (typeof state.demandas)[number]) {
+    return chaveVaga({
+      cargo: demanda.cargo,
+      requisitos: demanda.requisitos,
+      diferenciais: demanda.diferenciais,
+      inicio: demanda.data,
+      fim: demanda.dataFim,
+      horaInicio: demanda.horaInicio,
+      horaFim: demanda.horaFim,
+      quantidade: demanda.quantidade,
+      motivo: demanda.motivo,
+      atividades: demanda.atividades || demanda.descricao,
+      valorDiaria: demanda.valorDiaria,
+      beneficios: demanda.beneficios || demanda.epis,
+      cidade: demanda.endereco.cidade,
+      estado: demanda.endereco.estado,
+      observacoes: demanda.observacoes,
+    })
+  }
+
+  function vagasIguaisAbertas(chave: string) {
+    return state.demandas.filter(
+      (item) => item.empresaId === empresa.id && item.status === 'aberta' && chaveDemanda(item) === chave,
+    )
   }
 
   function pedidoDaVaga(remuneracaoFinal: string) {
@@ -776,43 +853,54 @@ export function ContratarFreelancer({ onLogout }: { onLogout: () => void }) {
     }, 5000)
   }
 
-  function publicar() {
+  function publicar(confirmarRepeticao = false) {
+    if (publicando.current) return
     const remuneracaoFinal = validarPedido()
     if (!remuneracaoFinal) return
     const chave = chaveDaVaga(remuneracaoFinal)
-    if (missaoId && vagaPublicadaChave === chave) {
-      setAvisoPublicacao('Esta vaga já está publicada. Os colaboradores podem se candidatar.')
-      setAba('vagas')
+    const iguais = vagasIguaisAbertas(chave)
+    if (iguais.length > 0 && !confirmarRepeticao) {
+      setAvisoPublicacao('Esta vaga já está publicada.')
       return
     }
-    const pedido = pedidoDaVaga(remuneracaoFinal)
-    const aberta = missaoId
-      ? state.demandas.find((item) => item.id === missaoId && item.empresaId === empresa.id && item.status === 'aberta')
-      : undefined
-    if (aberta) {
-      patchState((s) => ({
-        ...s,
-        demandas: s.demandas.map((item) =>
-          item.id === aberta.id
-            ? {
-                ...item,
-                ...pedido,
-                id: item.id,
-                createdAt: item.createdAt,
-                status: item.status,
-                categoria: cargoCategoria(pedido.cargo),
-              }
-            : item,
-        ),
-      }))
-      setMissaoId(aberta.id)
-    } else {
-      const criada = publicarVaga(pedido)
-      setMissaoId(criada.id)
+    publicando.current = true
+    try {
+      const pedido = pedidoDaVaga(remuneracaoFinal)
+      const aberta =
+        confirmarRepeticao || !missaoId
+          ? undefined
+          : state.demandas.find((item) => item.id === missaoId && item.empresaId === empresa.id && item.status === 'aberta')
+      if (aberta) {
+        patchState((s) => ({
+          ...s,
+          demandas: s.demandas.map((item) =>
+            item.id === aberta.id
+              ? {
+                  ...item,
+                  ...pedido,
+                  id: item.id,
+                  createdAt: item.createdAt,
+                  status: item.status,
+                  categoria: cargoCategoria(pedido.cargo),
+                }
+              : item,
+          ),
+        }))
+        setMissaoId(aberta.id)
+      } else {
+        const criada = publicarVaga(pedido)
+        setMissaoId(criada.id)
+      }
+      setVagaPublicadaChave(chave)
+      setAvisoPublicacao(
+        confirmarRepeticao
+          ? 'Vaga publicada de novo. Os colaboradores verão as duas.'
+          : 'Vaga publicada. Os colaboradores já podem ver e se candidatar.',
+      )
+      setAba('vagas')
+    } finally {
+      publicando.current = false
     }
-    setVagaPublicadaChave(chave)
-    setAvisoPublicacao('Vaga publicada. Os colaboradores já podem ver e se candidatar.')
-    setAba('vagas')
   }
 
   function convidar(item: CurriculoAnalisado) {
@@ -830,7 +918,7 @@ export function ContratarFreelancer({ onLogout }: { onLogout: () => void }) {
   const incompletos = resultados?.filter((r) => r.situacao !== 'bloqueado' && !r.atendeObrigatorios) ?? []
   const bloqueadosPeriodo = resultados?.filter((r) => r.situacao === 'bloqueado') ?? []
   const atendemTudo = compativeis.length
-  const vagaJaPublicada = Boolean(missaoId && vagaPublicadaChave === chaveDaVaga())
+  const iguaisAbertas = vagasIguaisAbertas(chaveDaVaga())
 
   function conviteDe(profissionalId: string) {
     if (!missaoId) return null
@@ -1184,7 +1272,23 @@ export function ContratarFreelancer({ onLogout }: { onLogout: () => void }) {
             )}
             {erro && <p className="error">{erro}</p>}
             {avisoModelo && <p className="success">{avisoModelo}</p>}
-            {avisoPublicacao && <p className="success">{avisoPublicacao}</p>}
+            {avisoPublicacao && iguaisAbertas.length === 0 && <p className="success">{avisoPublicacao}</p>}
+            {iguaisAbertas.length > 0 && (
+              <div className="cf-rule" role="status">
+                <p>
+                  Esta vaga já está publicada
+                  {iguaisAbertas.length > 1 ? ` (${iguaisAbertas.length} iguais em aberto)` : ''}. Quer publicar de novo?
+                </p>
+                <div className="cf-actions">
+                  <button type="button" className="cf-primary" onClick={() => publicar(true)}>
+                    Publicar de novo
+                  </button>
+                  <button type="button" className="cf-btn cf-btn--dark" onClick={() => setAba('vagas')}>
+                    Manter a publicada
+                  </button>
+                </div>
+              </div>
+            )}
             <div className="cf-actions">
               <button type="button" className="cf-btn cf-btn--dark" onClick={salvarPublicacao} disabled={analisando}>
                 Salvar publicação
@@ -1197,14 +1301,16 @@ export function ContratarFreelancer({ onLogout }: { onLogout: () => void }) {
               >
                 {analisando ? 'Analisando currículos' : 'Encontrar profissionais'}
               </button>
-              <button
-                type="button"
-                className="cf-btn cf-btn--dark"
-                onClick={publicar}
-                disabled={analisando || avisoPrazo.nivel === 'bloqueio' || !motivo || !empresaValidada || vagaJaPublicada}
-              >
-                {vagaJaPublicada ? 'Vaga publicada' : 'Publicar vaga'}
-              </button>
+              {iguaisAbertas.length === 0 && (
+                <button
+                  type="button"
+                  className="cf-btn cf-btn--dark"
+                  onClick={() => publicar(false)}
+                  disabled={analisando || avisoPrazo.nivel === 'bloqueio' || !motivo || !empresaValidada}
+                >
+                  Publicar vaga
+                </button>
+              )}
               <span className="muted">Publicar deixa a vaga visível para o colaborador se candidatar. A análise mostra o encaixe.</span>
             </div>
           </section>
