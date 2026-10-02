@@ -16,6 +16,7 @@ import type { CandidaturaStatus, Disponibilidade } from '../../lib/types'
 import { PerfilEmpresa, logoDaEmpresa } from './PerfilEmpresa'
 import { EditorPerfil, lerFotoPerfil } from './EditorPerfil'
 import { useLocalizacaoAparelho } from './useLocalizacaoAparelho'
+import { SinoTrabalhador } from './SinoTrabalhador'
 import '../empresa/contratar.css'
 import './perfil.css'
 
@@ -83,6 +84,7 @@ export function ProfissionalApp({ onLogout }: { onLogout: () => void }) {
           </div>
         </div>
         <div className="cf-topbar-right">
+          <SinoTrabalhador onIr={setTab} />
           <div className="cf-topbar-user">
             <span>
               <strong>{prof.nome.split(' ')[0]}</strong>
@@ -991,7 +993,7 @@ function OpcoesTab({ onIr }: { onIr: (aba: TabId) => void }) {
       </section>
       <section className="td-opcao">
         <h3>Publicações</h3>
-        <p>Defina se a aba Vagas mostra tudo no seu raio ou só o que combina com o seu cargo.</p>
+        <p>Defina se a aba Vagas e o sininho mostram tudo no seu raio ou só o que combina com o seu cargo. O convite de uma empresa aparece no sininho mesmo assim.</p>
         <div className="td-opcao-escolha">
           <button type="button" className={verTodas ? 'on' : ''} onClick={() => definirVerTodasVagas(prof.id, true)}>
             <strong>Todas as publicações</strong>
