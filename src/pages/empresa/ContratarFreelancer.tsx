@@ -1462,16 +1462,18 @@ function PainelMissoes({ empresaId }: { empresaId: string }) {
                   const contrato = state.contratos.find((item) => item.candidaturaId === convite.id)
                   return (
                     <li key={convite.id} className="cf-missao-pessoa">
-                      <span className="cf-vaga-avatar">
-                        {pessoa?.foto ? <img src={pessoa.foto} alt="" /> : iniciaisNome(nome)}
-                      </span>
-                      <span className="cf-vaga-nome">
-                        <strong>{nome}</strong>
-                        <small>
-                          {pessoa ? `${pessoa.endereco.cidade}/${pessoa.endereco.estado}` : 'Colaborador'}
-                          {contrato?.numero ? ` · Contrato ${contrato.numero}` : ''}
-                        </small>
-                      </span>
+                      <div className="cf-missao-quem">
+                        <span className="cf-vaga-avatar">
+                          {pessoa?.foto ? <img src={pessoa.foto} alt="" /> : iniciaisNome(nome)}
+                        </span>
+                        <span className="cf-vaga-nome">
+                          <strong>{nome}</strong>
+                          <small>
+                            {pessoa ? `${pessoa.endereco.cidade}/${pessoa.endereco.estado}` : 'Colaborador'}
+                            {contrato?.numero ? ` · Contrato ${contrato.numero}` : ''}
+                          </small>
+                        </span>
+                      </div>
                       {passo < 0 ? (
                         <span className={`cf-vaga-selo cf-vaga-selo--${convite.status}`}>{rotuloConvite(convite.status)}</span>
                       ) : (

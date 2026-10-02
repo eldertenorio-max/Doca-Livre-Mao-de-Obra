@@ -1750,11 +1750,11 @@
 }
 
 .cf-missao-pessoa {
-  display: grid;
-  grid-template-columns: 44px minmax(150px, 220px) minmax(0, 1fr);
-  gap: 12px;
+  display: flex;
   align-items: center;
-  padding: 12px 10px;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 16px;
   border-bottom: 1px solid #eef0f3;
 }
 
@@ -1762,9 +1762,24 @@
   border-bottom: 0;
 }
 
+.cf-missao-quem {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 180px;
+}
+
+.cf-missao-pessoa .cf-vaga-avatar,
+.cf-missao-pessoa .cf-vaga-nome,
+.cf-missao-pessoa .cf-vaga-selo {
+  grid-area: auto;
+}
+
 .cf-missao-etapas {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
   gap: 8px 0;
   margin: 0;
   padding: 0;
@@ -1896,11 +1911,11 @@
   }
 
   .cf-missao-pessoa {
-    grid-template-columns: 44px minmax(0, 1fr);
+    align-items: flex-start;
+    flex-direction: column;
   }
 
   .cf-missao-etapas {
-    grid-column: 1 / -1;
-    flex-wrap: wrap;
+    justify-content: flex-start;
   }
 }
