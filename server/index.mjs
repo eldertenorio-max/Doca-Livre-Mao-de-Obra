@@ -92,11 +92,15 @@ const server = createServer(async (req, res) => {
 
   if (url.pathname === '/api/cadastro/analisar-documento' && req.method === 'POST') {
     try {
-      const bruto = await lerCorpo(req, 6_000_000)
+      const bruto = await lerCorpo(req, 8_000_000)
       const data = JSON.parse(bruto || '{}')
       const result = await analisarDocumentoCadastro({
         nome: data.nome,
         arquivos: data.arquivos,
+        contexto: data.contexto,
+        tipo: data.tipo,
+        cnpj: data.cnpj,
+        cidade: data.cidade,
       })
       res.writeHead(result.status || (result.ok ? 200 : 503), {
         'Content-Type': 'application/json; charset=utf-8',

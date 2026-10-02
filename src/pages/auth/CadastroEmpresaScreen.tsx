@@ -1,5 +1,6 @@
-import { useMemo, useState, type FormEvent } from 'react'
+import { useMemo, useRef, useState, type FormEvent } from 'react'
 import { LOCAIS_OPERACAO } from '../../data/cidades'
+import { analisarDocumentoCadastro, lerArquivoEmpresa } from '../../lib/analisarDocumentoCadastro'
 import { coordenadaDaCidade } from '../../lib/coordenadaCidade'
 import { useStore } from '../../lib/store'
 import type { EmpresaTipo } from '../../lib/types'
@@ -19,6 +20,26 @@ const TIPOS: { id: EmpresaTipo; label: string }[] = [
   { id: 'outro', label: 'Outro' },
 ]
 
+const DOCS_EMPRESA_CADASTRO = [
+  { id: 'contrato_social', label: 'Contrato social', ajuda: 'Ato constitutivo, contrato social ou certificado MEI.' },
+  { id: 'cartao_cnpj', label: 'Cartão CNPJ', ajuda: 'Comprovante de inscrição da Receita Federal.' },
+  {
+    id: 'comprovante_endereco_empresa',
+    label: 'Comprovante de endereço da operação',
+    ajuda: 'Conta de consumo ou IPTU do estabelecimento.',
+  },
+] as const
+
+type DocEmpresaId = (typeof DOCS_EMPRESA_CADASTRO)[number]['id']
+
+type EstadoDoc = {
+  arquivo: string
+  analise: { aceito: boolean; motivo: string } | null
+  analisando: boolean
+}
+
+const DOC_VAZIO: EstadoDoc = { arquivo: '', analise: null, analisando: false }
+
 const ETAPAS = [
   'Dados da empresa',
   'Responsável',
@@ -34,6 +55,12 @@ export function CadastroEmpresaScreen({ onBack, onDone }: Props) {
   const completing = currentUser?.role === 'empresa' && currentUser.perfilCompleto === false
   const [step, setStep] = useState(1)
   const [error, setError] = useState('')
+  const [docs, setDocs] = useState<Record<DocEmpresaId, EstadoDoc>>({
+    contrato_social: DOC_VAZIO,
+    cartao_cnpj: DOC_VAZIO,
+    comprovante_endereco_empresa: DOC_VAZIO,
+  })
+  const geracaoDoc = useRef<Partial<Record<DocEmpresaId, number>>>({})
   const [form, setForm] = useState({
     cnpj: '',
     razaoSocial: '',
@@ -50,7 +77,6 @@ export function CadastroEmpresaScreen({ onBack, onDone }: Props) {
     cidade: '',
     estado: 'SP',
     tipo: 'transportadora' as EmpresaTipo,
-    docsOk: false,
   })
 
   const ufs = useMemo(() => [...new Set(LOCAIS_OPERACAO.map((local) => local.estado))].sort(), [])
@@ -64,15 +90,78 @@ export function CadastroEmpresaScreen({ onBack, onDone }: Props) {
     setForm((f) => ({ ...f, [key]: value }))
   }
 
+  function documentosAceitos() {
+    return DOCS_EMPRESA_CADASTRO.filter((item) => docs[item.id].analise?.aceito).map((item) => ({
+      tipoId: item.id,
+      arquivoNome: docs[item.id].arquivo,
+      observacao: docs[item.id].analise?.motivo || '',
+    }))
+  }
+
+  function todosDocumentosAceitos() {
+    return DOCS_EMPRESA_CADASTRO.every((item) => docs[item.id].analise?.aceito)
+  }
+
+  function algumDocumentoAnalisando() {
+    return DOCS_EMPRESA_CADASTRO.some((item) => docs[item.id].analisando)
+  }
+
+  async function escolherDocumento(id: DocEmpresaId, file: File | undefined) {
+    setError('')
+    const vez = (geracaoDoc.current[id] ?? 0) + 1
+    geracaoDoc.current[id] = vez
+    if (!file) {
+      setDocs((atual) => ({ ...atual, [id]: DOC_VAZIO }))
+      return
+    }
+    if (form.razaoSocial.trim().length < 3) {
+      setError('Volte e informe a razão social antes de enviar o documento.')
+      return
+    }
+    setDocs((atual) => ({ ...atual, [id]: { arquivo: file.name, analise: null, analisando: true } }))
+    try {
+      const foto = await lerArquivoEmpresa(file)
+      if (geracaoDoc.current[id] !== vez) return
+      const result = await analisarDocumentoCadastro({
+        nome: form.razaoSocial.trim(),
+        contexto: 'empresa',
+        tipo: id,
+        cnpj: form.cnpj.trim(),
+        cidade: `${form.cidade.trim()}/${form.estado.trim()}`,
+        arquivos: [{ papel: 'documento', mime: foto.mime, dados: foto.dados }],
+      })
+      if (geracaoDoc.current[id] !== vez) return
+      if (!result.ok) {
+        setDocs((atual) => ({ ...atual, [id]: { arquivo: foto.nome, analise: null, analisando: false } }))
+        setError(result.erro)
+        return
+      }
+      setDocs((atual) => ({
+        ...atual,
+        [id]: { arquivo: foto.nome, analise: { aceito: result.aceito, motivo: result.motivo }, analisando: false },
+      }))
+    } catch (falha) {
+      if (geracaoDoc.current[id] !== vez) return
+      setDocs((atual) => ({ ...atual, [id]: DOC_VAZIO }))
+      setError(falha instanceof Error ? falha.message : 'Não foi possível ler o arquivo.')
+    }
+  }
+
   function next() {
     setError('')
     if (step === 4 && (!form.cidade.trim() || !form.estado.trim())) {
       setError('Informe a cidade e o estado da operação.')
       return
     }
-    if (step === 6 && !form.docsOk) {
-      setError('Confirme o envio dos documentos da empresa tomadora.')
-      return
+    if (step === 6) {
+      if (algumDocumentoAnalisando()) {
+        setError('Espere a análise do documento terminar.')
+        return
+      }
+      if (!todosDocumentosAceitos()) {
+        setError('Envie os três documentos. Cada um precisa ser aceito para continuar.')
+        return
+      }
     }
     setStep((s) => Math.min(ETAPAS.length, s + 1))
   }
@@ -85,6 +174,11 @@ export function CadastroEmpresaScreen({ onBack, onDone }: Props) {
 
   function submit(e: FormEvent) {
     e.preventDefault()
+    if (!todosDocumentosAceitos() || algumDocumentoAnalisando()) {
+      setError('Os três documentos precisam ser aceitos antes de concluir.')
+      setStep(6)
+      return
+    }
     if (!form.cidade.trim() || !form.estado.trim()) {
       setError('Informe a cidade e o estado da operação.')
       setStep(4)
@@ -112,9 +206,10 @@ export function CadastroEmpresaScreen({ onBack, onDone }: Props) {
         ]),
       },
     }
+    const documentos = documentosAceitos()
     const res = completing
-      ? completeEmpresaPerfil(empresaPayload)
-      : registerEmpresa({ email: form.email, senha: form.senha }, empresaPayload)
+      ? completeEmpresaPerfil(empresaPayload, documentos)
+      : registerEmpresa({ email: form.email, senha: form.senha }, empresaPayload, documentos)
     if (!res.ok) {
       setError(res.error ?? 'Erro no cadastro')
       return
@@ -256,16 +351,31 @@ export function CadastroEmpresaScreen({ onBack, onDone }: Props) {
 
         {step === 6 && (
           <div className="docs-mock">
-            <p>A tomadora envia estes documentos antes de publicar missão:</p>
-            <ul className="cadastro-lista">
-              <li>Contrato social</li>
-              <li>Cartão CNPJ</li>
-              <li>Comprovante de endereço da operação</li>
-            </ul>
-            <label className="check-row">
-              <input type="checkbox" checked={form.docsOk} onChange={(e) => set('docsOk', e.target.checked)} />
-              Confirmo que vou enviar esses documentos
-            </label>
+            <p>Envie os três documentos. A análise começa na hora e diz se cada um está aceito.</p>
+            {DOCS_EMPRESA_CADASTRO.map((item) => {
+              const atual = docs[item.id]
+              return (
+                <div key={item.id} className="docs-item">
+                  <label className="field">
+                    <span>{item.label}</span>
+                    <input
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp,application/pdf"
+                      onChange={(e) => void escolherDocumento(item.id, e.target.files?.[0])}
+                    />
+                    <small className="muted">{item.ajuda}</small>
+                    {atual.arquivo && <small className="muted">{atual.arquivo}</small>}
+                  </label>
+                  {atual.analisando && <p className="docs-analise">Analisando…</p>}
+                  {atual.analise && (
+                    <p className={atual.analise.aceito ? 'docs-analise docs-analise--ok' : 'docs-analise docs-analise--nao'}>
+                      <strong>{atual.analise.aceito ? 'Aceito' : 'Não aceito'}</strong>
+                      <span>{atual.analise.motivo}</span>
+                    </p>
+                  )}
+                </div>
+              )
+            })}
           </div>
         )}
 
@@ -300,12 +410,16 @@ export function CadastroEmpresaScreen({ onBack, onDone }: Props) {
                 {form.cep ? ` · ${form.cep}` : ''}
               </dd>
             </div>
+            <div>
+              <dt>Documentos</dt>
+              <dd>{DOCS_EMPRESA_CADASTRO.map((item) => item.label).join(' · ')} · aceitos</dd>
+            </div>
           </dl>
         )}
 
         {error && <p className="error">{error}</p>}
-        <button type="submit" className="btn btn-accent btn-block">
-          {step === ETAPAS.length ? 'Concluir cadastro' : 'Continuar'}
+        <button type="submit" className="btn btn-accent btn-block" disabled={step === 6 && algumDocumentoAnalisando()}>
+          {step === ETAPAS.length ? 'Concluir cadastro' : algumDocumentoAnalisando() && step === 6 ? 'Analisando…' : 'Continuar'}
         </button>
       </form>
     </div>

@@ -2,7 +2,7 @@ export type PapelDocumento = 'documento' | 'verso' | 'selfie'
 
 export type FotoDocumento = {
   nome: string
-  mime: 'image/jpeg'
+  mime: 'image/jpeg' | 'application/pdf'
   dados: string
 }
 
@@ -42,9 +42,27 @@ function carregarImagem(url: string) {
   })
 }
 
+export async function lerArquivoEmpresa(file: File): Promise<FotoDocumento> {
+  const pdf = file.type === 'application/pdf' || /\.pdf$/i.test(file.name)
+  if (!pdf) return lerFotoDocumento(file)
+  if (file.size > 3_500_000) throw new Error('O PDF ficou grande demais. Envie um arquivo menor.')
+  const bytes = new Uint8Array(await file.arrayBuffer())
+  let binario = ''
+  for (let i = 0; i < bytes.length; i += 0x8000) {
+    binario += String.fromCharCode(...bytes.subarray(i, i + 0x8000))
+  }
+  const dados = btoa(binario).replace(/\s/g, '')
+  if (dados.length < 80) throw new Error('Não foi possível ler o arquivo.')
+  return { nome: file.name, mime: 'application/pdf', dados }
+}
+
 export async function analisarDocumentoCadastro(input: {
   nome: string
   arquivos: { papel: PapelDocumento; mime: string; dados: string }[]
+  contexto?: 'trabalhador' | 'empresa'
+  tipo?: string
+  cnpj?: string
+  cidade?: string
 }): Promise<{ ok: true; aceito: boolean; motivo: string } | { ok: false; erro: string }> {
   try {
     const resposta = await fetch('/api/cadastro/analisar-documento', {

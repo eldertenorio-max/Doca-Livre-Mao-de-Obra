@@ -21,7 +21,7 @@ function portalApiDev(): Plugin {
           next()
           return
         }
-        const limite = documento ? 6_000_000 : 8000
+        const limite = documento ? 8_000_000 : 8000
         const partes: Buffer[] = []
         let tamanho = 0
         let estourou = false
@@ -41,7 +41,7 @@ function portalApiDev(): Plugin {
         req.on('end', () => {
           if (estourou) return
           void (async () => {
-            let data: { email?: string; codigo?: string; finalidade?: string; nome?: string; arquivos?: { papel?: string; mime?: string; dados?: string }[] } = {}
+            let data: { email?: string; codigo?: string; finalidade?: string; nome?: string; contexto?: string; tipo?: string; cnpj?: string; cidade?: string; arquivos?: { papel?: string; mime?: string; dados?: string }[] } = {}
             try {
               data = JSON.parse(Buffer.concat(partes).toString('utf8') || '{}') as typeof data
             } catch {
@@ -50,7 +50,15 @@ function portalApiDev(): Plugin {
             }
             if (documento) {
               const { analisarDocumentoCadastro } = await import('./server/analisarDocumentoCadastro.mjs')
-              const result = await analisarDocumentoCadastro({ nome: data.nome, arquivos: data.arquivos, env })
+              const result = await analisarDocumentoCadastro({
+                nome: data.nome,
+                arquivos: data.arquivos,
+                contexto: data.contexto,
+                tipo: data.tipo,
+                cnpj: data.cnpj,
+                cidade: data.cidade,
+                env,
+              })
               responderJson(
                 res,
                 result.ok ? 200 : result.status,

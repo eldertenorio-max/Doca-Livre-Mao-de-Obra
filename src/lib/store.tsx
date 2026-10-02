@@ -43,6 +43,7 @@ function documentosDeCadastro(
   existentes: DocumentoRegistro[],
   donoId: string,
   itens: DocumentoCadastro[] | undefined,
+  donoTipo: 'profissional' | 'empresa' = 'profissional',
 ): DocumentoRegistro[] {
   if (!itens?.length) return existentes
   const tipos = new Set(itens.map((item) => item.tipoId))
@@ -50,7 +51,7 @@ function documentosDeCadastro(
   const novos: DocumentoRegistro[] = itens.map((item) => ({
     id: uid('doc'),
     tipoId: item.tipoId,
-    donoTipo: 'profissional',
+    donoTipo,
     donoId,
     status: 'aprovado',
     arquivoNome: item.arquivoNome,
@@ -62,9 +63,7 @@ function documentosDeCadastro(
   }))
   return [
     ...novos,
-    ...existentes.filter(
-      (doc) => !(doc.donoTipo === 'profissional' && doc.donoId === donoId && tipos.has(doc.tipoId)),
-    ),
+    ...existentes.filter((doc) => !(doc.donoTipo === donoTipo && doc.donoId === donoId && tipos.has(doc.tipoId))),
   ]
 }
 
@@ -96,9 +95,9 @@ type StoreApi = {
     role: 'empresa' | 'profissional'
   }) => { ok: boolean; error?: string }
   portalResetSenha: (email: string, novaSenha: string) => { ok: boolean; error?: string }
-  registerEmpresa: (user: Omit<User, 'id' | 'role' | 'ativo' | 'createdAt'>, empresa: Omit<Empresa, 'id' | 'userId' | 'status' | 'avaliacaoMedia' | 'favoritos' | 'bloqueados' | 'docsOk' | 'saldo' | 'limitePosPago' | 'diasTaxaZero' | 'metaTaxaZero' | 'diasAgenciados' | 'rankingDias' | 'economiaTotal'>) => { ok: boolean; error?: string }
+  registerEmpresa: (user: Omit<User, 'id' | 'role' | 'ativo' | 'createdAt'>, empresa: Omit<Empresa, 'id' | 'userId' | 'status' | 'avaliacaoMedia' | 'favoritos' | 'bloqueados' | 'docsOk' | 'saldo' | 'limitePosPago' | 'diasTaxaZero' | 'metaTaxaZero' | 'diasAgenciados' | 'rankingDias' | 'economiaTotal'>, documentos?: DocumentoCadastro[]) => { ok: boolean; error?: string }
   registerProfissional: (user: Omit<User, 'id' | 'role' | 'ativo' | 'createdAt'>, profissional: Omit<Profissional, 'id' | 'userId' | 'status' | 'nivel' | 'avaliacaoMedia' | 'taxaComparecimento' | 'faltas' | 'tempoRespostaMin' | 'ganhosMes' | 'saldo'>, documentos?: DocumentoCadastro[]) => { ok: boolean; error?: string }
-  completeEmpresaPerfil: (empresa: Omit<Empresa, 'id' | 'userId' | 'status' | 'avaliacaoMedia' | 'favoritos' | 'bloqueados' | 'docsOk' | 'saldo' | 'limitePosPago' | 'diasTaxaZero' | 'metaTaxaZero' | 'diasAgenciados' | 'rankingDias' | 'economiaTotal'>) => { ok: boolean; error?: string }
+  completeEmpresaPerfil: (empresa: Omit<Empresa, 'id' | 'userId' | 'status' | 'avaliacaoMedia' | 'favoritos' | 'bloqueados' | 'docsOk' | 'saldo' | 'limitePosPago' | 'diasTaxaZero' | 'metaTaxaZero' | 'diasAgenciados' | 'rankingDias' | 'economiaTotal'>, documentos?: DocumentoCadastro[]) => { ok: boolean; error?: string }
   completeProfissionalPerfil: (profissional: Omit<Profissional, 'id' | 'userId' | 'status' | 'nivel' | 'avaliacaoMedia' | 'taxaComparecimento' | 'faltas' | 'tempoRespostaMin' | 'ganhosMes' | 'saldo'>, documentos?: DocumentoCadastro[]) => { ok: boolean; error?: string }
   createDemanda: (data: Omit<Demanda, 'id' | 'createdAt' | 'status' | 'categoria'>) => Demanda
   publicarVaga: (data: Omit<Demanda, 'id' | 'createdAt' | 'status' | 'categoria'>) => Demanda
@@ -447,7 +446,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       update((s) => ({ ...s, sessionUserId: null }))
     },
 
-    registerEmpresa(userData, empresaData) {
+    registerEmpresa(userData, empresaData, documentos) {
       if (state.users.some((u) => u.email.toLowerCase() === userData.email.toLowerCase())) {
         return { ok: false, error: 'E-mail já cadastrado.' }
       }
@@ -482,6 +481,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         ...s,
         users: [...s.users, user],
         empresas: [...s.empresas, empresa],
+        documentos: documentosDeCadastro(s.documentos, empresaId, documentos, 'empresa'),
         sessionUserId: userId,
         auditLogs: [
           { id: uid('log'), at: nowIso(), actorId: userId, action: 'cadastro_empresa', detail: empresa.nomeFantasia },
@@ -532,16 +532,22 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       return { ok: true }
     },
 
-    completeEmpresaPerfil(empresaData) {
+    completeEmpresaPerfil(empresaData, documentos) {
       const user = state.users.find((u) => u.id === state.sessionUserId)
       if (!user || user.role !== 'empresa') {
         return { ok: false, error: 'Sessão de empresa inválida.' }
       }
       if (state.empresas.some((e) => e.userId === user.id)) {
-        update((s) => ({
-          ...s,
-          users: s.users.map((u) => (u.id === user.id ? { ...u, perfilCompleto: true } : u)),
-        }))
+        update((s) => {
+          const existente = s.empresas.find((e) => e.userId === user.id)
+          return {
+            ...s,
+            users: s.users.map((u) => (u.id === user.id ? { ...u, perfilCompleto: true } : u)),
+            documentos: existente
+              ? documentosDeCadastro(s.documentos, existente.id, documentos, 'empresa')
+              : s.documentos,
+          }
+        })
         return { ok: true }
       }
       const empresa: Empresa = {
@@ -564,6 +570,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       update((s) => ({
         ...s,
         empresas: [...s.empresas, empresa],
+        documentos: documentosDeCadastro(s.documentos, empresa.id, documentos, 'empresa'),
         users: s.users.map((u) => (u.id === user.id ? { ...u, perfilCompleto: true } : u)),
         auditLogs: [
           {
