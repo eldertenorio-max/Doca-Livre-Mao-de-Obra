@@ -1,6 +1,6 @@
 import { resumoAvaliacaoEmpresa } from './classificacao'
 import { createSeedState } from './seed'
-import { cadastroEttInicial } from './dossieTemporario'
+import { cadastroEttInicial, pecasDaContratacao } from './dossieTemporario'
 import type { AppState } from './types'
 
 export const STORAGE_KEY = 'doca-livre-mao-de-obra-v7'
@@ -26,6 +26,32 @@ function fecharVagasComContrato(state: AppState) {
     if (!fechadas.has(candidatura.demandaId)) continue
     if (candidatura.status === 'pendente' || candidatura.status === 'aceita') {
       candidatura.status = 'cancelada'
+      mudou = true
+    }
+  }
+  return mudou
+}
+
+function completarPecasDasContratacoes(state: AppState) {
+  if (!Array.isArray(state.candidaturas) || !Array.isArray(state.demandas)) return false
+  let mudou = false
+  for (const candidatura of state.candidaturas) {
+    if (candidatura.status !== 'confirmada') continue
+    const demanda = state.demandas.find((d) => d.id === candidatura.demandaId)
+    if (!demanda || demanda.status === 'finalizada' || demanda.status === 'cancelada') continue
+    const empresa = state.empresas?.find((e) => e.id === demanda.empresaId)
+    const profissional = state.profissionais?.find((p) => p.id === candidatura.profissionalId)
+    if (!empresa || !profissional) continue
+    const novas = pecasDaContratacao({
+      pecas: state.pecas ?? [],
+      demanda,
+      empresa,
+      profissional,
+      ett: state.cadastroEtt ?? cadastroEttInicial(),
+      candidaturaId: candidatura.id,
+    })
+    if (novas.length) {
+      state.pecas = [...novas, ...(state.pecas ?? [])]
       mudou = true
     }
   }
@@ -63,6 +89,7 @@ export function loadState(): AppState {
       if (classificacaoMudou) saveState(parsed)
     }
     if (fecharVagasComContrato(parsed)) saveState(parsed)
+    if (completarPecasDasContratacoes(parsed)) saveState(parsed)
     if (parsed.profissionais?.some((pessoa) => !pessoa.foto)) {
       const fotos = new Map(
         createSeedState().profissionais.filter((pessoa) => pessoa.foto).map((pessoa) => [pessoa.id, pessoa.foto]),

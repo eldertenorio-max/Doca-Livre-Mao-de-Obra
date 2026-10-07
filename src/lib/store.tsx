@@ -12,9 +12,10 @@ import { buildContratoFromConfirmacao } from './contratoTemplate'
 import {
   atualizarAssinatura,
   cadastroEttInicial,
-  criarContratoIndividual,
   criarEncerramento,
   criarPecasIniciais,
+  criarRecibo,
+  pecasDaContratacao,
 } from './dossieTemporario'
 import { distanciaKm, matchDemanda } from './matching'
 import { canAccessSistema, isLocalSuperUser } from './portalPermissoes'
@@ -22,7 +23,9 @@ import { nowIso, uid } from './seed'
 import { mediaDaAvaliacao, nivelPelaMedia } from './classificacao'
 import { validarChavePix } from './pix'
 import { loadState, resetState, saveState, STORAGE_KEY } from './storage'
+import { VERSAO_TERMOS } from './termos'
 import type {
+  AceiteTermo,
   AppState,
   Avaliacao,
   Candidatura,
@@ -33,6 +36,7 @@ import type {
   DocumentoStatus,
   Empresa,
   Pagamento,
+  PecaDocumental,
   Profissional,
   User,
   UserRole,
@@ -143,6 +147,7 @@ type StoreApi = {
   confirmCandidato: (candidaturaId: string) => void
   assinarContrato: (contratoId: string) => void
   assinarPeca: (pecaId: string, papel: 'ett' | 'tomadora' | 'trabalhador', nome: string) => void
+  aceitarTermos: (documentos: AceiteTermo['documento'][]) => void
   marcarEsocial: (pecaId: string) => void
   registrarEncerramento: (input: {
     demandaId: string
@@ -242,8 +247,27 @@ function finishDemandaState(s: AppState, demandaId: string): AppState {
     createdAt: nowIso(),
   }))
   const profIds = new Set(confirmados.map((c) => c.profissionalId))
+  const empresa = s.empresas.find((e) => e.id === demanda.empresaId)
+  const recibos: PecaDocumental[] = []
+  if (empresa) {
+    for (const pagamento of pagamentos) {
+      const profissional = s.profissionais.find((p) => p.id === pagamento.profissionalId)
+      if (!profissional) continue
+      const recibo = criarRecibo({
+        pecas: [...recibos, ...(s.pecas ?? [])],
+        demanda,
+        empresa,
+        profissional,
+        valor: pagamento.valor,
+        dias,
+        pagoEm: pagamento.createdAt,
+      })
+      if (recibo) recibos.push(recibo)
+    }
+  }
   return {
     ...s,
+    pecas: [...recibos, ...(s.pecas ?? [])],
     demandas: s.demandas.map((d) =>
       d.id === demandaId ? { ...d, status: 'finalizada' as const } : d,
     ),
@@ -947,7 +971,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
               ...s.contratos,
             ]
 
-        const individual = criarContratoIndividual({
+        const novasPecas = pecasDaContratacao({
           pecas: s.pecas ?? [],
           demanda,
           empresa,
@@ -962,7 +986,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           demandas,
           checkIns,
           contratos,
-          pecas: individual ? [individual, ...(s.pecas ?? [])] : s.pecas ?? [],
+          pecas: [...novasPecas, ...(s.pecas ?? [])],
           auditLogs: [
             {
               id: uid('log'),
@@ -999,6 +1023,37 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       }))
     },
 
+    aceitarTermos(documentos) {
+      update((s) => {
+        const userId = s.sessionUserId
+        if (!userId || documentos.length === 0) return s
+        const em = nowIso()
+        return {
+          ...s,
+          users: s.users.map((u) => {
+            if (u.id !== userId) return u
+            const outros = (u.aceites ?? []).filter(
+              (item) => !(item.versao === VERSAO_TERMOS && documentos.includes(item.documento)),
+            )
+            return {
+              ...u,
+              aceites: [...outros, ...documentos.map((documento) => ({ documento, versao: VERSAO_TERMOS, em }))],
+            }
+          }),
+          auditLogs: [
+            {
+              id: uid('log'),
+              at: em,
+              actorId: userId,
+              action: 'aceite_termos',
+              detail: `${documentos.join(', ')} · versão ${VERSAO_TERMOS}`,
+            },
+            ...s.auditLogs,
+          ],
+        }
+      })
+    },
+
     marcarEsocial(pecaId) {
       update((s) => ({
         ...s,
@@ -1012,22 +1067,42 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       update((s) => {
         const demanda = s.demandas.find((d) => d.id === input.demandaId)
         if (!demanda) return s
-        const ja = (s.pecas ?? []).some((p) => p.demandaId === demanda.id && p.tipo === 'encerramento')
-        const peca = ja
-          ? null
-          : criarEncerramento({
-              pecas: s.pecas ?? [],
-              demanda,
-              dataEfetiva: input.dataEfetiva,
-              motivo: input.motivo,
-              responsavel: input.responsavel,
-              observacoes: input.observacoes,
-              profissionalId: input.profissionalId,
-            })
+        const existentes = s.pecas ?? []
+        const ja = existentes.some((p) => p.demandaId === demanda.id && p.tipo === 'encerramento')
+        const alvos = input.profissionalId
+          ? [input.profissionalId]
+          : s.candidaturas
+              .filter((c) => c.demandaId === demanda.id && c.status === 'confirmada')
+              .map((c) => c.profissionalId)
+        const novas: PecaDocumental[] = []
+        if (!ja) {
+          const base = {
+            demanda,
+            dataEfetiva: input.dataEfetiva,
+            motivo: input.motivo,
+            responsavel: input.responsavel,
+            observacoes: input.observacoes,
+            ettNome: (s.cadastroEtt ?? cadastroEttInicial()).nomeFantasia,
+          }
+          if (alvos.length === 0) {
+            novas.push(criarEncerramento({ ...base, pecas: existentes }))
+          }
+          for (const profissionalId of alvos) {
+            const profissional = s.profissionais.find((p) => p.id === profissionalId)
+            novas.push(
+              criarEncerramento({
+                ...base,
+                pecas: [...novas, ...existentes],
+                profissionalId,
+                profissionalNome: profissional?.nome,
+              }),
+            )
+          }
+        }
         const encerrada = finishDemandaState(s, demanda.id)
         return {
           ...encerrada,
-          pecas: peca ? [peca, ...(encerrada.pecas ?? [])] : encerrada.pecas ?? [],
+          pecas: [...novas, ...(encerrada.pecas ?? [])],
         }
       })
     },

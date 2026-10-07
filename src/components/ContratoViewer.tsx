@@ -5,6 +5,7 @@ import {
   PLATAFORMA_DOCA,
   renderContratoHtml,
 } from '../lib/contratoTemplate'
+import { imprimirHtml } from '../lib/imprimir'
 import { useStore } from '../lib/store'
 import type { ContratoServico } from '../lib/types'
 import { cargoLabel } from '../data/categories'
@@ -49,7 +50,7 @@ export function ContratoViewer({ contratoId, onClose, canAssinar }: Props) {
       profissional: ctx.profissional,
       demanda: ctx.demanda,
     })
-    imprimirContrato(html)
+    imprimirHtml(html, 'Contrato para impressão')
   }
 
   return (
@@ -91,28 +92,6 @@ export function ContratoViewer({ contratoId, onClose, canAssinar }: Props) {
       </div>
     </div>
   )
-}
-
-function imprimirContrato(html: string) {
-  const quadro = document.createElement('iframe')
-  quadro.setAttribute('title', 'Contrato para impressão')
-  quadro.style.cssText = 'position:fixed;left:-10000px;top:0;width:900px;height:1200px;border:0'
-  document.body.appendChild(quadro)
-  const janela = quadro.contentWindow
-  const doc = janela?.document
-  if (!janela || !doc) {
-    quadro.remove()
-    return
-  }
-  doc.open()
-  doc.write(html)
-  doc.close()
-  const retirar = () => quadro.remove()
-  janela.addEventListener('afterprint', retirar)
-  window.setTimeout(() => {
-    janela.focus()
-    janela.print()
-  }, 300)
 }
 
 function ContratoPreview({ contrato }: { contrato: ContratoServico }) {

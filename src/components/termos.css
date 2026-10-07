@@ -1,0 +1,203 @@
+.termos-cadastro {
+  margin-top: 18px;
+}
+
+.termos-cadastro h2 {
+  font-size: 1rem;
+  margin: 0 0 10px;
+}
+
+.termos-lista {
+  display: grid;
+  gap: 10px;
+}
+
+.termos-item {
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 10px 12px;
+  background: #fff;
+}
+
+.termos-item--ok {
+  border-color: #86efac;
+  background: #f0fdf4;
+}
+
+.termos-check {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.termos-check input {
+  margin-top: 3px;
+  width: 18px;
+  height: 18px;
+  flex: 0 0 auto;
+  accent-color: #111;
+}
+
+.termos-ler {
+  margin: 6px 0 0 28px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: #1d4ed8;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.termos-texto {
+  margin: 8px 0 0 28px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #f8fafc;
+  font-size: 0.85rem;
+  line-height: 1.5;
+  color: #374151;
+  max-height: 220px;
+  overflow: auto;
+}
+
+.termos-texto p {
+  margin: 0 0 8px;
+}
+
+.termos-texto p:last-child {
+  margin-bottom: 0;
+}
+
+.termos-versao {
+  margin: 2px 0 0;
+  font-size: 0.75rem;
+  color: #6b7280;
+}
+
+.td-docs-missao {
+  list-style: none;
+  margin: 10px 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.termos-fundo {
+  position: fixed;
+  inset: 0;
+  z-index: 3000;
+  background: rgba(17, 24, 39, 0.55);
+  display: grid;
+  place-items: center;
+  padding: 16px;
+}
+
+.termos-modal {
+  width: min(560px, 100%);
+  max-height: calc(100vh - 32px);
+  overflow: auto;
+  background: #fff;
+  border-radius: 16px;
+  padding: 20px;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.25);
+}
+
+.termos-modal h2 {
+  margin: 0 0 6px;
+  font-size: 1.2rem;
+}
+
+.termos-modal > p {
+  margin: 0 0 14px;
+  color: #4b5563;
+  font-size: 0.9rem;
+}
+
+.termos-modal--doc {
+  width: min(720px, 100%);
+}
+
+.peca-numero {
+  margin: 0 0 12px;
+  color: #6b7280;
+  font-size: 0.85rem;
+}
+
+.peca-resumo {
+  margin: 0 0 14px;
+  padding-left: 18px;
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.peca-resumo li {
+  margin-bottom: 6px;
+}
+
+.peca-assinaturas {
+  list-style: none;
+  margin: 0 0 10px;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.peca-assinaturas li {
+  display: grid;
+  gap: 2px;
+  padding: 8px 10px;
+  border: 1px dashed #d1d5db;
+  border-radius: 10px;
+  font-size: 0.85rem;
+}
+
+.peca-assinaturas li.peca-assinada {
+  border-style: solid;
+  border-color: #86efac;
+  background: #f0fdf4;
+}
+
+.peca-concordo {
+  margin-top: 12px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #fffbeb;
+}
+
+.termos-acoes {
+  flex-wrap: wrap;
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.termos-sair,
+.termos-ok {
+  border-radius: 10px;
+  padding: 10px 16px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.termos-sair {
+  border: 1px solid #d1d5db;
+  background: #fff;
+}
+
+.termos-ok {
+  border: 0;
+  background: #f9db00;
+  color: #000;
+}
+
+.termos-ok:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

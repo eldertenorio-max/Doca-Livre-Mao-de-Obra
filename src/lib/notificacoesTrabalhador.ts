@@ -1,7 +1,7 @@
 import { cargoLabel } from '../data/categories'
 import { distanciaKm } from './matching'
 import { rotuloPeriodo } from './periodoMissao'
-import type { Candidatura, ContratoServico, Demanda, Empresa, Profissional } from './types'
+import type { Candidatura, Demanda, Empresa, PecaDocumental, Profissional } from './types'
 
 export const CHAVE_NOTIFICACOES_TRABALHADOR = 'doca-livre-notificacoes-trabalhador-v1'
 
@@ -12,7 +12,7 @@ export type AvisoTrabalhador = {
   texto: string
   extra: string
   aba: 'vagas' | 'agenda'
-  contratoId?: string
+  pecaId?: string
 }
 
 type Registro = { lidas: string[] }
@@ -38,27 +38,29 @@ export function montarAvisosTrabalhador(input: {
   demandas: Demanda[]
   candidaturas: Candidatura[]
   empresas: Empresa[]
-  contratos?: ContratoServico[]
+  pecas?: PecaDocumental[]
 }): AvisoTrabalhador[] {
   const empresas = new Map(input.empresas.map((item) => [item.id, item]))
   const minhas = input.candidaturas.filter((item) => item.profissionalId === input.prof.id)
   const porDemanda = new Map(minhas.map((item) => [item.demandaId, item]))
   const avisos: AvisoTrabalhador[] = []
 
-  for (const contrato of input.contratos ?? []) {
-    if (contrato.profissionalId !== input.prof.id || contrato.status !== 'gerado') continue
-    const demanda = input.demandas.find((item) => item.id === contrato.demandaId)
+  for (const peca of input.pecas ?? []) {
+    if (peca.profissionalId !== input.prof.id) continue
+    const minha = peca.assinaturas.find((a) => a.papel === 'trabalhador')
+    if (!minha || minha.status !== 'pendente') continue
+    const demanda = input.demandas.find((item) => item.id === peca.demandaId)
     if (!demanda || demanda.status === 'cancelada') continue
-    const empresa = empresas.get(contrato.empresaId)
+    const empresa = empresas.get(peca.empresaId)
     const nome = empresa?.nomeFantasia ?? 'A empresa'
     avisos.push({
-      id: `termo:${contrato.id}`,
+      id: `termo:${peca.id}`,
       tipo: 'termo',
-      quando: contrato.createdAt,
-      texto: `Termo para assinar. ${nome} fechou o contrato de ${cargoLabel(demanda.cargo)}.`,
+      quando: peca.criadoEm,
+      texto: `Documento para assinar: ${peca.titulo}. Missão de ${cargoLabel(demanda.cargo)} em ${nome}.`,
       extra: `${demanda.endereco.cidade}/${demanda.endereco.estado} · ${rotuloPeriodo(demanda.data, demanda.dataFim)}`,
       aba: 'agenda',
-      contratoId: contrato.id,
+      pecaId: peca.id,
     })
   }
 

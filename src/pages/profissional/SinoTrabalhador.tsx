@@ -10,7 +10,7 @@ import {
 } from '../../lib/notificacoesTrabalhador'
 import { useStore } from '../../lib/store'
 
-export function SinoTrabalhador({ onIr }: { onIr: (aba: 'vagas' | 'agenda', contratoId?: string) => void }) {
+export function SinoTrabalhador({ onIr }: { onIr: (aba: 'vagas' | 'agenda', pecaId?: string) => void }) {
   const { state, currentProfissional } = useStore()
   const prof = currentProfissional
   const avisos = useMemo(() => {
@@ -20,9 +20,9 @@ export function SinoTrabalhador({ onIr }: { onIr: (aba: 'vagas' | 'agenda', cont
       demandas: state.demandas,
       candidaturas: state.candidaturas,
       empresas: state.empresas,
-      contratos: state.contratos,
+      pecas: state.pecas,
     })
-  }, [prof, state.candidaturas, state.contratos, state.demandas, state.empresas])
+  }, [prof, state.candidaturas, state.pecas, state.demandas, state.empresas])
   const [lidas, setLidas] = useState<string[] | null>(null)
   const [aberto, setAberto] = useState(false)
   const [posicao, setPosicao] = useState({ top: 62, right: 12 })
@@ -91,7 +91,7 @@ export function SinoTrabalhador({ onIr }: { onIr: (aba: 'vagas' | 'agenda', cont
     if (!prof) return
     setLidas(marcarAvisosTrabalhador(prof.id, [aviso.id]))
     setAberto(false)
-    onIr(aviso.aba, aviso.contratoId)
+    onIr(aviso.aba, aviso.pecaId)
   }
 
   const rotulo =

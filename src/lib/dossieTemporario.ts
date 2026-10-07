@@ -195,8 +195,11 @@ export function criarContratoIndividual(params: {
       `Jornada: ${demanda.horaInicio}–${demanda.horaFim}`,
       `Remuneração: ${demanda.valorDiaria ? `R$ ${demanda.valorDiaria} por dia` : 'a informar'}`,
       `Motivo da contratação: ${demanda.motivo || 'não informado'}`,
-      'Direitos: os do trabalhador temporário, na forma da Lei 6.019/1974. Este vínculo é distinto do contrato por prazo determinado comum da CLT.',
-      'Condições: colocação à disposição da tomadora pelo prazo e pelo motivo desta missão.',
+      'Natureza: contrato de trabalho temporário da Lei 6.019/1974, com a empresa de trabalho temporário como empregadora e colocação do trabalhador à disposição da tomadora pelo prazo e pelo motivo desta missão.',
+      'Prazo: até 180 dias, prorrogável por mais 90 dias quando mantido o motivo. A condição de temporário é anotada na carteira de trabalho.',
+      'Direitos: remuneração equivalente à dos empregados da mesma categoria da tomadora, jornada de até 8 horas diárias, horas extras com acréscimo mínimo de 50%, repouso semanal remunerado, adicional noturno, férias e 13º proporcionais, FGTS, seguro contra acidente de trabalho e proteção previdenciária.',
+      'Segurança: a tomadora garante as condições de segurança, higiene e salubridade no local de trabalho. O trabalhador segue as normas de segurança e usa os EPIs entregues.',
+      'Rescisão: o encerramento antes do prazo é registrado em documento próprio, assinado pelas partes.',
       'eSocial: admissão pelo evento S-2200, categoria 106 (trabalhador temporário da Lei 6.019/1974). O sistema não transmite o evento.',
     ],
     assinaturas: [
@@ -209,6 +212,148 @@ export function criarContratoIndividual(params: {
   }
 }
 
+function episDaMissao(demanda: Demanda) {
+  const itens = (demanda.epis || '')
+    .split(/[,;]/)
+    .map((item) => item.trim())
+    .filter((item) => item && !/^vale|refei|alimenta|transporte/i.test(item))
+  return itens.length ? itens : ['EPIs da função, conforme o programa de riscos da tomadora']
+}
+
+export function criarTermoIntegracao(params: {
+  pecas: PecaDocumental[]
+  demanda: Demanda
+  empresa: Empresa
+  profissional: Profissional
+  candidaturaId: string
+}): PecaDocumental | null {
+  const { pecas, demanda, empresa, profissional, candidaturaId } = params
+  if (pecas.some((p) => p.candidaturaId === candidaturaId && p.tipo === 'termo_integracao')) return null
+  return {
+    id: uid('peca'),
+    numero: proximoNumero(pecas, 'INT'),
+    tipo: 'termo_integracao',
+    status: 'aguardando_assinatura',
+    demandaId: demanda.id,
+    empresaId: empresa.id,
+    profissionalId: profissional.id,
+    candidaturaId,
+    titulo: 'Termo de integração e normas de segurança',
+    resumo: [
+      `Trabalhador: ${profissional.nome}`,
+      `Tomadora: ${empresa.nomeFantasia}`,
+      `Função: ${cargoLabel(demanda.cargo)}`,
+      `Local: ${demanda.endereco.cidade}/${demanda.endereco.estado}`,
+      'Declaro que recebi as orientações de integração: riscos da função, rotas de fuga, uso de equipamentos e regras internas do local.',
+      'Comprometo-me a seguir as normas de segurança, usar os EPIs entregues e comunicar qualquer acidente ou condição de risco ao responsável da tomadora.',
+      'A integração pode ser presencial ou online, conforme a tomadora definir antes do início.',
+    ],
+    assinaturas: [{ papel: 'trabalhador', nome: profissional.nome, status: 'pendente' }],
+    criadoEm: nowIso(),
+    aviso: AVISO_MINUTA,
+  }
+}
+
+export function criarFichaEpi(params: {
+  pecas: PecaDocumental[]
+  demanda: Demanda
+  empresa: Empresa
+  profissional: Profissional
+  candidaturaId: string
+}): PecaDocumental | null {
+  const { pecas, demanda, empresa, profissional, candidaturaId } = params
+  if (pecas.some((p) => p.candidaturaId === candidaturaId && p.tipo === 'ficha_epi')) return null
+  return {
+    id: uid('peca'),
+    numero: proximoNumero(pecas, 'EPI'),
+    tipo: 'ficha_epi',
+    status: 'aguardando_assinatura',
+    demandaId: demanda.id,
+    empresaId: empresa.id,
+    profissionalId: profissional.id,
+    candidaturaId,
+    titulo: 'Ficha de entrega de EPI',
+    resumo: [
+      `Trabalhador: ${profissional.nome}`,
+      `Função: ${cargoLabel(demanda.cargo)}`,
+      `EPIs: ${episDaMissao(demanda).join(', ')}`,
+      'Declaro que recebi os EPIs listados, em bom estado, e o treinamento sobre o uso correto.',
+      'Comprometo-me a usar os EPIs apenas na atividade, guardá-los, comunicar dano ou extravio e devolvê-los no fim da missão, conforme a NR-6.',
+    ],
+    assinaturas: [{ papel: 'trabalhador', nome: profissional.nome, status: 'pendente' }],
+    criadoEm: nowIso(),
+    aviso: AVISO_MINUTA,
+  }
+}
+
+/** Peças que faltam para uma candidatura confirmada. Não repete o que já existe. */
+export function pecasDaContratacao(params: {
+  pecas: PecaDocumental[]
+  demanda: Demanda
+  empresa: Empresa
+  profissional: Profissional
+  ett: CadastroEtt
+  candidaturaId: string
+}): PecaDocumental[] {
+  const novas: PecaDocumental[] = []
+  const todas = () => [...novas, ...params.pecas]
+  novas.push(
+    ...criarPecasIniciais({
+      pecas: todas(),
+      demanda: params.demanda,
+      empresa: params.empresa,
+      ett: params.ett,
+      signatarioTomadora: params.empresa.responsavelNome,
+    }),
+  )
+  const individual = criarContratoIndividual({ ...params, pecas: todas() })
+  if (individual) novas.push(individual)
+  const integracao = criarTermoIntegracao({ ...params, pecas: todas() })
+  if (integracao) novas.push(integracao)
+  const epi = criarFichaEpi({ ...params, pecas: todas() })
+  if (epi) novas.push(epi)
+  return novas
+}
+
+export function criarRecibo(params: {
+  pecas: PecaDocumental[]
+  demanda: Demanda
+  empresa: Empresa
+  profissional: Profissional
+  valor: number
+  dias: number
+  pagoEm: string
+}): PecaDocumental | null {
+  const { pecas, demanda, empresa, profissional } = params
+  if (pecas.some((p) => p.tipo === 'recibo' && p.demandaId === demanda.id && p.profissionalId === profissional.id)) {
+    return null
+  }
+  const moeda = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+  return {
+    id: uid('peca'),
+    numero: proximoNumero(pecas, 'REC'),
+    tipo: 'recibo',
+    status: 'aguardando_assinatura',
+    demandaId: demanda.id,
+    empresaId: empresa.id,
+    profissionalId: profissional.id,
+    titulo: 'Recibo de pagamento',
+    resumo: [
+      `Trabalhador: ${profissional.nome}`,
+      `Tomadora: ${empresa.nomeFantasia}`,
+      `Função: ${cargoLabel(demanda.cargo)}`,
+      `Período: ${dataBr(demanda.data)} a ${dataBr(demanda.dataFim || demanda.data)}`,
+      `Dias: ${params.dias} · Diária: ${moeda(demanda.valorDiaria)}`,
+      `Valor: ${moeda(params.valor)}`,
+      `Pago em: ${dataBr(params.pagoEm.slice(0, 10))}`,
+      'Declaro que recebi o valor acima pela missão temporária descrita.',
+    ],
+    assinaturas: [{ papel: 'trabalhador', nome: profissional.nome, status: 'pendente' }],
+    criadoEm: nowIso(),
+    aviso: AVISO_MINUTA,
+  }
+}
+
 export function criarEncerramento(params: {
   pecas: PecaDocumental[]
   demanda: Demanda
@@ -217,6 +362,8 @@ export function criarEncerramento(params: {
   responsavel: string
   observacoes: string
   profissionalId?: string
+  profissionalNome?: string
+  ettNome?: string
 }): PecaDocumental {
   const fim = params.demanda.dataFim || params.demanda.data
   const antecipada = params.dataEfetiva < fim
@@ -227,12 +374,13 @@ export function criarEncerramento(params: {
     id: uid('peca'),
     numero: proximoNumero(params.pecas, 'ENC'),
     tipo: 'encerramento',
-    status: 'encerrada',
+    status: params.profissionalId ? 'aguardando_assinatura' : 'encerrada',
     demandaId: params.demanda.id,
     empresaId: params.demanda.empresaId,
     profissionalId: params.profissionalId,
     titulo: antecipada ? 'Rescisão antecipada' : 'Encerramento da missão',
     resumo: [
+      ...(params.profissionalNome ? [`Trabalhador: ${params.profissionalNome}`] : []),
       `Término previsto: ${dataBr(fim)}`,
       `Data efetiva: ${dataBr(params.dataEfetiva)}`,
       `Motivo: ${params.motivo}`,
@@ -241,8 +389,16 @@ export function criarEncerramento(params: {
       antecipada
         ? `Rescisão antecipada de contrato temporário deve ser informada no SIRETT em até 2 dias após o encerramento. Prazo indicado: ${dataBr(prazoIso)}. O sistema não envia essa informação ao Ministério do Trabalho.`
         : 'Encerramento no prazo previsto. Verbas, última jornada e situação no eSocial ficam a cargo de quem responde pela obrigação.',
+      ...(params.profissionalId
+        ? ['O trabalhador declara ciência do encerramento e a devolução dos EPIs e materiais recebidos.']
+        : []),
     ],
-    assinaturas: [],
+    assinaturas: params.profissionalId
+      ? [
+          { papel: 'ett', nome: params.ettNome || 'Empresa de trabalho temporário', status: 'pendente' },
+          { papel: 'trabalhador', nome: params.profissionalNome || 'Trabalhador', status: 'pendente' },
+        ]
+      : [],
     criadoEm: nowIso(),
     aviso: AVISO_MINUTA,
     meta: {
@@ -284,6 +440,15 @@ export function pendenciasParaIniciar(params: {
   }
   if (individual?.meta?.esocial !== 'informado') {
     faltas.push('Admissão informada no eSocial (S-2200, categoria 106)')
+  }
+
+  const doTrabalhador = (tipo: PecaDocumental['tipo']) =>
+    daDemanda.find((p) => p.tipo === tipo && p.profissionalId === params.profissionalId)
+  if (!assinaturaOk(doTrabalhador('termo_integracao'), 'trabalhador')) {
+    faltas.push('Termo de integração e normas de segurança assinado pelo trabalhador')
+  }
+  if (!assinaturaOk(doTrabalhador('ficha_epi'), 'trabalhador')) {
+    faltas.push('Ficha de entrega de EPI assinada pelo trabalhador')
   }
 
   const aso = params.documentos.find(

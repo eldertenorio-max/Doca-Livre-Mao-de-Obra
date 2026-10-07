@@ -62,6 +62,13 @@ export type User = {
   perfilCompleto?: boolean
   ativo: boolean
   createdAt: string
+  aceites?: AceiteTermo[]
+}
+
+export type AceiteTermo = {
+  documento: 'termos_uso' | 'privacidade' | 'dados' | 'veracidade'
+  versao: string
+  em: string
 }
 
 export type Empresa = {
@@ -337,7 +344,14 @@ export type DocumentoRegistro = {
   meta?: Record<string, string>
 }
 
-export type PecaTipo = 'solicitacao' | 'contrato_ett_tomadora' | 'contrato_individual' | 'encerramento'
+export type PecaTipo =
+  | 'solicitacao'
+  | 'contrato_ett_tomadora'
+  | 'contrato_individual'
+  | 'termo_integracao'
+  | 'ficha_epi'
+  | 'encerramento'
+  | 'recibo'
 
 export type PecaStatus = 'registrada' | 'aguardando_assinatura' | 'concluida' | 'encerrada'
 

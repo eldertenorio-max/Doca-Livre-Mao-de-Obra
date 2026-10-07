@@ -11,13 +11,17 @@ import {
 import { effectiveStatus } from '../lib/documentos'
 import { useStore } from '../lib/store'
 import type { PecaDocumental } from '../lib/types'
+import { PecaViewer } from './PecaViewer'
 import './biblioteca.css'
 
 const ROTULO: Record<PecaDocumental['tipo'], string> = {
   solicitacao: 'Solicitação de trabalho temporário',
   contrato_ett_tomadora: 'Contrato ETT ↔ tomadora',
   contrato_individual: 'Contrato individual temporário',
+  termo_integracao: 'Termo de integração',
+  ficha_epi: 'Ficha de entrega de EPI',
   encerramento: 'Encerramento',
+  recibo: 'Recibo de pagamento',
 }
 
 export function BibliotecaDocumental({
@@ -32,12 +36,12 @@ export function BibliotecaDocumental({
   const ett = state.cadastroEtt
   const prof = store.currentProfissional
   const pecas = (state.pecas ?? []).filter((p) => {
-    if (modo === 'tomadora' && empresaId) return p.empresaId === empresaId
+    if (modo === 'tomadora' && empresaId) return p.empresaId === empresaId && p.tipo !== 'recibo'
     if (modo === 'trabalhador' && prof) {
       const participa = state.candidaturas.some(
         (c) => c.demandaId === p.demandaId && c.profissionalId === prof.id,
       )
-      if (p.tipo === 'contrato_individual' || p.tipo === 'encerramento') return p.profissionalId === prof.id
+      if (p.profissionalId) return p.profissionalId === prof.id
       return p.tipo === 'solicitacao' && participa
     }
     return true
@@ -260,6 +264,7 @@ function Consentimentos({ profissionalId }: { profissionalId: string }) {
 
 function PecaCard({ peca, modo }: { peca: PecaDocumental; modo: 'ett' | 'tomadora' | 'trabalhador' }) {
   const { state, assinarPeca, marcarEsocial, currentEmpresa, currentProfissional } = useStore()
+  const [leitura, setLeitura] = useState(false)
   const demanda = state.demandas.find((d) => d.id === peca.demandaId)
   const pendencias =
     peca.profissionalId && demanda
@@ -303,22 +308,22 @@ function PecaCard({ peca, modo }: { peca: PecaDocumental; modo: 'ett' | 'tomador
           </button>
         )}
         {modo === 'tomadora' && peca.assinaturas.some((a) => a.papel === 'tomadora' && a.status === 'pendente') && (
-          <button
-            type="button"
-            className="bib-btn"
-            onClick={() => assinarPeca(peca.id, 'tomadora', currentEmpresa?.responsavelNome || 'Tomadora')}
-          >
-            Assinar como tomadora
+          <button type="button" className="bib-btn" onClick={() => setLeitura(true)}>
+            Ler e assinar como tomadora
           </button>
         )}
         {modo === 'trabalhador' && peca.assinaturas.some((a) => a.papel === 'trabalhador' && a.status === 'pendente') && (
-          <button
-            type="button"
-            className="bib-btn"
-            onClick={() => assinarPeca(peca.id, 'trabalhador', currentProfissional?.nome || 'Trabalhador')}
-          >
-            Assinar como trabalhador
+          <button type="button" className="bib-btn" onClick={() => setLeitura(true)}>
+            Ler e assinar
           </button>
+        )}
+        {leitura && (
+          <PecaViewer
+            pecaId={peca.id}
+            papel={modo === 'tomadora' ? 'tomadora' : 'trabalhador'}
+            nome={modo === 'tomadora' ? currentEmpresa?.responsavelNome : currentProfissional?.nome}
+            onClose={() => setLeitura(false)}
+          />
         )}
         {modo === 'ett' && peca.tipo === 'contrato_individual' && peca.meta?.esocial !== 'informado' && (
           <button type="button" className="bib-btn" onClick={() => marcarEsocial(peca.id)}>

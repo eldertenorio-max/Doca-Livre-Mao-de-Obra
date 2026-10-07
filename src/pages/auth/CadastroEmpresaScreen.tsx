@@ -1,5 +1,7 @@
 import { useMemo, useRef, useState, type FormEvent } from 'react'
+import { AceiteCadastro, todosAceitos } from '../../components/AceiteTermos'
 import { LOCAIS_OPERACAO } from '../../data/cidades'
+import type { TermoId } from '../../lib/termos'
 import { ACCEPT_DOCUMENTO_CADASTRO, lerArquivoEmpresa, type FotoDocumento } from '../../lib/analisarDocumentoCadastro'
 import { coordenadaDaCidade } from '../../lib/coordenadaCidade'
 import { useStore } from '../../lib/store'
@@ -53,10 +55,11 @@ const ETAPAS = [
 ]
 
 export function CadastroEmpresaScreen({ onBack, onDone }: Props) {
-  const { registerEmpresa, completeEmpresaPerfil, currentUser, state } = useStore()
+  const { registerEmpresa, completeEmpresaPerfil, aceitarTermos, currentUser, state } = useStore()
   const completing = currentUser?.role === 'empresa' && currentUser.perfilCompleto === false
   const [step, setStep] = useState(1)
   const [error, setError] = useState('')
+  const [aceites, setAceites] = useState<TermoId[]>([])
   const [docs, setDocs] = useState<Record<DocEmpresaId, EstadoDoc>>({
     contrato_social: DOC_VAZIO,
     cartao_cnpj: DOC_VAZIO,
@@ -158,6 +161,10 @@ export function CadastroEmpresaScreen({ onBack, onDone }: Props) {
       setStep(4)
       return
     }
+    if (!todosAceitos('empresa', aceites)) {
+      setError('Marque todos os termos para concluir o cadastro.')
+      return
+    }
     const empresaPayload = {
       cnpj: form.cnpj.trim(),
       razaoSocial: form.razaoSocial.trim(),
@@ -188,6 +195,7 @@ export function CadastroEmpresaScreen({ onBack, onDone }: Props) {
       setError(res.error ?? 'Erro no cadastro')
       return
     }
+    aceitarTermos(aceites)
     onDone()
   }
 
@@ -383,6 +391,7 @@ export function CadastroEmpresaScreen({ onBack, onDone }: Props) {
             </div>
           </dl>
         )}
+        {step === 7 && <AceiteCadastro role="empresa" marcados={aceites} onMarcar={setAceites} />}
 
         {error && <p className="error">{error}</p>}
         <button type="submit" className="btn btn-accent btn-block">

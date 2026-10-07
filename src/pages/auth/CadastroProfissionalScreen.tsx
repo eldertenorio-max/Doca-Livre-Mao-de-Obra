@@ -2,6 +2,8 @@ import { useMemo, useRef, useState, type FormEvent } from 'react'
 import { CATEGORIES } from '../../data/categories'
 import { LOCAIS_OPERACAO } from '../../data/cidades'
 import { AvailabilityToggle } from '../../components/AvailabilityToggle'
+import { AceiteCadastro, todosAceitos } from '../../components/AceiteTermos'
+import type { TermoId } from '../../lib/termos'
 import { ACCEPT_DOCUMENTO_CADASTRO, lerArquivoCadastro, type FotoDocumento, type PapelDocumento } from '../../lib/analisarDocumentoCadastro'
 import { coordenadaDaCidade } from '../../lib/coordenadaCidade'
 import { validarChavePix } from '../../lib/pix'
@@ -37,10 +39,11 @@ const ETAPAS = [
 ]
 
 export function CadastroProfissionalScreen({ onBack, onDone }: Props) {
-  const { registerProfissional, completeProfissionalPerfil, currentUser, state } = useStore()
+  const { registerProfissional, completeProfissionalPerfil, aceitarTermos, currentUser, state } = useStore()
   const completing = currentUser?.role === 'profissional' && currentUser.perfilCompleto === false
   const [step, setStep] = useState(1)
   const [error, setError] = useState('')
+  const [aceites, setAceites] = useState<TermoId[]>([])
   const [linhas, setLinhas] = useState<Record<PapelDocumento, LinhaDoc>>({
     documento: LINHA_VAZIA,
     verso: LINHA_VAZIA,
@@ -204,6 +207,10 @@ export function CadastroProfissionalScreen({ onBack, onDone }: Props) {
       setStep(8)
       return
     }
+    if (!todosAceitos('profissional', aceites)) {
+      setError('Marque todos os termos e consentimentos para concluir o cadastro.')
+      return
+    }
     const profissionalPayload = {
       nome: form.nome,
       cpf: form.cpf,
@@ -252,6 +259,7 @@ export function CadastroProfissionalScreen({ onBack, onDone }: Props) {
       setError(res.error ?? 'Erro no cadastro')
       return
     }
+    aceitarTermos(aceites)
     onDone()
   }
 
@@ -420,6 +428,7 @@ export function CadastroProfissionalScreen({ onBack, onDone }: Props) {
             </label>
             {pixInfo?.ok && <p className="docs-ok">Chave de {pixInfo.rotulo} conferida.</p>}
             {pixInfo && !pixInfo.ok && <p className="error">{pixInfo.erro}</p>}
+            <AceiteCadastro role="profissional" marcados={aceites} onMarcar={setAceites} />
           </>
         )}
 

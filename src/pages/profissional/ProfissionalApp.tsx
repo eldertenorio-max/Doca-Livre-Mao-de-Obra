@@ -1,9 +1,10 @@
 import { Fragment, useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react'
+import { AceiteTermosGate } from '../../components/AceiteTermos'
 import { AvailabilityToggle } from '../../components/AvailabilityToggle'
 import { BibliotecaDocumental } from '../../components/BibliotecaDocumental'
-import { ContratoViewer } from '../../components/ContratoViewer'
 import { DocumentacaoProfissionalPanel } from '../../components/DocumentacaoPanel'
 import { LevelBadge } from '../../components/LevelBadge'
+import { PecaViewer } from '../../components/PecaViewer'
 import { cargoLabel } from '../../data/categories'
 import { distanciaKm } from '../../lib/matching'
 import { formatarDistancia, rotuloPeriodo } from '../../lib/periodoMissao'
@@ -86,9 +87,9 @@ export function ProfissionalApp({ onLogout }: { onLogout: () => void }) {
         </div>
         <div className="cf-topbar-right">
           <SinoTrabalhador
-            onIr={(aba, contratoId) => {
+            onIr={(aba, pecaId) => {
               setTab(aba)
-              setTermoId(contratoId ?? null)
+              setTermoId(pecaId ?? null)
             }}
           />
           <div className="cf-topbar-user">
@@ -153,7 +154,10 @@ export function ProfissionalApp({ onLogout }: { onLogout: () => void }) {
           </div>
         </main>
       </div>
-      {termoId && <ContratoViewer contratoId={termoId} onClose={() => setTermoId(null)} canAssinar />}
+      {termoId && (
+        <PecaViewer pecaId={termoId} papel="trabalhador" nome={prof.nome} onClose={() => setTermoId(null)} />
+      )}
+      <AceiteTermosGate onSair={onLogout} />
     </div>
   )
 }
@@ -658,7 +662,7 @@ function semAcento(value: string) {
 function AgendaTab() {
   const { currentProfissional, state, doCheckIn, doCheckOut, addAvaliacao, currentUser, registrarEncerramento } = useStore()
   const prof = currentProfissional!
-  const [contratoAberto, setContratoAberto] = useState<string | null>(null)
+  const [pecaAberta, setPecaAberta] = useState<string | null>(null)
 
   const jobs = state.candidaturas
     .filter((c) => c.profissionalId === prof.id && c.status === 'confirmada')
@@ -668,8 +672,7 @@ function AgendaTab() {
       const check = state.checkIns.find(
         (ch) => ch.demandaId === c.demandaId && ch.profissionalId === prof.id,
       )
-      const contrato = state.contratos.find((ct) => ct.candidaturaId === c.id)
-      return { c, dem, emp, check, contrato }
+      return { c, dem, emp, check }
     })
     .filter((job) => job.dem)
 
@@ -677,7 +680,7 @@ function AgendaTab() {
     <div className="panel panel--mobile">
       <h2>Vagas aceitas</h2>
       <ul className="list">
-        {jobs.map(({ c, dem, emp, check, contrato }) => {
+        {jobs.map(({ c, dem, emp, check }) => {
           const encerrada = dem.status === 'finalizada'
           const dias = dem.dataFim
             ? Math.round(
@@ -691,6 +694,14 @@ function AgendaTab() {
             demandaId: dem.id,
             profissionalId: prof.id,
           })
+          const documentos = (state.pecas ?? [])
+            .filter(
+              (p) =>
+                p.demandaId === dem.id &&
+                p.profissionalId === prof.id &&
+                p.assinaturas.some((a) => a.papel === 'trabalhador'),
+            )
+            .sort((a, b) => a.criadoEm.localeCompare(b.criadoEm))
           return (
             <li key={c.id} className="opportunity-card">
               <strong>Missão {dem.id.replace('dem_', '#')}</strong>
@@ -708,12 +719,27 @@ function AgendaTab() {
                   {check?.horasTrabalhadas ? ` · Horas registradas: ${check.horasTrabalhadas}h` : ''}
                 </p>
               )}
+              {documentos.length > 0 && (
+                <ul className="td-docs-missao">
+                  {documentos.map((peca) => {
+                    const pendente = peca.assinaturas.some(
+                      (a) => a.papel === 'trabalhador' && a.status === 'pendente',
+                    )
+                    return (
+                      <li key={peca.id}>
+                        <button
+                          type="button"
+                          className={`btn ${pendente ? 'btn-primary' : 'btn-ghost'}`}
+                          onClick={() => setPecaAberta(peca.id)}
+                        >
+                          {pendente ? `Assinar: ${peca.titulo}` : `${peca.titulo} · assinado`}
+                        </button>
+                      </li>
+                    )
+                  })}
+                </ul>
+              )}
               <div className="row-actions">
-                {contrato && (
-                  <button type="button" className="btn btn-primary" onClick={() => setContratoAberto(contrato.id)}>
-                    {contrato.status === 'gerado' ? 'Assinar termo' : `Contrato temporário ${contrato.numero}`}
-                  </button>
-                )}
                 {!encerrada && !check?.checkInAt && faltas.length === 0 && (
                   <button type="button" className="btn btn-accent" onClick={() => doCheckIn(dem.id, prof.id)}>
                     Registrar entrada
@@ -772,12 +798,8 @@ function AgendaTab() {
         })}
         {jobs.length === 0 && <p className="muted">Nenhuma missão confirmada. Quando houver contrato, ela aparece aqui.</p>}
       </ul>
-      {contratoAberto && (
-        <ContratoViewer
-          contratoId={contratoAberto}
-          onClose={() => setContratoAberto(null)}
-          canAssinar
-        />
+      {pecaAberta && (
+        <PecaViewer pecaId={pecaAberta} papel="trabalhador" nome={prof.nome} onClose={() => setPecaAberta(null)} />
       )}
     </div>
   )

@@ -28,8 +28,9 @@ export function SinoEmpresa({
         profissionais: state.profissionais,
         avaliacoes: state.avaliacoes,
         pagamentos: state.pagamentos,
+        pecas: state.pecas,
       }),
-    [empresaId, state.avaliacoes, state.candidaturas, state.demandas, state.pagamentos, state.profissionais],
+    [empresaId, state.avaliacoes, state.candidaturas, state.demandas, state.pagamentos, state.pecas, state.profissionais],
   )
   const [lidas, setLidas] = useState<string[] | null>(null)
   const [aberto, setAberto] = useState(false)

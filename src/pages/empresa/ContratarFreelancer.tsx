@@ -1,5 +1,7 @@
 import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type ChangeEvent, type ReactNode } from 'react'
+import { AceiteTermosGate } from '../../components/AceiteTermos'
 import { BibliotecaDocumental } from '../../components/BibliotecaDocumental'
+import { PecaViewer } from '../../components/PecaViewer'
 import { CATEGORIES, allCargos, cargoCategoria, cargoLabel } from '../../data/categories'
 import { LOCAIS_OPERACAO } from '../../data/cidades'
 import { analisarCurriculos, requisitosDoCargo, rotuloAnos, type CurriculoAnalisado } from '../../lib/analiseCurriculo'
@@ -1418,6 +1420,7 @@ export function ContratarFreelancer({ onLogout }: { onLogout: () => void }) {
       </main>
       </div>
       {analisando && <CartaoAnalise />}
+      <AceiteTermosGate onSair={onLogout} />
     </div>
   )
 }
@@ -1573,6 +1576,7 @@ function PainelVagas({ empresaId, onPublicar }: { empresaId: string; onPublicar:
                     {vaga.beneficios && <span className="cf-vaga-chip--soft">{vaga.beneficios}</span>}
                   </div>
                 )}
+                <ContratoComMaoDeObra demandaId={vaga.id} />
               </div>
               <aside className="cf-vaga-pessoas">
                 <h3>
@@ -1625,6 +1629,41 @@ function PainelVagas({ empresaId, onPublicar }: { empresaId: string; onPublicar:
       </div>
       {perfil && <PerfilDoCandidato perfil={perfil} onFechar={() => setPerfil(null)} />}
     </section>
+  )
+}
+
+function ContratoComMaoDeObra({ demandaId }: { demandaId: string }) {
+  const { state, currentEmpresa } = useStore()
+  const [aberto, setAberto] = useState(false)
+  const peca = (state.pecas ?? []).find((p) => p.demandaId === demandaId && p.tipo === 'contrato_ett_tomadora')
+  if (!peca) return null
+  const minha = peca.assinaturas.find((a) => a.papel === 'tomadora')
+  const ett = peca.assinaturas.find((a) => a.papel === 'ett')
+  const pendente = minha?.status === 'pendente'
+  return (
+    <div className={`cf-contrato-mo ${pendente ? 'cf-contrato-mo--pendente' : ''}`}>
+      <div>
+        <strong>Contrato com a Mão de Obra · {peca.numero}</strong>
+        <small>
+          {pendente
+            ? 'Falta a assinatura da sua empresa.'
+            : ett?.status === 'assinado'
+              ? 'Assinado pelas duas partes.'
+              : 'Sua empresa assinou. Falta a assinatura da Mão de Obra.'}
+        </small>
+      </div>
+      <button type="button" className={pendente ? 'cf-primary' : 'cf-secondary'} onClick={() => setAberto(true)}>
+        {pendente ? 'Assinar contrato' : 'Ver contrato'}
+      </button>
+      {aberto && (
+        <PecaViewer
+          pecaId={peca.id}
+          papel="tomadora"
+          nome={currentEmpresa?.responsavelNome}
+          onClose={() => setAberto(false)}
+        />
+      )}
+    </div>
   )
 }
 
@@ -1714,6 +1753,7 @@ function PainelMissoes({ empresaId }: { empresaId: string }) {
                 <p>
                   {periodo} · {missao.horaInicio}–{missao.horaFim} · {missao.endereco.cidade}/{missao.endereco.estado}
                 </p>
+                <ContratoComMaoDeObra demandaId={missao.id} />
                 <div className="cf-missao-progresso">
                   <div className="cf-missao-trilha" aria-hidden>
                     <span style={{ width: `${progresso}%` }} />

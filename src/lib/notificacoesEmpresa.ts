@@ -1,11 +1,11 @@
 import { cargoLabel } from '../data/categories'
-import type { Avaliacao, Candidatura, Demanda, Pagamento, Profissional } from './types'
+import type { Avaliacao, Candidatura, Demanda, Pagamento, PecaDocumental, Profissional } from './types'
 
 export const CHAVE_NOTIFICACOES = 'doca-livre-notificacoes-empresa-v1'
 
 export type AvisoEmpresa = {
   id: string
-  tipo: 'candidatura' | 'convite' | 'avaliacao'
+  tipo: 'candidatura' | 'convite' | 'avaliacao' | 'contrato'
   quando: string
   nome: string
   texto: string
@@ -29,6 +29,7 @@ export function montarAvisosEmpresa(input: {
   profissionais: Profissional[]
   avaliacoes?: Avaliacao[]
   pagamentos?: Pagamento[]
+  pecas?: PecaDocumental[]
 }): AvisoEmpresa[] {
   const demandas = new Map(
     input.demandas.filter((item) => item.empresaId === input.empresaId).map((item) => [item.id, item]),
@@ -55,6 +56,24 @@ export function montarAvisosEmpresa(input: {
       extra: `${demanda.endereco.cidade}/${demanda.endereco.estado}`,
       aba: tipo === 'candidatura' ? 'vagas' : 'missoes',
       legado: !cand.respondidoEm,
+    })
+  }
+
+  for (const peca of input.pecas ?? []) {
+    if (peca.tipo !== 'contrato_ett_tomadora') continue
+    const demanda = demandas.get(peca.demandaId)
+    if (!demanda || demanda.status === 'cancelada') continue
+    const minha = peca.assinaturas.find((a) => a.papel === 'tomadora')
+    if (!minha || minha.status !== 'pendente') continue
+    avisos.push({
+      id: `contrato:${peca.id}`,
+      tipo: 'contrato',
+      quando: peca.criadoEm,
+      nome: 'Doca Livre Mão de Obra',
+      texto: `Contrato para assinar com a Mão de Obra: vaga de ${cargoLabel(demanda.cargo)}.`,
+      extra: `${demanda.endereco.cidade}/${demanda.endereco.estado} · ${peca.numero}`,
+      aba: 'vagas',
+      legado: false,
     })
   }
 
