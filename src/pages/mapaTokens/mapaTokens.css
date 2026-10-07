@@ -349,7 +349,206 @@
   padding: 0;
 }
 
+.mt-abas {
+  display: flex;
+  gap: 6px;
+  padding: 10px 24px 0;
+  border-bottom: 1px solid #1e293b;
+}
+
+.mt-abas button {
+  padding: 8px 14px;
+  border: 1px solid transparent;
+  border-bottom: 0;
+  border-radius: 10px 10px 0 0;
+  background: none;
+  color: #94a3b8;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.mt-abas .mt-aba--on {
+  background: #0f172a;
+  border-color: #1e293b;
+  color: #fff;
+}
+
+.mt-corpo--desenho {
+  grid-template-columns: 1fr 340px;
+}
+
+.mt-desenho {
+  overflow: auto;
+  max-height: calc(100vh - 120px);
+  background:
+    radial-gradient(circle, #1e293b 1px, transparent 1px) 0 0 / 22px 22px,
+    #020617;
+}
+
+.mt-desenho svg {
+  display: block;
+}
+
+.mt-linha {
+  fill: none;
+  stroke: #475569;
+  color: #475569;
+  opacity: 0.7;
+  transition: opacity 0.15s;
+}
+
+.mt-linha--sai {
+  stroke: #38bdf8;
+  color: #38bdf8;
+  opacity: 1;
+}
+
+.mt-linha--entra {
+  stroke: #34d399;
+  color: #34d399;
+  opacity: 1;
+}
+
+.mt-linha--apagada {
+  opacity: 0.08;
+}
+
+.mt-caixa {
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+
+.mt-caixa rect:first-child {
+  fill: #0f172a;
+  stroke: #334155;
+  stroke-width: 1.5;
+}
+
+.mt-caixa:hover rect:first-child {
+  stroke: #64748b;
+}
+
+.mt-caixa--on rect:first-child {
+  stroke: #f9db00;
+  stroke-width: 2.5;
+}
+
+.mt-caixa--apagada {
+  opacity: 0.25;
+}
+
+.mt-caixa--leve .mt-caixa-faixa {
+  fill: #34d399;
+}
+
+.mt-caixa--medio .mt-caixa-faixa {
+  fill: #fbbf24;
+}
+
+.mt-caixa--pesado .mt-caixa-faixa {
+  fill: #fb7185;
+}
+
+.mt-caixa-nome {
+  fill: #fff;
+  font: 700 13px ui-monospace, 'Cascadia Code', Consolas, monospace;
+}
+
+.mt-caixa-info {
+  fill: #94a3b8;
+  font: 11px system-ui, sans-serif;
+}
+
+.mt-lateral {
+  border-left: 1px solid #1e293b;
+  background: rgba(15, 23, 42, 0.4);
+  padding: 18px;
+  overflow-y: auto;
+  max-height: calc(100vh - 120px);
+}
+
+.mt-lateral h2 {
+  margin: 0 0 6px;
+  font: 700 1rem ui-monospace, Consolas, monospace;
+  color: #fff;
+  word-break: break-all;
+}
+
+.mt-lateral h3 {
+  margin: 18px 0 8px;
+  font-size: 0.85rem;
+}
+
+.mt-lateral p {
+  margin: 0 0 10px;
+  font-size: 0.82rem;
+  line-height: 1.5;
+  color: #94a3b8;
+}
+
+.mt-legenda,
+.mt-ligacoes,
+.mt-arquivos {
+  list-style: none;
+  margin: 0 0 12px;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+  font-size: 0.8rem;
+  color: #94a3b8;
+}
+
+.mt-legenda li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.mt-ligacoes button {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  padding: 6px 8px;
+  border: 1px solid #1e293b;
+  border-radius: 8px;
+  background: #0f172a;
+  color: #cbd5e1;
+  font: 0.78rem ui-monospace, Consolas, monospace;
+  text-align: left;
+  cursor: pointer;
+}
+
+.mt-ligacoes button:hover {
+  border-color: #475569;
+}
+
+.mt-ligacoes small {
+  color: #64748b;
+}
+
+.mt-arquivos li {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-family: ui-monospace, Consolas, monospace;
+}
+
+.mt-arquivos li span:first-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 @media (max-width: 860px) {
+  .mt-corpo--desenho {
+    grid-template-columns: 1fr;
+  }
+
+  .mt-lateral {
+    border-left: 0;
+    max-height: none;
+  }
+
   .mt-corpo {
     grid-template-columns: 1fr;
   }

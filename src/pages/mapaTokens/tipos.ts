@@ -5,6 +5,24 @@ export type ArquivoMedido = {
   bytes: number
   linhas: number
   tokens: number
+  importa?: string[]
+}
+
+export type PastaGrafo = {
+  id: string
+  arquivos: ArquivoMedido[]
+  tokens: number
+  maiorArquivo: number
+  peso: Peso
+  coluna: number
+  x: number
+  y: number
+}
+
+export type LigacaoGrafo = {
+  de: string
+  para: string
+  quantidade: number
 }
 
 export type NoArvore = {
