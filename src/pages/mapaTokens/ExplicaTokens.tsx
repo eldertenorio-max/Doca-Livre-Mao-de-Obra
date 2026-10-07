@@ -145,7 +145,7 @@ export function ExplicaTokens({ arquivos }: { arquivos: ArquivoMedido[] }) {
                 </span>
               </div>
               <div>
-                <span>Gasto real (em tokens de entrada)</span>
+                <span>Gasto real (convertido em tokens de entrada)</span>
                 <b>{numero(sim.custoEquivalente)}</b>
                 <span className="mt-barra">
                   <span className="mt-barra-cheia mt-cor-amarelo" style={{ width: `${(sim.custoEquivalente / maiorBarra) * 100}%` }} />

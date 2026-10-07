@@ -1,5 +1,6 @@
 .mt-tela {
-  min-height: 100vh;
+  height: 100%;
+  overflow-y: auto;
   display: flex;
   flex-direction: column;
   background: #020617;
@@ -8,6 +9,7 @@
 }
 
 .mt-topo {
+  flex: 0 0 auto;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -620,7 +622,8 @@
 }
 
 .mt-explica {
-  padding: 24px;
+  flex: 0 0 auto;
+  padding: 24px 24px 48px;
   display: flex;
   flex-direction: column;
   gap: 16px;
