@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { Suspense, lazy, useMemo, useState } from 'react'
 import mapa from '../../data/mapaTokens.json'
 import { ArvorePastas } from './ArvorePastas'
 import { DesenhoPastas } from './DesenhoPastas'
@@ -11,11 +11,12 @@ import type { ArquivoMedido } from './tipos'
 import './mapaTokens.css'
 
 const arquivosMedidos = mapa.arquivos as ArquivoMedido[]
+const Desenho3D = lazy(() => import('./Desenho3D'))
 
 export default function TelaMapaTokens() {
   const raiz = useMemo(() => montarArvore(arquivosMedidos), [])
   const grafo = useMemo(() => montarGrafo(arquivosMedidos), [])
-  const [aba, setAba] = useState<'desenho' | 'arvore' | 'explica'>('desenho')
+  const [aba, setAba] = useState<'desenho' | 'desenho3d' | 'arvore' | 'explica'>('desenho')
   const [selecionado, setSelecionado] = useState('src')
   const [pastaId, setPastaId] = useState<string | null>(null)
   const no = acharNo(raiz, selecionado) ?? raiz
@@ -58,6 +59,9 @@ export default function TelaMapaTokens() {
         <button type="button" className={aba === 'desenho' ? 'mt-aba--on' : ''} onClick={() => setAba('desenho')}>
           Desenho das pastas
         </button>
+        <button type="button" className={aba === 'desenho3d' ? 'mt-aba--on' : ''} onClick={() => setAba('desenho3d')}>
+          Desenho 3D
+        </button>
         <button type="button" className={aba === 'arvore' ? 'mt-aba--on' : ''} onClick={() => setAba('arvore')}>
           Árvore de arquivos
         </button>
@@ -67,6 +71,13 @@ export default function TelaMapaTokens() {
       </nav>
       {aba === 'explica' ? (
         <ExplicaTokens arquivos={arquivosMedidos} />
+      ) : aba === 'desenho3d' ? (
+        <div className="mt-corpo mt-corpo--desenho">
+          <Suspense fallback={<div className="mt3d mt3d-carregando">Carregando o desenho 3D…</div>}>
+            <Desenho3D pastas={grafo.pastas} ligacoes={grafo.ligacoes} selecionada={pastaId} onSelecionar={setPastaId} />
+          </Suspense>
+          <PainelPasta pasta={pasta} ligacoes={grafo.ligacoes} onSelecionar={setPastaId} />
+        </div>
       ) : aba === 'desenho' ? (
         <div className="mt-corpo mt-corpo--desenho">
           <DesenhoPastas {...grafo} selecionada={pastaId} onSelecionar={setPastaId} />
