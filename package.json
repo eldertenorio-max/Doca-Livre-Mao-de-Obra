@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "prebuild": "node scripts/write-supabase-config.mjs",
+    "prebuild": "node scripts/write-supabase-config.mjs && node scripts/mapa-tokens.mjs",
+    "mapa-tokens": "node scripts/mapa-tokens.mjs",
     "build": "tsc -b && vite build",
     "lint": "oxlint",
     "preview": "vite preview",

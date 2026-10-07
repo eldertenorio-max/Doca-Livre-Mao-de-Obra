@@ -1,0 +1,371 @@
+.mt-tela {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: #020617;
+  color: #e2e8f0;
+  font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+}
+
+.mt-topo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 16px 24px;
+  border-bottom: 1px solid #1e293b;
+  background: rgba(15, 23, 42, 0.6);
+}
+
+.mt-marca {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.mt-marca-icone {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  background: rgba(14, 165, 233, 0.1);
+  border: 1px solid rgba(14, 165, 233, 0.25);
+}
+
+.mt-marca h1 {
+  margin: 0;
+  font-size: 1.1rem;
+  color: #fff;
+}
+
+.mt-marca p {
+  margin: 2px 0 0;
+  font-size: 0.75rem;
+  color: #94a3b8;
+}
+
+.mt-resumo {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  font-size: 0.78rem;
+}
+
+.mt-resumo span {
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid #1e293b;
+  background: #0f172a;
+  color: #94a3b8;
+}
+
+.mt-resumo b {
+  color: #fff;
+}
+
+.mt-resumo .mt-resumo-alerta {
+  color: #fda4af;
+  border-color: rgba(244, 63, 94, 0.3);
+}
+
+.mt-voltar {
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: #f9db00;
+  color: #000;
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.mt-corpo {
+  flex: 1;
+  display: grid;
+  grid-template-columns: minmax(320px, 420px) 1fr;
+  min-height: 0;
+}
+
+.mt-arvore {
+  border-right: 1px solid #1e293b;
+  background: rgba(15, 23, 42, 0.25);
+  padding: 16px 12px;
+  overflow-y: auto;
+  max-height: calc(100vh - 72px);
+}
+
+.mt-arvore-topo {
+  display: flex;
+  justify-content: space-between;
+  padding: 0 8px 10px;
+  font-size: 0.7rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #64748b;
+}
+
+.mt-arvore-topo small {
+  text-transform: none;
+  font-weight: 500;
+  letter-spacing: 0;
+}
+
+.mt-raiz,
+.mt-filhos {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.mt-filhos {
+  margin-left: 14px;
+  padding-left: 6px;
+  border-left: 1px solid rgba(51, 65, 85, 0.6);
+}
+
+.mt-item {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 20px 1fr auto auto;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  color: #cbd5e1;
+  font: 0.8rem ui-monospace, 'Cascadia Code', Consolas, monospace;
+  text-align: left;
+  cursor: pointer;
+}
+
+.mt-item:hover {
+  background: rgba(30, 41, 59, 0.5);
+}
+
+.mt-item--on {
+  background: #1e293b;
+  color: #38bdf8;
+}
+
+.mt-item-nome {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mt-item-tokens {
+  color: #64748b;
+  font-size: 0.72rem;
+}
+
+.mt-peso {
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 0.6rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.mt-peso--leve {
+  background: rgba(16, 185, 129, 0.15);
+  color: #34d399;
+  border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.mt-peso--medio {
+  background: rgba(245, 158, 11, 0.15);
+  color: #fbbf24;
+  border: 1px solid rgba(245, 158, 11, 0.3);
+}
+
+.mt-peso--pesado {
+  background: rgba(244, 63, 94, 0.15);
+  color: #fb7185;
+  border: 1px solid rgba(244, 63, 94, 0.3);
+}
+
+.mt-detalhe {
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  overflow-y: auto;
+  max-height: calc(100vh - 72px);
+}
+
+.mt-card {
+  background: #0f172a;
+  border: 1px solid #1e293b;
+  border-radius: 14px;
+  padding: 18px 20px;
+}
+
+.mt-card--suave {
+  background: rgba(15, 23, 42, 0.6);
+}
+
+.mt-card h3 {
+  margin: 0 0 10px;
+  font-size: 0.9rem;
+}
+
+.mt-card p {
+  margin: 0;
+  font-size: 0.82rem;
+  line-height: 1.55;
+  color: #94a3b8;
+}
+
+.mt-card-topo {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.mt-card-topo h2 {
+  margin: 0;
+  font: 700 1.2rem ui-monospace, 'Cascadia Code', Consolas, monospace;
+  color: #fff;
+}
+
+.mt-custo {
+  padding: 4px 10px;
+  border-radius: 999px;
+  font: 700 0.72rem ui-monospace, Consolas, monospace;
+}
+
+.mt-caminho {
+  margin: 8px 0 14px !important;
+  font-family: ui-monospace, Consolas, monospace;
+  color: #64748b !important;
+}
+
+.mt-numeros {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin: 0;
+}
+
+.mt-numeros div {
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: rgba(2, 6, 23, 0.6);
+  border: 1px solid rgba(30, 41, 59, 0.7);
+}
+
+.mt-numeros dt {
+  font-size: 0.7rem;
+  color: #64748b;
+}
+
+.mt-numeros dd {
+  margin: 4px 0 0;
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: #fff;
+}
+
+.mt-grade {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.mt-titulo-azul {
+  color: #38bdf8;
+}
+
+.mt-titulo-verde {
+  color: #34d399;
+}
+
+.mt-prompt {
+  margin: 0;
+  padding: 10px;
+  border-radius: 8px;
+  border: 1px solid #1e293b;
+  background: #020617;
+  color: #cbd5e1;
+  font: 0.75rem ui-monospace, Consolas, monospace;
+  white-space: pre-wrap;
+}
+
+.mt-ranking {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.mt-ranking button {
+  width: 100%;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 140px 70px;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 8px;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  color: #cbd5e1;
+  font: 0.78rem ui-monospace, Consolas, monospace;
+  text-align: left;
+  cursor: pointer;
+}
+
+.mt-ranking button:hover {
+  background: #1e293b;
+}
+
+.mt-ranking-nome {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mt-ranking-tokens {
+  text-align: right;
+  color: #94a3b8;
+}
+
+.mt-barra {
+  height: 8px;
+  border-radius: 999px;
+  background: #1e293b;
+  overflow: hidden;
+}
+
+.mt-barra-cheia {
+  display: block;
+  height: 100%;
+  border: 0;
+  padding: 0;
+}
+
+@media (max-width: 860px) {
+  .mt-corpo {
+    grid-template-columns: 1fr;
+  }
+
+  .mt-arvore,
+  .mt-detalhe {
+    max-height: none;
+  }
+
+  .mt-arvore {
+    border-right: 0;
+    border-bottom: 1px solid #1e293b;
+  }
+
+  .mt-numeros,
+  .mt-grade {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

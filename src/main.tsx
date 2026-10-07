@@ -1,12 +1,21 @@
-import { StrictMode } from 'react'
+import { StrictMode, Suspense, lazy } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App.tsx'
 import './mobile.css'
 
+const TelaMapaTokens = lazy(() => import('./pages/mapaTokens/TelaMapaTokens'))
+const naTelaDeTokens = window.location.pathname.replace(/\/+$/, '') === '/mapa-tokens'
+
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <App />
+    {naTelaDeTokens ? (
+      <Suspense fallback={null}>
+        <TelaMapaTokens />
+      </Suspense>
+    ) : (
+      <App />
+    )}
   </StrictMode>,
 )
 
