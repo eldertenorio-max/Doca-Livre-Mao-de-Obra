@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import mapa from '../../data/mapaTokens.json'
 import { ArvorePastas } from './ArvorePastas'
 import { DesenhoPastas } from './DesenhoPastas'
+import { ExplicaTokens } from './ExplicaTokens'
 import { LIMITE_MEDIO, acharNo, arquivosDe, montarArvore, numero } from './montarArvore'
 import { montarGrafo } from './montarGrafo'
 import { PainelDetalhe } from './PainelDetalhe'
@@ -14,7 +15,7 @@ const arquivosMedidos = mapa.arquivos as ArquivoMedido[]
 export default function TelaMapaTokens() {
   const raiz = useMemo(() => montarArvore(arquivosMedidos), [])
   const grafo = useMemo(() => montarGrafo(arquivosMedidos), [])
-  const [aba, setAba] = useState<'desenho' | 'arvore'>('desenho')
+  const [aba, setAba] = useState<'desenho' | 'arvore' | 'explica'>('desenho')
   const [selecionado, setSelecionado] = useState('src')
   const [pastaId, setPastaId] = useState<string | null>(null)
   const no = acharNo(raiz, selecionado) ?? raiz
@@ -42,8 +43,8 @@ export default function TelaMapaTokens() {
           <span>
             <b>{numero(raiz.arquivos)}</b> arquivos
           </span>
-          <span>
-            <b>{numero(raiz.tokens)}</b> tokens
+          <span title="Tamanho de todos os arquivos. Só vira gasto quando a IA lê.">
+            <b>{numero(raiz.tokens)}</b> tokens existentes
           </span>
           <span className="mt-resumo-alerta">
             <b>{pesados.length}</b> pesados = {parcelaPesada}% do total
@@ -60,8 +61,13 @@ export default function TelaMapaTokens() {
         <button type="button" className={aba === 'arvore' ? 'mt-aba--on' : ''} onClick={() => setAba('arvore')}>
           Árvore de arquivos
         </button>
+        <button type="button" className={aba === 'explica' ? 'mt-aba--on' : ''} onClick={() => setAba('explica')}>
+          Tokens usados × gastos
+        </button>
       </nav>
-      {aba === 'desenho' ? (
+      {aba === 'explica' ? (
+        <ExplicaTokens arquivos={arquivosMedidos} />
+      ) : aba === 'desenho' ? (
         <div className="mt-corpo mt-corpo--desenho">
           <DesenhoPastas {...grafo} selecionada={pastaId} onSelecionar={setPastaId} />
           <PainelPasta pasta={pasta} ligacoes={grafo.ligacoes} onSelecionar={setPastaId} />

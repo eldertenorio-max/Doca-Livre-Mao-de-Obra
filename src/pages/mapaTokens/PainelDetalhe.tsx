@@ -64,6 +64,12 @@ export function PainelDetalhe({
                 ? `Cada leitura deste arquivo custa cerca de ${numero(no.tokens)} tokens. Dividir em componentes menores reduz o custo de cada alteração.`
                 : `Arquivo ${ROTULO_PESO[no.peso].toLowerCase()}: a IA lê inteiro gastando cerca de ${numero(no.tokens)} tokens.`}
           </p>
+          {!pasta && (
+            <p className="mt-nota">
+              Primeira leitura: {numero(no.tokens)} tokens de entrada. Releitura na mesma conversa (cache): custa como{' '}
+              {numero(Math.round(no.tokens * 0.1))}.
+            </p>
+          )}
         </section>
         <section className="mt-card mt-card--suave">
           <h3 className="mt-titulo-verde">Como pedir</h3>
