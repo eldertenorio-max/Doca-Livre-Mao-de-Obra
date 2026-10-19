@@ -18,6 +18,9 @@ dist-ssr
 # Gerado no build a partir de VITE_SUPABASE_* (não versionar chaves)
 public/supabase-config.json
 
+# Lista local de usuários e senhas de teste
+ACESSOS-DEMONSTRACAO.txt
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
