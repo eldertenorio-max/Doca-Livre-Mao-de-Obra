@@ -186,6 +186,10 @@ export type Profissional = {
   nascimento: string
   telefone: string
   foto?: string
+  /** Aparece para a empresa tomadora. Sem telefone, e-mail, CPF ou endereço. */
+  resumo?: string
+  escolaridade?: string
+  habilidades?: string[]
   profissoes: string[]
   experiencia: Experiencia[]
   certificados: Certificado[]

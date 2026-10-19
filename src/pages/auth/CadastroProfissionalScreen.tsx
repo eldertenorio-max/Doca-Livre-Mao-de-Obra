@@ -1,14 +1,17 @@
-import { useMemo, useRef, useState, type FormEvent } from 'react'
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { CATEGORIES } from '../../data/categories'
 import { LOCAIS_OPERACAO } from '../../data/cidades'
 import { AvailabilityToggle } from '../../components/AvailabilityToggle'
 import { AceiteCadastro, todosAceitos } from '../../components/AceiteTermos'
+import { AnexoCurriculo, CamposSobre, ListaExperiencias, conferirExperiencias } from '../../components/CurriculoCampos'
 import type { TermoId } from '../../lib/termos'
 import { ACCEPT_DOCUMENTO_CADASTRO, lerArquivoCadastro, type FotoDocumento, type PapelDocumento } from '../../lib/analisarDocumentoCadastro'
 import { coordenadaDaCidade } from '../../lib/coordenadaCidade'
+import { CERTIFICADOS_COMUNS, habilidadesDoTexto, mesclarCurriculo, nomeCertificado, semContato } from '../../lib/curriculo'
+import type { LeituraCurriculo } from '../../lib/lerCurriculo'
 import { validarChavePix } from '../../lib/pix'
 import { useStore } from '../../lib/store'
-import type { Disponibilidade } from '../../lib/types'
+import type { Certificado, Disponibilidade, Experiencia } from '../../lib/types'
 
 type Props = {
   onBack: () => void
@@ -25,9 +28,9 @@ function copiaDocumento(foto: FotoDocumento) {
   return `data:${foto.mime};base64,${foto.dados}`
 }
 
-const CERTS = ['NR11', 'NR35', 'NR10', 'NR20', 'MOPP', 'Munck', 'Ponte Rolante']
 const RAIOS = [10, 25, 50, 100]
 const ETAPAS = [
+  'Currículo',
   'Seus dados',
   'Documentos',
   'Cargos',
@@ -37,13 +40,26 @@ const ETAPAS = [
   'Raio de trabalho',
   'Pagamento',
 ]
+const PASSO = {
+  curriculo: 1,
+  dados: 2,
+  documentos: 3,
+  cargos: 4,
+  experiencia: 5,
+  certificacoes: 6,
+  disponibilidade: 7,
+  raio: 8,
+  pagamento: 9,
+} as const
 
 export function CadastroProfissionalScreen({ onBack, onDone }: Props) {
   const { registerProfissional, completeProfissionalPerfil, aceitarTermos, currentUser, state } = useStore()
   const completing = currentUser?.role === 'profissional' && currentUser.perfilCompleto === false
-  const [step, setStep] = useState(1)
+  const [step, setStep] = useState<number>(PASSO.curriculo)
   const [error, setError] = useState('')
   const [aceites, setAceites] = useState<TermoId[]>([])
+  const [curriculo, setCurriculo] = useState<{ nome: string; copia?: string } | null>(null)
+  const [certNovo, setCertNovo] = useState('')
   const [linhas, setLinhas] = useState<Record<PapelDocumento, LinhaDoc>>({
     documento: LINHA_VAZIA,
     verso: LINHA_VAZIA,
@@ -59,11 +75,13 @@ export function CadastroProfissionalScreen({ onBack, onDone }: Props) {
     email: currentUser?.email || '',
     senha: '',
     profissoes: [] as string[],
-    expEmpresa: '',
-    expCargo: '',
-    expTempo: '',
-    certificados: [] as string[],
+    experiencia: [] as Experiencia[],
+    resumo: '',
+    escolaridade: '',
+    habilidades: '',
+    certificados: [] as Certificado[],
     cnhCategoria: '',
+    cnhValidade: '',
     disponibilidade: {
       hoje: true,
       amanha: true,
@@ -83,6 +101,10 @@ export function CadastroProfissionalScreen({ onBack, onDone }: Props) {
     numero: '',
     raioKm: null as number | null,
   })
+  const formAtual = useRef(form)
+  useEffect(() => {
+    formAtual.current = form
+  }, [form])
 
   const ufs = useMemo(() => [...new Set(LOCAIS_OPERACAO.map((local) => local.estado))].sort(), [])
   const cidades = useMemo(
@@ -90,9 +112,21 @@ export function CadastroProfissionalScreen({ onBack, onDone }: Props) {
     [form.estado],
   )
   const pixInfo = form.pix.trim() ? validarChavePix(form.pix) : null
+  const certsExtras = form.certificados.filter((item) => !CERTIFICADOS_COMUNS.includes(item.tipo))
 
   function set<K extends keyof typeof form>(key: K, value: (typeof form)[K]) {
     setForm((f) => ({ ...f, [key]: value }))
+  }
+
+  function aplicarCurriculo(leitura: LeituraCurriculo) {
+    const atual = formAtual.current
+    const { form: novo, entrou } = mesclarCurriculo(atual, leitura.lido)
+    const comEmail = !completing && !atual.email.trim() && leitura.lido.email
+    const final = comEmail ? { ...novo, email: leitura.lido.email } : novo
+    formAtual.current = final
+    setForm(final)
+    setCurriculo({ nome: leitura.arquivoNome, copia: leitura.copia })
+    return comEmail ? ['E-mail', ...entrou] : entrou
   }
 
   function toggleProf(id: string) {
@@ -102,11 +136,27 @@ export function CadastroProfissionalScreen({ onBack, onDone }: Props) {
     }))
   }
 
-  function toggleCert(id: string) {
+  function toggleCert(tipo: string) {
     setForm((f) => ({
       ...f,
-      certificados: f.certificados.includes(id) ? f.certificados.filter((c) => c !== id) : [...f.certificados, id],
+      certificados: f.certificados.some((c) => c.tipo === tipo)
+        ? f.certificados.filter((c) => c.tipo !== tipo)
+        : [...f.certificados, { tipo, validade: '', valido: true }],
     }))
+  }
+
+  function validadeCert(tipo: string, validade: string) {
+    setForm((f) => ({
+      ...f,
+      certificados: f.certificados.map((c) => (c.tipo === tipo ? { ...c, validade } : c)),
+    }))
+  }
+
+  function incluirCert() {
+    const tipo = nomeCertificado(certNovo)
+    if (!tipo) return
+    if (!form.certificados.some((c) => c.tipo.toLowerCase() === tipo.toLowerCase())) toggleCert(tipo)
+    setCertNovo('')
   }
 
   function definirRaio(valor: string) {
@@ -138,6 +188,18 @@ export function CadastroProfissionalScreen({ onBack, onDone }: Props) {
         observacao: 'Aguardando validação manual.',
         arquivoDados: copiaDocumento(face),
       },
+      ...(curriculo
+        ? [
+            {
+              tipoId: 'curriculo',
+              arquivoNome: curriculo.nome,
+              observacao: curriculo.copia
+                ? 'Enviado no cadastro.'
+                : 'Enviado no cadastro. O arquivo passou de 1 MB e ficou só a leitura dos campos.',
+              arquivoDados: curriculo.copia,
+            },
+          ]
+        : []),
     ]
   }
 
@@ -162,15 +224,22 @@ export function CadastroProfissionalScreen({ onBack, onDone }: Props) {
 
   function next() {
     setError('')
-    if (step === 2 && !documentosProntos()) {
+    if (step === PASSO.documentos && !documentosProntos()) {
       setError('Envie o documento e a selfie para continuar.')
       return
     }
-    if (step === 3 && form.profissoes.length === 0) {
+    if (step === PASSO.cargos && form.profissoes.length === 0) {
       setError('Selecione ao menos um cargo.')
       return
     }
-    if (step === 7) {
+    if (step === PASSO.experiencia) {
+      const falha = conferirExperiencias(form.experiencia)
+      if (falha) {
+        setError(falha)
+        return
+      }
+    }
+    if (step === PASSO.raio) {
       if (!form.cidade.trim() || !form.estado.trim()) {
         setError('Informe a cidade e o estado onde você mora.')
         return
@@ -193,49 +262,57 @@ export function CadastroProfissionalScreen({ onBack, onDone }: Props) {
     e.preventDefault()
     if (!documentosProntos()) {
       setError('Envie o documento e a selfie antes de concluir.')
-      setStep(2)
+      setStep(PASSO.documentos)
+      return
+    }
+    const falhaExp = conferirExperiencias(form.experiencia)
+    if (falhaExp) {
+      setError(falhaExp)
+      setStep(PASSO.experiencia)
       return
     }
     if (form.raioKm == null || form.raioKm < 1) {
       setError('Informe o raio máximo, em km, que você pode ir trabalhar.')
-      setStep(7)
+      setStep(PASSO.raio)
       return
     }
     const chave = validarChavePix(form.pix)
     if (!chave.ok) {
       setError(chave.erro)
-      setStep(8)
+      setStep(PASSO.pagamento)
       return
     }
     if (!todosAceitos('profissional', aceites)) {
       setError('Marque todos os termos e consentimentos para concluir o cadastro.')
       return
     }
+    const hoje = new Date().toISOString().slice(0, 10)
+    const habilidades = habilidadesDoTexto(form.habilidades)
+    const cnh = form.cnhCategoria.trim()
     const profissionalPayload = {
       nome: form.nome,
       cpf: form.cpf,
       rg: form.rg,
       nascimento: form.nascimento,
       telefone: form.telefone,
+      resumo: semContato(form.resumo).slice(0, 600) || undefined,
+      escolaridade: form.escolaridade || undefined,
+      habilidades: habilidades.length ? habilidades : undefined,
       profissoes: form.profissoes,
-      experiencia: form.expEmpresa
-        ? [
-            {
-              cargo: form.expCargo,
-              empresa: form.expEmpresa,
-              inicio: form.expTempo || '2020-01',
-              fim: 'atual',
-              descricao: '',
-            },
-          ]
-        : [],
-      certificados: form.certificados.map((tipo) => ({
-        tipo,
-        validade: '2027-12-31',
-        valido: true,
+      experiencia: form.experiencia
+        .filter((item) => item.cargo.trim() || item.empresa.trim())
+        .map((item) => ({
+          ...item,
+          cargo: item.cargo.trim(),
+          empresa: item.empresa.trim(),
+          descricao: semContato(item.descricao),
+        })),
+      certificados: form.certificados.map((item) => ({
+        ...item,
+        valido: !item.validade || item.validade >= hoje,
       })),
-      cnhCategoria: form.cnhCategoria || undefined,
-      cnhValidade: form.cnhCategoria ? '2028-01-01' : undefined,
+      cnhCategoria: cnh || undefined,
+      cnhValidade: cnh && form.cnhValidade ? form.cnhValidade : undefined,
       disponibilidade: form.disponibilidade,
       endereco: {
         cep: form.cep,
@@ -277,7 +354,21 @@ export function CadastroProfissionalScreen({ onBack, onDone }: Props) {
           Etapa {step} de {ETAPAS.length} · {ETAPAS[step - 1]}
         </p>
 
-        {step === 1 && (
+        {step === PASSO.curriculo && (
+          <>
+            <p>
+              Tem currículo pronto? Anexe aqui e a gente preenche o cadastro com as informações dele. Você confere
+              tudo nas próximas etapas.
+            </p>
+            <AnexoCurriculo onLido={aplicarCurriculo} arquivoAtual={curriculo?.nome} />
+            <p className="cv-nota">
+              A empresa que contrata vê o currículo organizado pela plataforma: cargos, experiências, cursos e
+              cidade. Telefone, CPF, endereço e o arquivo original ficam só com a equipe da Mão de Obra.
+            </p>
+            {!curriculo && <p className="muted">Sem currículo, é só continuar e preencher os campos.</p>}
+          </>
+        )}
+        {step === PASSO.dados && (
           <>
             <label className="field"><span>Nome</span><input value={form.nome} onChange={(e) => set('nome', e.target.value)} required /></label>
             <label className="field"><span>CPF</span><input value={form.cpf} onChange={(e) => set('cpf', e.target.value)} required /></label>
@@ -293,7 +384,7 @@ export function CadastroProfissionalScreen({ onBack, onDone }: Props) {
             {completing && <p className="muted">Conta: {currentUser?.email}</p>}
           </>
         )}
-        {step === 2 && (
+        {step === PASSO.documentos && (
           <div className="docs-mock">
             <p>Envie o documento e a selfie. A validação é manual, um arquivo por vez, no painel administrativo.</p>
             <CampoDoc titulo="Documento (RG, CIN, CNH ou CPF)" papel="documento" linha={linhas.documento} onEscolher={escolherFoto} />
@@ -307,9 +398,15 @@ export function CadastroProfissionalScreen({ onBack, onDone }: Props) {
                 placeholder="Ex: B, C, D, E"
               />
             </label>
+            {form.cnhCategoria.trim() && (
+              <label className="field">
+                <span>Validade da CNH</span>
+                <input type="date" value={form.cnhValidade} onChange={(e) => set('cnhValidade', e.target.value)} />
+              </label>
+            )}
           </div>
         )}
-        {step === 3 && (
+        {step === PASSO.cargos && (
           <div className="prof-select">
             {CATEGORIES.map((cat) => (
               <div key={cat.id} className="prof-group">
@@ -330,31 +427,74 @@ export function CadastroProfissionalScreen({ onBack, onDone }: Props) {
             ))}
           </div>
         )}
-        {step === 4 && (
+        {step === PASSO.experiencia && (
           <>
-            <label className="field"><span>Empresa anterior</span><input value={form.expEmpresa} onChange={(e) => set('expEmpresa', e.target.value)} /></label>
-            <label className="field"><span>Cargo</span><input value={form.expCargo} onChange={(e) => set('expCargo', e.target.value)} /></label>
-            <label className="field"><span>Período</span><input value={form.expTempo} onChange={(e) => set('expTempo', e.target.value)} placeholder="2020-01" /></label>
+            <CamposSobre
+              resumo={form.resumo}
+              escolaridade={form.escolaridade}
+              habilidades={form.habilidades}
+              onChange={(campo, valor) => set(campo, valor)}
+              classeCampo="field"
+            />
+            <ListaExperiencias itens={form.experiencia} onChange={(lista) => set('experiencia', lista)} classeCampo="field" />
           </>
         )}
-        {step === 5 && (
-          <div className="chip-wrap">
-            {CERTS.map((c) => (
-              <button
-                key={c}
-                type="button"
-                className={`chip ${form.certificados.includes(c) ? 'chip--on' : ''}`}
-                onClick={() => toggleCert(c)}
-              >
-                {c}
+        {step === PASSO.certificacoes && (
+          <>
+            <div className="chip-wrap">
+              {CERTIFICADOS_COMUNS.map((c) => (
+                <button
+                  key={c}
+                  type="button"
+                  className={`chip ${form.certificados.some((item) => item.tipo === c) ? 'chip--on' : ''}`}
+                  onClick={() => toggleCert(c)}
+                >
+                  {c}
+                </button>
+              ))}
+              {certsExtras.map((item) => (
+                <button key={item.tipo} type="button" className="chip chip--on" onClick={() => toggleCert(item.tipo)}>
+                  {item.tipo}
+                </button>
+              ))}
+            </div>
+            <div className="cv-certs__outro">
+              <label className="field">
+                <span>Outro curso ou certificado</span>
+                <input
+                  value={certNovo}
+                  maxLength={60}
+                  placeholder="Ex.: NR12, Direção defensiva"
+                  onChange={(e) => setCertNovo(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault()
+                      incluirCert()
+                    }
+                  }}
+                />
+              </label>
+              <button type="button" className="btn btn-ghost" onClick={incluirCert}>
+                Incluir
               </button>
-            ))}
-          </div>
+            </div>
+            {form.certificados.length > 0 && (
+              <div className="cv-certs">
+                <p className="muted">Informe a validade de cada certificado que tiver data de vencimento.</p>
+                {form.certificados.map((item) => (
+                  <label key={item.tipo} className="field">
+                    <span>Validade de {item.tipo}</span>
+                    <input type="date" value={item.validade} onChange={(e) => validadeCert(item.tipo, e.target.value)} />
+                  </label>
+                ))}
+              </div>
+            )}
+          </>
         )}
-        {step === 6 && (
+        {step === PASSO.disponibilidade && (
           <AvailabilityToggle value={form.disponibilidade} onChange={(d) => set('disponibilidade', d)} />
         )}
-        {step === 7 && (
+        {step === PASSO.raio && (
           <div className="raio-passo">
             <p>A partir da sua cidade, você só entra em missões dentro desse raio.</p>
             <label className="field">
@@ -417,7 +557,7 @@ export function CadastroProfissionalScreen({ onBack, onDone }: Props) {
             )}
           </div>
         )}
-        {step === 8 && (
+        {step === PASSO.pagamento && (
           <>
             <p className="muted">
               Raio definido: até {form.raioKm} km de {form.cidade}/{form.estado}.

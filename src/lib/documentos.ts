@@ -131,7 +131,11 @@ export function validarEnvioDocumento(
   if (!def) return 'Tipo de documento inválido.'
   const nome = arquivoNome.trim()
   if (nome.length < 3) return 'Informe o nome do arquivo.'
-  if (!/\.(pdf|jpe?g|png|txt)$/i.test(nome)) return 'Use um arquivo PDF, JPG, PNG ou TXT.'
+  if (tipoId === 'curriculo') {
+    if (!/\.(pdf|docx?)$/i.test(nome)) return 'Use um arquivo PDF ou Word (.docx ou .doc).'
+  } else if (!/\.(pdf|jpe?g|png|txt)$/i.test(nome)) {
+    return 'Use um arquivo PDF, JPG, PNG ou TXT.'
+  }
   if (def.temValidade && !validade) return 'Informe a data de validade.'
   if (def.temValidade && validade) {
     const dias = daysUntil(validade)

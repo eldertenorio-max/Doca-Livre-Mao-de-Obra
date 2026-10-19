@@ -80,7 +80,14 @@ export function PerfilColaborador({
             <li>Responde em {pessoa.tempoRespostaMin} min</li>
             <li>Atende até {pessoa.raioKm} km</li>
             {pessoa.cnhCategoria && <li>CNH {pessoa.cnhCategoria}</li>}
+            {pessoa.escolaridade && <li>{pessoa.escolaridade}</li>}
           </ul>
+          {pessoa.resumo && (
+            <section>
+              <h3>Sobre</h3>
+              <p className="pc-resumo">{pessoa.resumo}</p>
+            </section>
+          )}
           {pessoa.profissoes.length > 0 && (
             <section>
               <h3>Cargos</h3>
@@ -116,6 +123,16 @@ export function PerfilColaborador({
                     {item.tipo}
                     {item.valido ? '' : ' · vencido'}
                   </span>
+                ))}
+              </div>
+            </section>
+          )}
+          {(pessoa.habilidades?.length ?? 0) > 0 && (
+            <section>
+              <h3>Habilidades</h3>
+              <div className="pc-chips pc-chips--soft">
+                {pessoa.habilidades?.map((item) => (
+                  <span key={item}>{item}</span>
                 ))}
               </div>
             </section>

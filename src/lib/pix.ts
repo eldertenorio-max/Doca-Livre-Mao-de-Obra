@@ -22,7 +22,7 @@ function soDigitos(valor: string) {
   return valor.replace(/\D/g, '')
 }
 
-function cpfValido(digitos: string) {
+export function cpfValido(digitos: string) {
   if (digitos.length !== 11 || /^(\d)\1{10}$/.test(digitos)) return false
   const n = [...digitos].map(Number)
   let soma = 0
@@ -54,7 +54,7 @@ function cnpjValido(digitos: string) {
   return digito === n[13]
 }
 
-function formatarCpf(digitos: string) {
+export function formatarCpf(digitos: string) {
   return `${digitos.slice(0, 3)}.${digitos.slice(3, 6)}.${digitos.slice(6, 9)}-${digitos.slice(9)}`
 }
 

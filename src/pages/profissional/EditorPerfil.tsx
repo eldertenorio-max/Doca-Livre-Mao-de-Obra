@@ -1,12 +1,15 @@
-import { useEffect, useId, useMemo, useState } from 'react'
+import { useEffect, useId, useMemo, useRef, useState } from 'react'
+import { AnexoCurriculo, CamposSobre, ListaExperiencias, conferirExperiencias } from '../../components/CurriculoCampos'
 import { CATEGORIES, cargoLabel } from '../../data/categories'
 import { LOCAIS_OPERACAO } from '../../data/cidades'
 import { coordenadaDaCidade } from '../../lib/coordenadaCidade'
+import { CERTIFICADOS_COMUNS, habilidadesDoTexto, mesclarCurriculo, nomeCertificado } from '../../lib/curriculo'
+import type { LeituraCurriculo } from '../../lib/lerCurriculo'
 import { validarChavePix } from '../../lib/pix'
 import { useStore } from '../../lib/store'
 import type { Certificado, Disponibilidade, Experiencia, Profissional } from '../../lib/types'
 
-const CERTS = ['NR11', 'NR35', 'NR10', 'NR20', 'MOPP', 'Munck', 'Ponte Rolante']
+const CERTS = CERTIFICADOS_COMUNS
 const RAIOS = [10, 25, 50, 100]
 const TURNOS: { key: keyof Disponibilidade; label: string }[] = [
   { key: 'hoje', label: 'Hoje' },
@@ -27,6 +30,9 @@ type Rascunho = {
   nascimento: string
   telefone: string
   foto?: string
+  resumo: string
+  escolaridade: string
+  habilidades: string
   profissoes: string[]
   experiencia: Experiencia[]
   certificados: Certificado[]
@@ -50,6 +56,9 @@ function rascunhoDe(prof: Profissional): Rascunho {
     nascimento: prof.nascimento,
     telefone: prof.telefone,
     foto: prof.foto,
+    resumo: prof.resumo ?? '',
+    escolaridade: prof.escolaridade ?? '',
+    habilidades: (prof.habilidades ?? []).join(', '),
     profissoes: [...prof.profissoes],
     experiencia: prof.experiencia.map((item) => ({ ...item })),
     certificados: prof.certificados.map((item) => ({ ...item })),
@@ -77,11 +86,20 @@ export function EditorPerfil({
   onFechar: () => void
   onSalvou: () => void
 }) {
-  const { state, atualizarPerfilProfissional } = useStore()
+  const { state, atualizarPerfilProfissional, enviarDocumento } = useStore()
   const certNovoId = useId()
   const [form, setForm] = useState<Rascunho>(() => rascunhoDe(prof))
   const [certNovo, setCertNovo] = useState('')
   const [erro, setErro] = useState('')
+  const [curriculo, setCurriculo] = useState<{ nome: string; copia?: string } | null>(null)
+  const formAtual = useRef(form)
+  const arquivoAtual = state.documentos.find(
+    (doc) => doc.donoTipo === 'profissional' && doc.donoId === prof.id && doc.tipoId === 'curriculo',
+  )?.arquivoNome
+
+  useEffect(() => {
+    formAtual.current = form
+  }, [form])
 
   const ufs = useMemo(() => [...new Set(LOCAIS_OPERACAO.map((local) => local.estado))].sort(), [])
   const cidades = useMemo(
@@ -126,11 +144,12 @@ export function EditorPerfil({
     )
   }
 
-  function atualizarExperiencia(index: number, campo: keyof Experiencia, valor: string) {
-    set(
-      'experiencia',
-      form.experiencia.map((item, i) => (i === index ? { ...item, [campo]: valor } : item)),
-    )
+  function aplicarCurriculo(leitura: LeituraCurriculo) {
+    const { form: novo, entrou } = mesclarCurriculo(formAtual.current, leitura.lido)
+    formAtual.current = novo
+    setForm(novo)
+    setCurriculo({ nome: leitura.arquivoNome, copia: leitura.copia })
+    return entrou
   }
 
   function salvar() {
@@ -141,6 +160,11 @@ export function EditorPerfil({
     }
     if (form.profissoes.length === 0) {
       setErro('Selecione ao menos um cargo.')
+      return
+    }
+    const falhaExp = conferirExperiencias(form.experiencia)
+    if (falhaExp) {
+      setErro(falhaExp)
       return
     }
     if (!form.cidade.trim() || !form.estado.trim()) {
@@ -160,7 +184,9 @@ export function EditorPerfil({
           ...state.profissionais.map((pessoa) => pessoa.endereco),
           ...state.empresas.map((empresa) => empresa.endereco),
         ])
-    const experiencia = form.experiencia.filter((item) => item.cargo.trim() || item.empresa.trim())
+    const experiencia = form.experiencia
+      .filter((item) => item.cargo.trim() || item.empresa.trim())
+      .map((item) => ({ ...item, cargo: item.cargo.trim(), empresa: item.empresa.trim() }))
     const res = atualizarPerfilProfissional(prof.id, {
       nome: form.nome,
       cpf: form.cpf,
@@ -168,6 +194,9 @@ export function EditorPerfil({
       nascimento: form.nascimento,
       telefone: form.telefone,
       foto: form.foto,
+      resumo: form.resumo,
+      escolaridade: form.escolaridade,
+      habilidades: habilidadesDoTexto(form.habilidades),
       profissoes: form.profissoes,
       experiencia,
       certificados: form.certificados.filter((item) => item.tipo.trim()),
@@ -189,11 +218,41 @@ export function EditorPerfil({
       setErro(res.error ?? 'Não foi possível salvar o perfil.')
       return
     }
+    if (curriculo) {
+      enviarDocumento({
+        tipoId: 'curriculo',
+        donoTipo: 'profissional',
+        donoId: prof.id,
+        arquivoNome: curriculo.nome,
+        arquivoDados: curriculo.copia,
+      })
+    }
     onSalvou()
   }
 
   return (
     <div className="td-editor">
+      <section className="td-card">
+        <h2>Currículo</h2>
+        <p className="td-editor-resumo">
+          Anexe o currículo em PDF ou Word. O que estiver nele entra nos campos abaixo, sem apagar o que você já
+          escreveu. Confira e salve.
+        </p>
+        <AnexoCurriculo onLido={aplicarCurriculo} arquivoAtual={curriculo?.nome ?? arquivoAtual} />
+      </section>
+
+      <section className="td-card">
+        <h2>Sobre você</h2>
+        <div className="td-form">
+          <CamposSobre
+            resumo={form.resumo}
+            escolaridade={form.escolaridade}
+            habilidades={form.habilidades}
+            onChange={(campo, valor) => set(campo, valor)}
+          />
+        </div>
+      </section>
+
       <section className="td-card">
         <h2>Seus dados</h2>
         <div className="td-form">
@@ -338,53 +397,9 @@ export function EditorPerfil({
 
       <section className="td-card">
         <h2>Experiência</h2>
-        {form.experiencia.map((item, index) => (
-          <div key={index} className="td-form td-exp-edit">
-            <label>
-              <span>Cargo</span>
-              <input value={item.cargo} onChange={(e) => atualizarExperiencia(index, 'cargo', e.target.value)} />
-            </label>
-            <label>
-              <span>Empresa</span>
-              <input value={item.empresa} onChange={(e) => atualizarExperiencia(index, 'empresa', e.target.value)} />
-            </label>
-            <label>
-              <span>Início</span>
-              <input type="month" value={(item.inicio || '').slice(0, 7)} onChange={(e) => atualizarExperiencia(index, 'inicio', e.target.value)} />
-            </label>
-            <label>
-              <span>Fim</span>
-              <input
-                type="month"
-                value={item.fim && item.fim !== 'atual' ? item.fim.slice(0, 7) : ''}
-                onChange={(e) => atualizarExperiencia(index, 'fim', e.target.value)}
-              />
-            </label>
-            <label className="td-form-full">
-              <span>Descrição</span>
-              <input value={item.descricao} onChange={(e) => atualizarExperiencia(index, 'descricao', e.target.value)} />
-            </label>
-            <button
-              type="button"
-              className="td-link"
-              onClick={() => set('experiencia', form.experiencia.filter((_, i) => i !== index))}
-            >
-              Remover experiência
-            </button>
-          </div>
-        ))}
-        <button
-          type="button"
-          className="td-link"
-          onClick={() =>
-            set('experiencia', [
-              ...form.experiencia,
-              { cargo: '', empresa: '', inicio: '', fim: '', descricao: '' },
-            ])
-          }
-        >
-          Incluir experiência
-        </button>
+        <div className="td-form">
+          <ListaExperiencias itens={form.experiencia} onChange={(lista) => set('experiencia', lista)} />
+        </div>
       </section>
 
       <section className="td-card">
@@ -428,7 +443,7 @@ export function EditorPerfil({
                 type="button"
                 className="td-link"
                 onClick={() => {
-                  const tipo = certNovo.trim()
+                  const tipo = nomeCertificado(certNovo)
                   if (!tipo || form.certificados.some((item) => item.tipo.toLowerCase() === tipo.toLowerCase())) return
                   alternarCertificado(tipo)
                   setCertNovo('')
@@ -461,7 +476,8 @@ export function EditorPerfil({
 
       {form.profissoes.length > 0 && (
         <p className="td-editor-resumo">
-          Cargo principal: {cargoLabel(form.profissoes[0])}. O texto de apresentação usa a experiência e a cidade.
+          Cargo principal: {cargoLabel(form.profissoes[0])}. A empresa vê o resumo, os cargos, as experiências, os
+          certificados e a cidade.
         </p>
       )}
       {erro && <p className="error">{erro}</p>}

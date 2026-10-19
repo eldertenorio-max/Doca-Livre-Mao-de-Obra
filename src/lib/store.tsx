@@ -21,6 +21,7 @@ import { distanciaKm, matchDemanda } from './matching'
 import { canAccessSistema, isLocalSuperUser } from './portalPermissoes'
 import { nowIso, uid } from './seed'
 import { mediaDaAvaliacao, nivelPelaMedia } from './classificacao'
+import { semContato } from './curriculo'
 import { validarChavePix } from './pix'
 import { loadState, resetState, saveState, STORAGE_KEY } from './storage'
 import { VERSAO_TERMOS } from './termos'
@@ -178,6 +179,9 @@ type StoreApi = {
       | 'nascimento'
       | 'telefone'
       | 'foto'
+      | 'resumo'
+      | 'escolaridade'
+      | 'habilidades'
       | 'profissoes'
       | 'experiencia'
       | 'certificados'
@@ -203,6 +207,7 @@ type StoreApi = {
     donoTipo: 'profissional' | 'empresa' | 'ett'
     donoId: string
     arquivoNome: string
+    arquivoDados?: string
     validade?: string
     meta?: Record<string, string>
   }) => void
@@ -1130,7 +1135,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       }))
     },
 
-    enviarDocumento({ tipoId, donoTipo, donoId, arquivoNome, validade, meta }) {
+    enviarDocumento({ tipoId, donoTipo, donoId, arquivoNome, arquivoDados, validade, meta }) {
       update((s) => {
         const existentes = s.documentos.filter(
           (d) => !(d.tipoId === tipoId && d.donoTipo === donoTipo && d.donoId === donoId),
@@ -1142,6 +1147,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           donoId,
           status: 'em_analise',
           arquivoNome,
+          arquivoDados,
           validade,
           meta,
           enviadoEm: nowIso(),
@@ -1305,8 +1311,16 @@ export function StoreProvider({ children }: { children: ReactNode }) {
                 nascimento: dados.nascimento,
                 telefone: dados.telefone.trim(),
                 foto: dados.foto || p.foto,
+                resumo: dados.resumo === undefined ? p.resumo : semContato(dados.resumo).slice(0, 600) || undefined,
+                escolaridade: dados.escolaridade === undefined ? p.escolaridade : dados.escolaridade || undefined,
+                habilidades:
+                  dados.habilidades === undefined
+                    ? p.habilidades
+                    : dados.habilidades.length
+                      ? dados.habilidades
+                      : undefined,
                 profissoes: dados.profissoes,
-                experiencia: dados.experiencia,
+                experiencia: dados.experiencia.map((item) => ({ ...item, descricao: semContato(item.descricao) })),
                 certificados: dados.certificados,
                 cnhCategoria: dados.cnhCategoria?.trim() || undefined,
                 cnhValidade: dados.cnhValidade || undefined,

@@ -162,6 +162,15 @@ export const DOCS_PROFISSIONAL: DocumentDef[] = [
     opcional: true,
   },
   {
+    id: 'curriculo',
+    label: 'Currículo (PDF ou Word)',
+    categoria: 'identidade',
+    descricao: 'Arquivo original do currículo. Fica com a equipe da Mão de Obra. A empresa vê o currículo organizado pela plataforma.',
+    temValidade: false,
+    obrigatorio: 'todos',
+    opcional: true,
+  },
+  {
     id: 'mei_cnpj',
     label: 'MEI / CNPJ do prestador (se houver)',
     categoria: 'financeiro',

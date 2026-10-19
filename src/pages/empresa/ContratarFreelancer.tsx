@@ -2269,8 +2269,10 @@ function PessoaCard({
       {aberto && (
         <div className="cf-cv">
           <strong>Currículo estruturado</strong>
+          {p.resumo && <span>Resumo: {p.resumo}</span>}
           <span>Cidade: {p.endereco.cidade}/{p.endereco.estado}</span>
           <span>CNH: {p.cnhCategoria ?? 'não informada'}</span>
+          {p.escolaridade && <span>Escolaridade: {p.escolaridade}</span>}
           <span>
             Experiências:{' '}
             {p.experiencia.length
@@ -2280,6 +2282,7 @@ function PessoaCard({
           <span>
             Certificados: {p.certificados.length ? p.certificados.map((c) => c.tipo).join(', ') : 'nenhum registrado'}
           </span>
+          {(p.habilidades?.length ?? 0) > 0 && <span>Habilidades: {p.habilidades?.join(', ')}</span>}
           <span>{item.situacaoTexto}</span>
         </div>
       )}

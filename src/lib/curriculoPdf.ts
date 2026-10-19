@@ -154,6 +154,15 @@ function montarFolhas(profissional: Profissional) {
   let folha = new Folha(profissional)
   folhas.push(folha)
 
+  if (profissional.resumo?.trim()) {
+    folha.secao('Resumo')
+    for (const linha of quebrar(profissional.resumo, 86)) {
+      folha = folha.garantir(20, profissional, folhas)
+      folha.linha(linha, 11, 'F1', PRETO)
+    }
+    folha = folha.garantir(40, profissional, folhas)
+  }
+
   const cargos = profissional.profissoes.length
     ? profissional.profissoes.map(cargoLabel).join(', ')
     : 'Não informado'
@@ -172,7 +181,8 @@ function montarFolhas(profissional: Profissional) {
     folha = folha.garantir(48, profissional, folhas)
     folha.ret(40, folha.y - 2, 3, 14, AMARELO)
     folha.linha(item.cargo, 12, 'F2', PRETO, 50)
-    const periodo = `${item.empresa}  ·  ${dataApresentavel(item.inicio)} a ${dataApresentavel(item.fim)}`
+    const ate = !item.fim || item.fim === 'atual' ? 'até o momento' : `a ${dataApresentavel(item.fim)}`
+    const periodo = `${item.empresa}  ·  ${dataApresentavel(item.inicio)} ${ate}`
     for (const linha of quebrar(periodo, 80)) {
       folha = folha.garantir(18, profissional, folhas)
       folha.linha(linha, 10, 'F1', CINZA, 50)
@@ -200,6 +210,21 @@ function montarFolhas(profissional: Profissional) {
     const validade = cert.validade ? `, validade ${dataApresentavel(cert.validade)}` : ''
     folha = folha.garantir(18, profissional, folhas)
     folha.linha(`${cert.tipo}${validade}`, 11, 'F1', PRETO)
+  }
+
+  if (profissional.escolaridade) {
+    folha = folha.garantir(40, profissional, folhas)
+    folha.secao('Escolaridade')
+    folha.linha(profissional.escolaridade, 11, 'F1', PRETO)
+  }
+
+  if (profissional.habilidades?.length) {
+    folha = folha.garantir(40, profissional, folhas)
+    folha.secao('Habilidades')
+    for (const linha of quebrar(profissional.habilidades.join('  ·  '), 86)) {
+      folha = folha.garantir(18, profissional, folhas)
+      folha.linha(linha, 11, 'F1', PRETO)
+    }
   }
 
   const disp = DISPONIBILIDADE.filter((item) => profissional.disponibilidade[item.key]).map((item) => item.label)

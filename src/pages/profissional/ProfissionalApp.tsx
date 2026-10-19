@@ -1255,7 +1255,7 @@ function PerfilTab() {
         <>
       <section className="td-card">
         <h2>Sobre</h2>
-        <p>{textoSobre(prof.experiencia, cargo, prof.endereco.cidade)}</p>
+        <p>{prof.resumo || textoSobre(prof.experiencia, cargo, prof.endereco.cidade)}</p>
       </section>
 
       <section className="td-card">
@@ -1305,6 +1305,15 @@ function PerfilTab() {
               <span>CNH {prof.cnhCategoria}</span>
             </li>
           )}
+          {prof.escolaridade && (
+            <li>
+              <IconeBolha>
+                <path d="m3 9 9-4 9 4-9 4-9-4z" stroke="currentColor" strokeWidth="1.75" strokeLinejoin="round" />
+                <path d="M7 11v4c0 1.5 2.2 3 5 3s5-1.5 5-3v-4" stroke="currentColor" strokeWidth="1.75" />
+              </IconeBolha>
+              <span>{prof.escolaridade}</span>
+            </li>
+          )}
         </ul>
       </section>
 
@@ -1346,6 +1355,19 @@ function PerfilTab() {
               <span key={item.tipo} className="td-chip td-chip--on">
                 {item.tipo}
                 {item.valido ? '' : ' · vencido'}
+              </span>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {(prof.habilidades?.length ?? 0) > 0 && (
+        <section className="td-card">
+          <h2>Habilidades</h2>
+          <div className="td-chips">
+            {prof.habilidades?.map((item) => (
+              <span key={item} className="td-chip">
+                {item}
               </span>
             ))}
           </div>

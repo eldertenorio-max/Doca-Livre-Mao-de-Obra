@@ -3,6 +3,7 @@ import { createServer } from 'node:http'
 import { extname, join, normalize, resolve, sep } from 'node:path'
 import { analisarDocumentoCadastro } from './analisarDocumentoCadastro.mjs'
 import { enviarCodigoEmail } from './enviarCodigoEmail.mjs'
+import { lerCurriculo } from './lerCurriculo.mjs'
 
 const root = resolve(process.cwd(), 'dist')
 const port = Number(process.env.PORT || 4173)
@@ -10,6 +11,7 @@ const port = Number(process.env.PORT || 4173)
 const types = {
   '.html': 'text/html; charset=utf-8',
   '.js': 'text/javascript; charset=utf-8',
+  '.mjs': 'text/javascript; charset=utf-8',
   '.css': 'text/css; charset=utf-8',
   '.json': 'application/json; charset=utf-8',
   '.svg': 'image/svg+xml',
@@ -116,6 +118,24 @@ const server = createServer(async (req, res) => {
       if (!res.headersSent) {
         res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8' })
         res.end(JSON.stringify({ ok: false, erro: 'Não foi possível analisar o documento.' }))
+      }
+    }
+    return
+  }
+
+  if (url.pathname === '/api/cadastro/ler-curriculo' && req.method === 'POST') {
+    try {
+      const bruto = await lerCorpo(req, 3_500_000)
+      const data = JSON.parse(bruto || '{}')
+      const result = await lerCurriculo({ texto: data.texto, imagem: data.imagem, cargos: data.cargos })
+      res.writeHead(result.status || (result.ok ? 200 : 503), {
+        'Content-Type': 'application/json; charset=utf-8',
+      })
+      res.end(JSON.stringify(result.ok ? { ok: true, curriculo: result.curriculo } : { ok: false, erro: result.erro }))
+    } catch {
+      if (!res.headersSent) {
+        res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8' })
+        res.end(JSON.stringify({ ok: false, erro: 'Não foi possível ler o currículo.' }))
       }
     }
     return

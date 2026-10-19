@@ -1,4 +1,5 @@
 import { cargoLabel } from '../data/categories'
+import { mesesDeExperiencia } from './curriculo'
 import {
   checklistProfissional,
   daysUntil,
@@ -239,6 +240,8 @@ function textoCurriculo(profissional: Profissional) {
       profissional.profissoes.map(cargoLabel).join(' '),
       profissional.experiencia.map((e) => `${e.cargo} ${e.empresa} ${e.descricao}`).join(' '),
       profissional.certificados.map((c) => c.tipo).join(' '),
+      profissional.resumo ?? '',
+      (profissional.habilidades ?? []).join(' '),
     ].join(' '),
   )
 }
@@ -303,16 +306,9 @@ function avaliarNaModalidade(
   })
 }
 
-function mesesEntre(inicio: string, fim: string) {
-  const [y1, m1] = inicio.split('-').map(Number)
-  const [y2, m2] = fim.split('-').map(Number)
-  if (!y1 || !m1 || !y2 || !m2) return 0
-  return Math.max(0, (y2 - y1) * 12 + (m2 - m1))
-}
-
 function anosExperiencia(profissional: Profissional) {
   if (!profissional.experiencia.length) return null
-  const meses = profissional.experiencia.reduce((soma, item) => soma + mesesEntre(item.inicio, item.fim), 0)
+  const meses = profissional.experiencia.reduce((soma, item) => soma + mesesDeExperiencia(item.inicio, item.fim), 0)
   return Math.round((meses / 12) * 10) / 10
 }
 
@@ -413,7 +409,9 @@ export function analisarCurriculos(params: {
     const expTexto = profissional.experiencia
       .map((e) => `${e.cargo} ${e.empresa} ${e.descricao}`)
       .join(' ')
-    const baseTexto = semAcento(`${expTexto} ${profissional.profissoes.map(cargoLabel).join(' ')}`)
+    const baseTexto = semAcento(
+      `${expTexto} ${profissional.profissoes.map(cargoLabel).join(' ')} ${profissional.resumo ?? ''} ${(profissional.habilidades ?? []).join(' ')}`,
+    )
     const acertosObs = chavesObs.filter((w) => baseTexto.includes(w))
     const expRelacionada = profissional.experiencia.find((e) =>
       semAcento(`${e.cargo} ${e.descricao}`).includes(semAcento(label).slice(0, 6)),

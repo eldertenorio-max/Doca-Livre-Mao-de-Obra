@@ -17,11 +17,12 @@ function portalApiDev(): Plugin {
         const path = req.url?.split('?')[0]
         const email = path === '/api/portal/enviar-codigo' && req.method === 'POST'
         const documento = path === '/api/cadastro/analisar-documento' && req.method === 'POST'
-        if (!email && !documento) {
+        const curriculo = path === '/api/cadastro/ler-curriculo' && req.method === 'POST'
+        if (!email && !documento && !curriculo) {
           next()
           return
         }
-        const limite = documento ? 8_000_000 : 8000
+        const limite = documento ? 8_000_000 : curriculo ? 3_500_000 : 8000
         const partes: Buffer[] = []
         let tamanho = 0
         let estourou = false
@@ -31,7 +32,11 @@ function portalApiDev(): Plugin {
             estourou = true
             responderJson(res, 413, {
               ok: false,
-              erro: documento ? 'A foto ficou grande demais. Envie uma imagem menor.' : 'Não foi possível enviar o e-mail.',
+              erro: documento
+                ? 'A foto ficou grande demais. Envie uma imagem menor.'
+                : curriculo
+                  ? 'O currículo ficou grande demais. Envie um arquivo menor.'
+                  : 'Não foi possível enviar o e-mail.',
             })
             req.destroy()
             return
@@ -41,11 +46,41 @@ function portalApiDev(): Plugin {
         req.on('end', () => {
           if (estourou) return
           void (async () => {
-            let data: { email?: string; codigo?: string; finalidade?: string; nome?: string; contexto?: string; tipo?: string; cnpj?: string; cidade?: string; arquivos?: { papel?: string; mime?: string; dados?: string }[] } = {}
+            let data: {
+              email?: string
+              codigo?: string
+              finalidade?: string
+              nome?: string
+              contexto?: string
+              tipo?: string
+              cnpj?: string
+              cidade?: string
+              arquivos?: { papel?: string; mime?: string; dados?: string }[]
+              texto?: string
+              imagem?: { mime?: string; dados?: string }
+              cargos?: { id?: string; label?: string }[]
+            } = {}
             try {
               data = JSON.parse(Buffer.concat(partes).toString('utf8') || '{}') as typeof data
             } catch {
-              responderJson(res, 400, { ok: false, erro: documento ? 'Não foi possível analisar o documento.' : 'Não foi possível enviar o e-mail.' })
+              responderJson(res, 400, {
+                ok: false,
+                erro: documento
+                  ? 'Não foi possível analisar o documento.'
+                  : curriculo
+                    ? 'Não foi possível ler o currículo.'
+                    : 'Não foi possível enviar o e-mail.',
+              })
+              return
+            }
+            if (curriculo) {
+              const { lerCurriculo } = await import('./server/lerCurriculo.mjs')
+              const result = await lerCurriculo({ texto: data.texto, imagem: data.imagem, cargos: data.cargos, env })
+              responderJson(
+                res,
+                result.ok ? 200 : result.status,
+                result.ok ? { ok: true, curriculo: result.curriculo } : { ok: false, erro: result.erro },
+              )
               return
             }
             if (documento) {
@@ -78,7 +113,14 @@ function portalApiDev(): Plugin {
             responderJson(res, result.ok ? 200 : result.status, result.ok ? { ok: true } : { ok: false, erro: result.erro })
           })().catch(() => {
             if (!res.writableEnded) {
-              responderJson(res, 503, { ok: false, erro: documento ? 'Não foi possível analisar o documento.' : 'Não foi possível enviar o e-mail.' })
+              responderJson(res, 503, {
+                ok: false,
+                erro: documento
+                  ? 'Não foi possível analisar o documento.'
+                  : curriculo
+                    ? 'Não foi possível ler o currículo.'
+                    : 'Não foi possível enviar o e-mail.',
+              })
             }
           })
         })
