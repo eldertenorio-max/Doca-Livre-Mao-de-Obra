@@ -357,7 +357,22 @@ export function allDocumentDefs() {
   return [...DOCS_PROFISSIONAL, ...DOCS_EMPRESA, ...DOCS_OPERACAO, ...DOCS_PLATAFORMA, ...DOCS_ETT]
 }
 
+/** Curso do currículo sem tipo próprio no catálogo. O nome do curso vai depois do prefixo. */
+export const PREFIXO_CURSO = 'curso:'
+
+export function defDoCurso(nome: string): DocumentDef {
+  return {
+    id: `${PREFIXO_CURSO}${nome}`,
+    label: `Certificado: ${nome}`,
+    categoria: 'certificacao',
+    descricao: 'Certificado do curso informado no currículo.',
+    temValidade: false,
+    obrigatorio: 'demanda',
+  }
+}
+
 export function docDefById(id: string) {
+  if (id.startsWith(PREFIXO_CURSO)) return defDoCurso(id.slice(PREFIXO_CURSO.length))
   return allDocumentDefs().find((d) => d.id === id)
 }
 

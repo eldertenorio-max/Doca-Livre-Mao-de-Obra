@@ -7,6 +7,7 @@ import {
 } from '../data/documentCatalog'
 import {
   STATUS_LABEL,
+  certificadosDoCurriculo,
   checklistEmpresa,
   checklistProfissional,
   daysUntil,
@@ -34,6 +35,9 @@ export function DocumentacaoProfissionalPanel({ profissional }: { profissional: 
   const resumo = resumoDocumental(items)
   const obrigatorios = items.filter((i) => !i.opcional)
   const opcionais = items.filter((i) => i.opcional)
+  const cursos = certificadosDoCurriculo(profissional, state.documentos)
+  const cursosAvulsos = cursos.filter((c) => !items.some((i) => i.def.id === c.def.id))
+  const cursosAprovados = cursos.filter((c) => c.ok).length
   return (
     <div className="docs-panel">
       <ResumoCards resumo={resumo} />
@@ -47,6 +51,18 @@ export function DocumentacaoProfissionalPanel({ profissional }: { profissional: 
 
       <h3>Checklist obrigatório</h3>
       <ChecklistLista items={obrigatorios} donoTipo="profissional" donoId={profissional.id} />
+
+      <h3>Certificados dos cursos do currículo</h3>
+      <p className="muted">
+        {cursos.length
+          ? `${cursosAprovados} de ${cursos.length} curso${cursos.length === 1 ? '' : 's'} com certificado aprovado. `
+          : 'Seu currículo ainda não tem curso com certificado. Inclua os cursos em Editar perfil. '}
+        Na pesquisa completa, a empresa vê quem tem o certificado aprovado de todos os cursos do currículo. Na
+        pesquisa básica, pelo menos um.
+      </p>
+      {cursosAvulsos.length > 0 && (
+        <ChecklistLista items={cursosAvulsos} donoTipo="profissional" donoId={profissional.id} />
+      )}
 
       {opcionais.length > 0 && (
         <>
@@ -293,6 +309,10 @@ function ResumoCards({
   )
 }
 
+function idPainel(tipoId: string) {
+  return `docs-atualizar-${tipoId.replace(/[^\w-]/g, '-')}`
+}
+
 function ChecklistLista({
   items,
   donoTipo,
@@ -324,7 +344,7 @@ function ChecklistLista({
 
   useEffect(() => {
     if (!aberto) return
-    document.getElementById(`docs-atualizar-${aberto}`)?.scrollIntoView({ block: 'nearest' })
+    document.getElementById(idPainel(aberto))?.scrollIntoView({ block: 'nearest' })
   }, [aberto])
 
   function enviar(tipoId: string) {
@@ -380,14 +400,14 @@ function ChecklistLista({
                 type="button"
                 className="px-btn px-btn-outline"
                 aria-expanded={painelAberto}
-                aria-controls={`docs-atualizar-${def.id}`}
+                aria-controls={idPainel(def.id)}
                 onClick={() => abrir(def.id, doc?.validade ?? '')}
               >
                 {faltando ? 'Enviar' : painelAberto ? 'Fechar' : 'Atualizar'}
               </button>
             </div>
             {painelAberto && (
-              <div className="docs-atualizar" id={`docs-atualizar-${def.id}`}>
+              <div className="docs-atualizar" id={idPainel(def.id)}>
                 <label className="px-field">
                   <span>Novo arquivo</span>
                   <input

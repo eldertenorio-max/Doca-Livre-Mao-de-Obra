@@ -2,10 +2,12 @@ import {
   DIAS_ALERTA_VENCIMENTO,
   DOCS_EMPRESA,
   DOCS_PROFISSIONAL,
+  PREFIXO_CURSO,
   docDefById,
   requiredDocsForProfissional,
   type DocumentDef,
 } from '../data/documentCatalog'
+import { nomeCertificado } from './curriculo'
 import type { DocumentoRegistro, DocumentoStatus, Profissional } from './types'
 
 export const STATUS_LABEL: Record<DocumentoStatus, string> = {
@@ -82,6 +84,37 @@ export function checklistProfissional(
   const opcionais = DOCS_PROFISSIONAL.filter((d) => d.opcional && !requiredIds.has(d.id))
   const meus = docsDoDono(documentos, 'profissional', profissional.id)
   return [...required, ...opcionais].map((def) => itemDoChecklist(def, meus))
+}
+
+const DOC_DO_CURSO: Record<string, string> = {
+  MOPP: 'mopp',
+  NR10: 'nr10',
+  NR11: 'nr11',
+  NR20: 'nr20',
+  NR35: 'nr35',
+  Munck: 'munck',
+  'Ponte Rolante': 'ponte_rolante',
+}
+
+export type CertificadoDoCurso = ChecklistItem & { curso: string }
+
+/** Um item por curso do currículo. O certificado conta quando o documento está aprovado e dentro da validade. */
+export function certificadosDoCurriculo(
+  profissional: Profissional,
+  documentos: DocumentoRegistro[],
+): CertificadoDoCurso[] {
+  const meus = docsDoDono(documentos, 'profissional', profissional.id)
+  const vistos = new Set<string>()
+  const lista: CertificadoDoCurso[] = []
+  for (const certificado of profissional.certificados) {
+    const curso = nomeCertificado(certificado.tipo)
+    if (!curso) continue
+    const def = docDefById(DOC_DO_CURSO[curso] ?? `${PREFIXO_CURSO}${curso}`)
+    if (!def || vistos.has(def.id)) continue
+    vistos.add(def.id)
+    lista.push({ ...itemDoChecklist(def, meus), curso })
+  }
+  return lista
 }
 
 export function checklistEmpresa(empresaId: string, documentos: DocumentoRegistro[]) {

@@ -1,6 +1,7 @@
 import { cargoLabel } from '../data/categories'
 import { mesesDeExperiencia } from './curriculo'
 import {
+  certificadosDoCurriculo,
   checklistProfissional,
   daysUntil,
   effectiveStatus,
@@ -170,6 +171,12 @@ export type BuscaMissao = {
   pessoas: CurriculoAnalisado[]
 }
 
+/**
+ * completa: cargo, requisitos e certificado aprovado de todos os cursos do currículo.
+ * basica: atividades da vaga e pelo menos um certificado aprovado.
+ */
+export type ModoBusca = 'completa' | 'basica'
+
 const STOP = new Set([
   'para',
   'com',
@@ -334,6 +341,25 @@ function palavras(texto: string) {
     .filter((w) => w.length >= 4 && !STOP.has(w))
 }
 
+type FiltroLocal = {
+  cidade: string
+  estado?: string
+  raioKm?: number | null
+  origem: { lat: number; lng: number }
+  cidadeEmpresa: string
+}
+
+/** Nulo quando a pessoa fica fora do estado ou do raio pedido. */
+function localDaPessoa(profissional: Profissional, filtro: FiltroLocal) {
+  const estadoPedido = (filtro.estado ?? '').trim().toUpperCase()
+  if (estadoPedido && profissional.endereco.estado.toUpperCase() !== estadoPedido) return null
+  const cidadePedida = semAcento(filtro.cidade.trim()) || semAcento(filtro.cidadeEmpresa)
+  const mesmaCidade = semAcento(profissional.endereco.cidade) === cidadePedida
+  const distancia = haversineKm(filtro.origem, profissional.endereco)
+  if (filtro.raioKm != null && filtro.raioKm > 0 && !mesmaCidade && distancia > filtro.raioKm) return null
+  return { mesmaCidade, distancia }
+}
+
 export function analisarCurriculos(params: {
   pedido: PedidoContratacao
   empresa: Empresa
@@ -346,9 +372,13 @@ export function analisarCurriculos(params: {
   const label = cargoLabel(pedido.cargoId)
   const diasPedido = diasInclusivos(pedido.inicio, pedido.fim)
   const chavesObs = palavras(pedido.observacoes)
-  const cidadePedida = semAcento(pedido.cidade.trim())
-  const estadoPedido = (pedido.estado ?? '').trim().toUpperCase()
-  const origem = pedido.origem ?? empresa.endereco
+  const filtroLocal: FiltroLocal = {
+    cidade: pedido.cidade,
+    estado: pedido.estado,
+    raioKm: pedido.raioKm,
+    origem: pedido.origem ?? empresa.endereco,
+    cidadeEmpresa: empresa.endereco.cidade,
+  }
   const limitePerto = pedido.raioKm != null && pedido.raioKm > 0 ? pedido.raioKm : 40
 
   const lista: CurriculoAnalisado[] = []
@@ -357,13 +387,9 @@ export function analisarCurriculos(params: {
   for (const profissional of profissionais) {
     if (profissional.status !== 'aprovado') continue
     if (empresa.bloqueados.includes(profissional.id)) continue
-    if (estadoPedido && profissional.endereco.estado.toUpperCase() !== estadoPedido) continue
-
-    const mesmaCidade = cidadePedida
-      ? semAcento(profissional.endereco.cidade) === cidadePedida
-      : semAcento(profissional.endereco.cidade) === semAcento(empresa.endereco.cidade)
-    const distancia = haversineKm(origem, profissional.endereco)
-    if (pedido.raioKm != null && pedido.raioKm > 0 && !mesmaCidade && distancia > pedido.raioKm) continue
+    const local = localDaPessoa(profissional, filtroLocal)
+    if (!local) continue
+    const { mesmaCidade, distancia } = local
 
     analisados += 1
 
@@ -398,7 +424,20 @@ export function analisarCurriculos(params: {
       checagens.push({ rotulo: req, ok, obrigatorio: false })
       if (ok) okDifs.push(req)
     }
-    const obrigatoriosOk = temCargo && faltaReqs.length === 0
+    const cursos = certificadosDoCurriculo(profissional, documentos)
+    const cursosOk = cursos.filter((c) => c.ok).map((c) => c.curso)
+    const cursosFalta = cursos.filter((c) => !c.ok).map((c) => c.curso)
+    const certificadosOk = cursos.length > 0 && cursosFalta.length === 0
+    checagens.push({
+      rotulo: cursos.length ? `Certificados do currículo ${cursosOk.length}/${cursos.length}` : 'Certificado de curso',
+      ok: certificadosOk,
+      obrigatorio: true,
+    })
+    if (certificadosOk) aderencias.push(`Certificado aprovado de todos os cursos do currículo: ${cursosOk.join(', ')}.`)
+    else if (cursos.length) falhas.push(`Falta o certificado aprovado de: ${cursosFalta.join(', ')}.`)
+    else falhas.push('O currículo não tem curso com certificado.')
+
+    const obrigatoriosOk = temCargo && faltaReqs.length === 0 && certificadosOk
     if (reqs.length === 0) score += temCargo ? 30 : 0
     else score += Math.round((okReqs.length / reqs.length) * 30)
     if (okDifs.length) score += Math.min(10, okDifs.length * 3)
@@ -467,11 +506,29 @@ export function analisarCurriculos(params: {
       experiencia: expRelacionada || acertosObs.length ? 'Alta correspondência' : profissional.experiencia.length ? 'Correspondência parcial' : 'Sem experiência descrita',
       disponibilidade: disponivel ? 'Compatível' : 'Sem disponibilidade marcada',
       localizacao: mesmaCidade || distancia <= limitePerto ? 'Compatível' : 'Distante da operação',
-      certificacoes: certsPedidas.length === 0 ? 'Nenhuma certificação exigida' : certsOk.length === certsPedidas.length ? 'Compatível' : 'Falta certificação',
+      certificacoes: !cursos.length
+        ? 'Sem certificado de curso'
+        : cursosFalta.length
+          ? `Falta certificado: ${cursosFalta.join(', ')}`
+          : certsOk.length === certsPedidas.length
+            ? 'Todos os cursos comprovados'
+            : 'Falta certificação',
     }
+    const cursosSemRequisito = cursosFalta.filter((curso) => !faltaReqs.includes(curso))
+    const faltando = [
+      ...(temCargo ? [] : [label]),
+      ...faltaReqs,
+      ...(certificadosOk
+        ? []
+        : !cursos.length
+          ? ['certificado de curso no currículo']
+          : cursosSemRequisito.length
+            ? [`certificado aprovado de ${cursosSemRequisito.join(', ')}`]
+            : []),
+    ]
     const porque = obrigatoriosOk
-      ? `Possui ${rotuloAnos(anos)} de experiência, ${okReqs.length ? okReqs.join(', ') : label} e ${disponivel ? 'disponibilidade no período solicitado' : 'cadastro sem disponibilidade marcada'}. A análise identifica o encaixe. A escolha continua com a empresa tomadora.`
-      : `Não atende requisito obrigatório${faltaReqs.length ? `: ${faltaReqs.join(', ')}` : temCargo ? '.' : `: ${label}.`}`
+      ? `Possui ${rotuloAnos(anos)} de experiência, ${okReqs.length ? okReqs.join(', ') : label}, certificado aprovado de ${cursosOk.join(', ')} e ${disponivel ? 'disponibilidade no período solicitado' : 'cadastro sem disponibilidade marcada'}. A análise identifica o encaixe. A escolha continua com a empresa tomadora.`
+      : `Não atende requisito obrigatório: ${faltando.join(', ')}.`
     const leitura = [
       porque,
       expRelacionada
@@ -505,6 +562,229 @@ export function analisarCurriculos(params: {
   lista.sort((a, b) => {
     if (a.situacao === 'bloqueado' && b.situacao !== 'bloqueado') return 1
     if (b.situacao === 'bloqueado' && a.situacao !== 'bloqueado') return -1
+    if (a.atendeObrigatorios !== b.atendeObrigatorios) return a.atendeObrigatorios ? -1 : 1
+    return b.score - a.score
+  })
+
+  return { analisados, pessoas: lista }
+}
+
+/** Palavras comuns em qualquer descrição de vaga. Não ajudam a separar currículos. */
+const GENERICAS = new Set([
+  'atividade',
+  'atividades',
+  'trabalho',
+  'trabalhar',
+  'trabalhador',
+  'colaborador',
+  'profissional',
+  'realizar',
+  'fazer',
+  'empresa',
+  'missao',
+  'vaga',
+  'sera',
+  'serao',
+  'durante',
+  'local',
+  'operacao',
+  'operacoes',
+  'servico',
+  'servicos',
+  'funcao',
+  'cargo',
+  'precisa',
+  'precisamos',
+  'necessario',
+  'necessita',
+  'experiencia',
+  'anos',
+  'dias',
+  'horas',
+  'turno',
+  'todos',
+  'todas',
+  'cada',
+  'outros',
+  'outras',
+  'sobre',
+  'quando',
+  'onde',
+  'tambem',
+  'muito',
+  'deve',
+  'devera',
+  'estar',
+  'fara',
+  'irao',
+  'geral',
+  'gerais',
+])
+
+type Termo = { palavra: string; raiz: string }
+
+function raiz(palavra: string) {
+  const w = palavra.length > 4 ? palavra.replace(/s$/, '') : palavra
+  return w.length <= 5 ? w : w.slice(0, Math.max(5, w.length - 3))
+}
+
+/** Palavras das atividades que entram na comparação com o currículo. */
+export function termosDasAtividades(texto: string): Termo[] {
+  const vistos = new Set<string>()
+  const termos: Termo[] = []
+  for (const original of texto.split(/[^\p{L}\p{N}]+/u)) {
+    const w = semAcento(original)
+    const sigla = /^[A-Z]{3}$/.test(original)
+    if ((w.length < 4 && !sigla) || STOP.has(w) || GENERICAS.has(w)) continue
+    const r = raiz(w)
+    if (vistos.has(r)) continue
+    vistos.add(r)
+    termos.push({ palavra: sigla ? original : original.toLowerCase(), raiz: r })
+  }
+  return termos.slice(0, 30)
+}
+
+function termosQueBatem(termos: Termo[], texto: string) {
+  const doCurriculo = semAcento(texto)
+    .split(/[^a-z0-9]+/)
+    .filter((w) => w.length >= 3 && !STOP.has(w))
+  return termos.filter((termo) => {
+    const alvo = semAcento(termo.palavra)
+    return doCurriculo.some((w) => w.startsWith(termo.raiz) || (w.length >= 4 && alvo.startsWith(raiz(w))))
+  })
+}
+
+function listaCursos(cursos: string[]) {
+  return cursos.length === 1 ? `O curso ${cursos[0]} ainda está` : `Os cursos ${cursos.join(', ')} ainda estão`
+}
+
+export function buscarPorAtividades(params: {
+  atividades: string
+  cidade: string
+  estado?: string
+  raioKm?: number | null
+  origem?: { lat: number; lng: number }
+  empresa: Empresa
+  profissionais: Profissional[]
+  documentos: DocumentoRegistro[]
+}): BuscaMissao {
+  const { empresa, profissionais, documentos } = params
+  const termos = termosDasAtividades(params.atividades)
+  const filtroLocal: FiltroLocal = {
+    cidade: params.cidade,
+    estado: params.estado,
+    raioKm: params.raioKm,
+    origem: params.origem ?? empresa.endereco,
+    cidadeEmpresa: empresa.endereco.cidade,
+  }
+  const limitePerto = params.raioKm != null && params.raioKm > 0 ? params.raioKm : 40
+  const lista: CurriculoAnalisado[] = []
+  let analisados = 0
+  if (!termos.length) return { analisados, pessoas: lista }
+
+  for (const profissional of profissionais) {
+    if (profissional.status !== 'aprovado') continue
+    if (empresa.bloqueados.includes(profissional.id)) continue
+    const local = localDaPessoa(profissional, filtroLocal)
+    if (!local) continue
+    const { mesmaCidade, distancia } = local
+    analisados += 1
+
+    const acertos = termosQueBatem(termos, textoCurriculo(profissional))
+    if (!acertos.length) continue
+    const batidas = acertos.map((t) => t.palavra)
+    const pct = acertos.length / termos.length
+
+    const cursos = certificadosDoCurriculo(profissional, documentos)
+    const cursosOk = cursos.filter((c) => c.ok).map((c) => c.curso)
+    const cursosFalta = cursos.filter((c) => !c.ok).map((c) => c.curso)
+    const temCertificado = cursosOk.length > 0
+
+    const aderencias = [`As atividades aparecem no currículo: ${batidas.slice(0, 8).join(', ')}.`]
+    const falhas: string[] = []
+    let score = Math.round(pct * 60)
+
+    let melhor: { exp: Profissional['experiencia'][number]; n: number } | null = null
+    for (const exp of profissional.experiencia) {
+      const n = termosQueBatem(acertos, `${exp.cargo} ${exp.descricao}`).length
+      if (n && (!melhor || n > melhor.n)) melhor = { exp, n }
+    }
+    if (melhor) {
+      score += 10
+      aderencias.push(`Experiência: ${melhor.exp.cargo}${melhor.exp.empresa ? ` em ${melhor.exp.empresa}` : ''}.`)
+    }
+
+    if (temCertificado) {
+      score += Math.min(10, cursosOk.length * 5)
+      aderencias.push(`Certificado aprovado: ${cursosOk.join(', ')}.`)
+    } else if (cursos.length) {
+      falhas.push(`Sem certificado aprovado. Cursos do currículo: ${cursosFalta.join(', ')}.`)
+    } else {
+      falhas.push('O currículo não tem curso com certificado.')
+    }
+
+    if (mesmaCidade) {
+      score += 10
+      aderencias.push(`Mora em ${profissional.endereco.cidade}/${profissional.endereco.estado}, a cidade pedida.`)
+    } else if (distancia <= limitePerto) {
+      score += 6
+      aderencias.push(`Mora em ${profissional.endereco.cidade}/${profissional.endereco.estado}, a cerca de ${Math.round(distancia)} km.`)
+    } else {
+      falhas.push(`Mora em ${profissional.endereco.cidade}/${profissional.endereco.estado}, a cerca de ${Math.round(distancia)} km.`)
+    }
+
+    const resumoDocs = resumoDocumental(checklistProfissional(profissional, documentos))
+    score += Math.round((resumoDocs.pct / 100) * 10)
+
+    const disp = profissional.disponibilidade
+    const disponivel =
+      disp.temporario || disp.hoje || disp.amanha || disp.estaSemana || disp.noturno || disp.finaisDeSemana
+    const porque = [
+      `As atividades da vaga aparecem no currículo: ${batidas.slice(0, 6).join(', ')}.`,
+      temCertificado
+        ? `Tem certificado aprovado de ${cursosOk.join(', ')}. A escolha continua com a empresa tomadora.`
+        : cursos.length
+          ? `${listaCursos(cursosFalta)} sem certificado aprovado.`
+          : 'O currículo não tem curso com certificado.',
+    ].join(' ')
+
+    lista.push({
+      profissional,
+      score: Math.max(0, Math.min(100, score)),
+      leitura: porque,
+      aderencias,
+      falhas,
+      situacao: 'compativel',
+      situacaoTexto: '',
+      diasPedido: 0,
+      mesmaCidade,
+      distanciaKm: Math.round(distancia * 10) / 10,
+      checagens: [
+        { rotulo: `Atividades ${acertos.length}/${termos.length}`, ok: true, obrigatorio: true },
+        {
+          rotulo: temCertificado ? `Certificado: ${cursosOk.join(', ')}` : 'Certificado aprovado',
+          ok: temCertificado,
+          obrigatorio: true,
+        },
+      ],
+      atendeObrigatorios: temCertificado,
+      anosExperiencia: anosExperiencia(profissional),
+      porque,
+      compatibilidade: {
+        requisitos: temCertificado ? 'Atividades e certificado' : 'Falta certificado aprovado',
+        experiencia: pct >= 0.5 ? 'Alta correspondência' : `Correspondência parcial: ${acertos.length} de ${termos.length} atividades`,
+        disponibilidade: disponivel ? 'Compatível' : 'Sem disponibilidade marcada',
+        localizacao: mesmaCidade || distancia <= limitePerto ? 'Compatível' : 'Distante da operação',
+        certificacoes: temCertificado
+          ? `${cursosOk.length} aprovado${cursosOk.length === 1 ? '' : 's'}`
+          : cursos.length
+            ? 'Falta certificado aprovado'
+            : 'Sem certificado de curso',
+      },
+    })
+  }
+
+  lista.sort((a, b) => {
     if (a.atendeObrigatorios !== b.atendeObrigatorios) return a.atendeObrigatorios ? -1 : 1
     return b.score - a.score
   })

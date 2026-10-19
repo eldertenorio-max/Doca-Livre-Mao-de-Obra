@@ -4,16 +4,24 @@ import { BibliotecaDocumental } from '../../components/BibliotecaDocumental'
 import { PecaViewer } from '../../components/PecaViewer'
 import { CATEGORIES, allCargos, cargoCategoria, cargoLabel } from '../../data/categories'
 import { LOCAIS_OPERACAO } from '../../data/cidades'
-import { analisarCurriculos, requisitosDoCargo, rotuloAnos, type CurriculoAnalisado } from '../../lib/analiseCurriculo'
+import {
+  analisarCurriculos,
+  buscarPorAtividades,
+  requisitosDoCargo,
+  rotuloAnos,
+  termosDasAtividades,
+  type CurriculoAnalisado,
+  type ModoBusca,
+} from '../../lib/analiseCurriculo'
 import { abrirCurriculoPdf } from '../../lib/curriculoPdf'
 import { MapaMaoDeObra } from './MapaMaoDeObra'
 import { SinoEmpresa } from './SinoEmpresa'
 import { AvaliacaoTrabalhador } from './AvaliacaoTrabalhador'
 import { PerfilColaborador } from './PerfilColaborador'
-import { checklistProfissional, resumoDocumental } from '../../lib/documentos'
+import { certificadosDoCurriculo, checklistProfissional, resumoDocumental } from '../../lib/documentos'
 import { distanciaKm } from '../../lib/matching'
 import { rotuloPeriodo } from '../../lib/periodoMissao'
-import type { DocumentoRegistro } from '../../lib/types'
+import type { DocumentoRegistro, DocumentoStatus } from '../../lib/types'
 import {
   AVISO_FORMALIZACAO,
   MOTIVOS_TEMPORARIOS,
@@ -525,6 +533,8 @@ export function ContratarFreelancer({ onLogout }: { onLogout: () => void }) {
   const esperaBusca = useRef<number | null>(null)
   const resultadosRef = useRef<HTMLElement>(null)
   const [resultados, setResultados] = useState<CurriculoAnalisado[] | null>(null)
+  const [modoBusca, setModoBusca] = useState<ModoBusca>('completa')
+  const [modoResultado, setModoResultado] = useState<ModoBusca>('completa')
   const [analisados, setAnalisados] = useState(0)
   const [aberto, setAberto] = useState<string | null>(null)
   const [missaoId, setMissaoId] = useState<string | null>(null)
@@ -848,11 +858,67 @@ export function ContratarFreelancer({ onLogout }: { onLogout: () => void }) {
       candidaturas: state.candidaturas,
     })
       setResultados(busca.pessoas)
+      setModoResultado('completa')
       setAnalisados(busca.analisados)
       setAberto(busca.pessoas[0]?.profissional.id ?? null)
       setAnalisando(false)
       esperaBusca.current = null
     }, 5000)
+  }
+
+  function trocarModo(modo: ModoBusca) {
+    if (modo === modoBusca || analisando) return
+    setModoBusca(modo)
+    setResultados(null)
+    setErro('')
+  }
+
+  function analisarBasica() {
+    if (!empresaValidada) {
+      setErro('A empresa tomadora precisa estar validada antes de pesquisar profissionais.')
+      return
+    }
+    if (!atividades.trim()) {
+      setErro('Descreva as atividades que a vaga precisa.')
+      return
+    }
+    if (!termosDasAtividades(atividades).length) {
+      setErro('Descreva as atividades com mais detalhe. Ex.: conferência de carga com coletor, separação de pedidos.')
+      return
+    }
+    setErro('')
+    setAnalisando(true)
+    setResultados(null)
+    if (esperaBusca.current) window.clearTimeout(esperaBusca.current)
+    esperaBusca.current = window.setTimeout(() => {
+      const busca = buscarPorAtividades({
+        atividades,
+        cidade,
+        estado,
+        raioKm,
+        origem: pontoOperacao(cidade, estado, empresa, [
+          ...state.empresas.map((item) => item.endereco),
+          ...state.profissionais.map((item) => item.endereco),
+        ]),
+        empresa,
+        profissionais: state.profissionais,
+        documentos: state.documentos,
+      })
+      setResultados(busca.pessoas)
+      setModoResultado('basica')
+      setAnalisados(busca.analisados)
+      setAberto(busca.pessoas[0]?.profissional.id ?? null)
+      setAnalisando(false)
+      esperaBusca.current = null
+    }, 5000)
+  }
+
+  function irParaCompleta() {
+    setModoBusca('completa')
+    setResultados(null)
+    setErro('')
+    const painel = document.querySelector('.cf-main')
+    if (painel instanceof HTMLElement) painel.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
   function publicar(confirmarRepeticao = false) {
@@ -931,6 +997,76 @@ export function ContratarFreelancer({ onLogout }: { onLogout: () => void }) {
     const contrato = state.contratos.find((c) => c.candidaturaId === cand.id)
     return { id: cand.id, status: cand.status, contratoNumero: contrato?.numero }
   }
+
+  const basica = modoResultado === 'basica'
+
+  const blocoLocal = (
+    <div className="cf-local">
+      <label className="cf-field">
+        <span>Estado</span>
+        <select
+          value={estado}
+          onChange={(event) => {
+            const uf = event.target.value
+            setEstado(uf)
+            if (uf) {
+              const cabe = locaisBusca.some(
+                (local) => semAcento(local.cidade) === semAcento(cidade) && local.estado.toUpperCase() === uf,
+              )
+              if (!cabe) setCidade('')
+            }
+          }}
+        >
+          <option value="">Todos</option>
+          {ufs.map((uf) => (
+            <option key={uf} value={uf}>
+              {uf}
+            </option>
+          ))}
+        </select>
+      </label>
+      <CampoCidade
+        cidade={cidade}
+        estado={estado}
+        onChange={(proximaCidade, proximoEstado) => {
+          setCidade(proximaCidade)
+          setEstado(proximoEstado)
+        }}
+        locais={locaisBusca}
+      />
+      <div className="cf-raio">
+        <label className="cf-field">
+          <span>Raio de busca</span>
+          <span className="cf-raio-linha">
+            <input
+              type="number"
+              min={1}
+              max={500}
+              inputMode="numeric"
+              value={raioKm ?? ''}
+              placeholder="km"
+              aria-label="Raio de busca em quilômetros"
+              onChange={(event) => {
+                const valor = Number(event.target.value)
+                setRaioKm(event.target.value === '' || !Number.isFinite(valor) || valor <= 0 ? null : Math.min(500, valor))
+              }}
+            />
+            <span>km</span>
+          </span>
+        </label>
+        <div className="cf-opcoes">
+          {RAIOS_BUSCA.map((km) => (
+            <button key={km} type="button" className={raioKm === km ? 'on' : ''} onClick={() => setRaioKm(km)}>
+              {km} km
+            </button>
+          ))}
+          <button type="button" className={raioKm == null ? 'on' : ''} onClick={() => setRaioKm(null)}>
+            Todos
+          </button>
+        </div>
+      </div>
+    </div>
+  )
 
   return (
     <div className="cf-shell">
@@ -1044,6 +1180,47 @@ export function ContratarFreelancer({ onLogout }: { onLogout: () => void }) {
           </div>
 
           <section className="cf-card">
+            <div className="cf-modos" role="radiogroup" aria-label="Tipo de pesquisa">
+              <button
+                type="button"
+                role="radio"
+                aria-checked={modoBusca === 'completa'}
+                className={`cf-modo ${modoBusca === 'completa' ? 'cf-modo--on' : ''}`}
+                onClick={() => trocarModo('completa')}
+                disabled={analisando}
+              >
+                <strong>Pesquisa completa</strong>
+                <span>
+                  Cargo, requisitos e período da vaga. Mostra quem tem o certificado aprovado de todos os cursos do
+                  currículo.
+                </span>
+              </button>
+              <button
+                type="button"
+                role="radio"
+                aria-checked={modoBusca === 'basica'}
+                className={`cf-modo ${modoBusca === 'basica' ? 'cf-modo--on' : ''}`}
+                onClick={() => trocarModo('basica')}
+                disabled={analisando}
+              >
+                <strong>Pesquisa básica</strong>
+                <span>Só as atividades da vaga. Mostra quem tem pelo menos um certificado de curso aprovado.</span>
+              </button>
+            </div>
+
+            {modoBusca === 'basica' ? (
+              <div className="cf-basica">
+                <label className="cf-field">
+                  <span>Atividades que a vaga precisa</span>
+                  <textarea
+                    value={atividades}
+                    onChange={(e) => setAtividades(e.target.value)}
+                    placeholder="Ex.: conferência de carga com coletor, separação de pedidos no WMS, operação de empilhadeira."
+                  />
+                </label>
+                <div>{blocoLocal}</div>
+              </div>
+            ) : (
             <div className="cf-grid">
               <div>
                 <label className="cf-field">
@@ -1062,7 +1239,10 @@ export function ContratarFreelancer({ onLogout }: { onLogout: () => void }) {
                 </label>
 
                 <p className="cf-label">Requisitos obrigatórios</p>
-                <p className="muted">Quem não comprovar um item obrigatório fica em uma lista separada.</p>
+                <p className="muted">
+                  Quem não comprovar um item obrigatório fica em uma lista separada. O certificado aprovado de todos os
+                  cursos do currículo também é obrigatório.
+                </p>
                 <div className="cf-chips" style={{ margin: '8px 0 14px' }}>
                   {opcoesRequisito.map((req) => (
                     <button
@@ -1091,71 +1271,7 @@ export function ContratarFreelancer({ onLogout }: { onLogout: () => void }) {
                   ))}
                 </div>
 
-                <div className="cf-local">
-                  <label className="cf-field">
-                    <span>Estado</span>
-                    <select
-                      value={estado}
-                      onChange={(event) => {
-                        const uf = event.target.value
-                        setEstado(uf)
-                        if (uf) {
-                          const cabe = locaisBusca.some(
-                            (local) => semAcento(local.cidade) === semAcento(cidade) && local.estado.toUpperCase() === uf,
-                          )
-                          if (!cabe) setCidade('')
-                        }
-                      }}
-                    >
-                      <option value="">Todos</option>
-                      {ufs.map((uf) => (
-                        <option key={uf} value={uf}>
-                          {uf}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  <CampoCidade
-                    cidade={cidade}
-                    estado={estado}
-                    onChange={(proximaCidade, proximoEstado) => {
-                      setCidade(proximaCidade)
-                      setEstado(proximoEstado)
-                    }}
-                    locais={locaisBusca}
-                  />
-                  <div className="cf-raio">
-                    <label className="cf-field">
-                      <span>Raio de busca</span>
-                      <span className="cf-raio-linha">
-                        <input
-                          type="number"
-                          min={1}
-                          max={500}
-                          inputMode="numeric"
-                          value={raioKm ?? ''}
-                          placeholder="km"
-                          aria-label="Raio de busca em quilômetros"
-                          onChange={(event) => {
-                            const valor = Number(event.target.value)
-                            setRaioKm(event.target.value === '' || !Number.isFinite(valor) || valor <= 0 ? null : Math.min(500, valor))
-                          }}
-                        />
-                        <span>km</span>
-                      </span>
-                    </label>
-                    <div className="cf-opcoes">
-                      {RAIOS_BUSCA.map((km) => (
-                        <button key={km} type="button" className={raioKm === km ? 'on' : ''} onClick={() => setRaioKm(km)}>
-                          {km} km
-                        </button>
-                      ))}
-                      <button type="button" className={raioKm == null ? 'on' : ''} onClick={() => setRaioKm(null)}>
-                        Todos
-                      </button>
-                    </div>
-                  </div>
-                </div>
+                {blocoLocal}
 
                 <p className="cf-label">Benefícios</p>
                 <div className="cf-checks cf-checks--duo">
@@ -1263,16 +1379,32 @@ export function ContratarFreelancer({ onLogout }: { onLogout: () => void }) {
 
               </div>
             </div>
+            )}
 
-            <div className="cf-rule">
-              <p>{AVISO_FORMALIZACAO}</p>
-            </div>
+            {modoBusca === 'completa' && (
+              <div className="cf-rule">
+                <p>{AVISO_FORMALIZACAO}</p>
+              </div>
+            )}
             {!empresaValidada && (
               <div className="cf-rule cf-rule--block">
-                <p>A empresa tomadora precisa estar validada antes de publicar uma missão temporária.</p>
+                <p>
+                  {modoBusca === 'basica'
+                    ? 'A empresa tomadora precisa estar validada antes de pesquisar profissionais.'
+                    : 'A empresa tomadora precisa estar validada antes de publicar uma missão temporária.'}
+                </p>
               </div>
             )}
             {erro && <p className="error">{erro}</p>}
+            {modoBusca === 'basica' ? (
+              <div className="cf-actions">
+                <button type="button" className="cf-primary" onClick={analisarBasica} disabled={analisando || !empresaValidada}>
+                  {analisando ? 'Analisando currículos' : 'Encontrar profissionais'}
+                </button>
+                <span className="muted">Para convidar alguém, faça a pesquisa completa com os dados da vaga.</span>
+              </div>
+            ) : (
+            <>
             {avisoModelo && <p className="success">{avisoModelo}</p>}
             {avisoPublicacao && iguaisAbertas.length === 0 && <p className="success">{avisoPublicacao}</p>}
             {iguaisAbertas.length > 0 && (
@@ -1315,74 +1447,133 @@ export function ContratarFreelancer({ onLogout }: { onLogout: () => void }) {
               )}
               <span className="muted">Publicar deixa a vaga visível para o colaborador se candidatar. A análise mostra o encaixe.</span>
             </div>
+            </>
+            )}
           </section>
 
           {resultados && (
             <section className="cf-results" ref={resultadosRef}>
-              <div className="cf-stat-row">
-                <article className="cf-stat cf-stat--dark">
-                  <span>Analisados</span>
-                  <strong>{analisados}</strong>
-                  <small>currículos da base</small>
-                </article>
-                <article className="cf-stat cf-stat--green">
-                  <span>Encaixe completo</span>
-                  <strong>{atendemTudo}</strong>
-                  <small>todos os obrigatórios</small>
-                </article>
-                <article className="cf-stat cf-stat--amber">
-                  <span>Quase lá</span>
-                  <strong>{incompletos.length}</strong>
-                  <small>falta um requisito</small>
-                </article>
-                <article className="cf-stat cf-stat--rose">
-                  <span>Fora do ciclo</span>
-                  <strong>{bloqueadosPeriodo.length}</strong>
-                  <small>prazo legal</small>
-                </article>
-              </div>
+              {basica ? (
+                <div className="cf-stat-row cf-stat-row--trio">
+                  <article className="cf-stat cf-stat--dark">
+                    <span>Analisados</span>
+                    <strong>{analisados}</strong>
+                    <small>currículos da base</small>
+                  </article>
+                  <article className="cf-stat cf-stat--green">
+                    <span>Com certificado</span>
+                    <strong>{atendemTudo}</strong>
+                    <small>atividades e certificado aprovado</small>
+                  </article>
+                  <article className="cf-stat cf-stat--amber">
+                    <span>Sem certificado</span>
+                    <strong>{incompletos.length}</strong>
+                    <small>atividades batem, falta certificado</small>
+                  </article>
+                </div>
+              ) : (
+                <div className="cf-stat-row">
+                  <article className="cf-stat cf-stat--dark">
+                    <span>Analisados</span>
+                    <strong>{analisados}</strong>
+                    <small>currículos da base</small>
+                  </article>
+                  <article className="cf-stat cf-stat--green">
+                    <span>Encaixe completo</span>
+                    <strong>{atendemTudo}</strong>
+                    <small>todos os obrigatórios</small>
+                  </article>
+                  <article className="cf-stat cf-stat--amber">
+                    <span>Quase lá</span>
+                    <strong>{incompletos.length}</strong>
+                    <small>falta um requisito</small>
+                  </article>
+                  <article className="cf-stat cf-stat--rose">
+                    <span>Fora do ciclo</span>
+                    <strong>{bloqueadosPeriodo.length}</strong>
+                    <small>prazo legal</small>
+                  </article>
+                </div>
+              )}
               <p className="cf-mission-chip">
-                {quantidade} {cargoLabel(cargoId)} · {dias} dia{dias === 1 ? '' : 's'} · {horaInicio}–{horaFim} · {cidade || empresa.endereco.cidade}{estado ? `/${estado}` : ''}
-                {raioKm != null ? ` · até ${raioKm} km` : ''}
-                {motivo ? ` · ${rotuloMotivo(motivo)}` : ''}
+                {basica
+                  ? `Pesquisa básica · ${cidade || empresa.endereco.cidade}${estado ? `/${estado}` : ''}${raioKm != null ? ` · até ${raioKm} km` : ''}`
+                  : (
+                    <>
+                      {quantidade} {cargoLabel(cargoId)} · {dias} dia{dias === 1 ? '' : 's'} · {horaInicio}–{horaFim} · {cidade || empresa.endereco.cidade}{estado ? `/${estado}` : ''}
+                      {raioKm != null ? ` · até ${raioKm} km` : ''}
+                      {motivo ? ` · ${rotuloMotivo(motivo)}` : ''}
+                    </>
+                  )}
               </p>
+              {basica && (
+                <div className="cf-rule" role="note">
+                  <p>
+                    A pesquisa básica mostra o encaixe pelas atividades. Para convidar, faça a pesquisa completa com
+                    cargo, período e motivo da vaga. As atividades que você descreveu continuam preenchidas.
+                  </p>
+                  <div className="cf-actions">
+                    <button type="button" className="cf-btn cf-btn--dark" onClick={irParaCompleta}>
+                      Fazer a pesquisa completa
+                    </button>
+                  </div>
+                </div>
+              )}
 
-              <h2 className="cf-section-title cf-section-title--green">Profissionais com encaixe completo</h2>
+              <h2 className="cf-section-title cf-section-title--green">
+                {basica ? 'Atividades e certificado aprovado' : 'Profissionais com encaixe completo'}
+              </h2>
               <div className="cf-gallery">
                 {compativeis.map((item) => (
                   <PessoaCard
                     key={item.profissional.id}
                     item={item}
+                    modo={modoResultado}
                     aberto={aberto === item.profissional.id}
-                    convite={conviteDe(item.profissional.id)}
+                    convite={basica ? null : conviteDe(item.profissional.id)}
                     documentos={state.documentos}
-                    requisitos={requisitos}
+                    requisitos={basica ? [] : requisitos}
                     onToggle={() =>
                       setAberto((id) => (id === item.profissional.id ? null : item.profissional.id))
                     }
-                    onConvidar={() => convidar(item)}
-                    onContrato={(candidaturaId) => confirmCandidato(candidaturaId)}
+                    onConvidar={basica ? undefined : () => convidar(item)}
+                    onContrato={basica ? undefined : (candidaturaId) => confirmCandidato(candidaturaId)}
                   />
                 ))}
                 {compativeis.length === 0 && (
                   <div className="cf-empty">
-                    <strong>Ninguém atendeu todos os requisitos obrigatórios.</strong>
-                    <p>Quem ficou perto aparece na lista seguinte, com o item que faltou.</p>
+                    <strong>
+                      {basica
+                        ? 'Ninguém com essas atividades tem certificado de curso aprovado.'
+                        : 'Ninguém atendeu todos os requisitos obrigatórios.'}
+                    </strong>
+                    <p>
+                      {incompletos.length
+                        ? basica
+                          ? 'Quem tem as atividades no currículo aparece na lista seguinte.'
+                          : 'Quem ficou perto aparece na lista seguinte, com o item que faltou.'
+                        : basica
+                          ? 'Tente descrever as atividades com outras palavras ou aumentar o raio de busca.'
+                          : 'Quem ficou perto aparece na lista seguinte, com o item que faltou.'}
+                    </p>
                   </div>
                 )}
               </div>
 
               {incompletos.length > 0 && (
                 <>
-                  <h2 className="cf-section-title cf-section-title--amber">Não atende requisito obrigatório</h2>
+                  <h2 className="cf-section-title cf-section-title--amber">
+                    {basica ? 'As atividades batem, falta certificado aprovado' : 'Não atende requisito obrigatório'}
+                  </h2>
                   <div className="cf-gallery">
                     {incompletos.map((item) => (
                       <PessoaCard
                         key={item.profissional.id}
                         item={item}
+                        modo={modoResultado}
                         aberto={aberto === item.profissional.id}
                         documentos={state.documentos}
-                        requisitos={requisitos}
+                        requisitos={basica ? [] : requisitos}
                         onToggle={() =>
                           setAberto((id) => (id === item.profissional.id ? null : item.profissional.id))
                         }
@@ -2134,6 +2325,7 @@ function rotuloConvite(status: string) {
 
 function PessoaCard({
   item,
+  modo = 'completa',
   aberto,
   onToggle,
   onConvidar,
@@ -2143,6 +2335,7 @@ function PessoaCard({
   requisitos,
 }: {
   item: CurriculoAnalisado
+  modo?: ModoBusca
   aberto: boolean
   onToggle: () => void
   onConvidar?: () => void
@@ -2154,9 +2347,18 @@ function PessoaCard({
   const p = item.profissional
   const [perfilAberto, setPerfilAberto] = useState(false)
   const docs = resumoDocumental(checklistProfissional(p, documentos, requisitos))
+  const cursos = certificadosDoCurriculo(p, documentos)
   const podeContrato = convite?.status === 'aceita' && docs.completo
   const bloqueado = item.situacao === 'bloqueado'
-  const selo = bloqueado ? 'Fora do ciclo' : item.atendeObrigatorios ? 'Encaixe completo' : 'Falta requisito'
+  const selo = bloqueado
+    ? 'Fora do ciclo'
+    : modo === 'basica'
+      ? item.atendeObrigatorios
+        ? 'Com certificado'
+        : 'Falta certificado'
+      : item.atendeObrigatorios
+        ? 'Encaixe completo'
+        : 'Falta requisito'
   const seloClasse = bloqueado ? 'cf-badge--rose' : item.atendeObrigatorios ? 'cf-badge--green' : 'cf-badge--amber'
   const barras = [
     ['Requisitos', item.compatibilidade.requisitos],
@@ -2280,14 +2482,25 @@ function PessoaCard({
               : 'não descritas'}
           </span>
           <span>
-            Certificados: {p.certificados.length ? p.certificados.map((c) => c.tipo).join(', ') : 'nenhum registrado'}
+            Certificados:{' '}
+            {cursos.length
+              ? cursos.map((c) => `${c.curso} (${c.ok ? 'aprovado' : SITUACAO_CERTIFICADO[c.status]})`).join(', ')
+              : 'nenhum registrado'}
           </span>
           {(p.habilidades?.length ?? 0) > 0 && <span>Habilidades: {p.habilidades?.join(', ')}</span>}
-          <span>{item.situacaoTexto}</span>
+          {item.situacaoTexto && <span>{item.situacaoTexto}</span>}
         </div>
       )}
     </article>
   )
+}
+
+const SITUACAO_CERTIFICADO: Record<DocumentoStatus, string> = {
+  pendente: 'sem certificado enviado',
+  em_analise: 'em análise',
+  aprovado: 'aprovado',
+  recusado: 'recusado',
+  vencido: 'vencido',
 }
 
 const CORES_AVATAR = ['#7c3aed', '#2563eb', '#0891b2', '#059669', '#d97706', '#db2777', '#4f46e5', '#ea580c']

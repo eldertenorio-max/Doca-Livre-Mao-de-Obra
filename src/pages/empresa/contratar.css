@@ -795,6 +795,57 @@
   margin-top: 12px;
 }
 
+.cf-modos {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 22px;
+}
+
+.cf-modo {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 14px 16px;
+  border: 1.5px solid var(--border);
+  border-radius: 14px;
+  background: #fff;
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+}
+
+.cf-modo strong {
+  font-size: 1rem;
+}
+
+.cf-modo span {
+  font-size: 0.85rem;
+  color: #5c6670;
+}
+
+.cf-modo--on {
+  border-color: #111;
+  background: #fff8cc;
+  box-shadow: inset 0 0 0 1px #111;
+}
+
+.cf-modo:disabled {
+  cursor: default;
+  opacity: 0.7;
+}
+
+.cf-basica {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 28px 40px;
+  align-items: start;
+}
+
+.cf-basica textarea {
+  min-height: 150px;
+}
+
 .cf-vaga-pagina {
   display: flex;
   align-items: flex-end;
@@ -1331,6 +1382,10 @@ button.cf-vaga-nome:disabled {
 
 .cf-stat-row--duo {
   grid-template-columns: repeat(2, minmax(160px, 240px));
+}
+
+.cf-stat-row--trio {
+  grid-template-columns: repeat(3, 1fr);
 }
 
 .cf-stat {
@@ -2290,6 +2345,9 @@ button.cf-vaga-nome:disabled {
   .cf-dates,
   .cf-stat-row,
   .cf-stat-row--duo,
+  .cf-stat-row--trio,
+  .cf-modos,
+  .cf-basica,
   .cf-gallery,
   .cf-pro-top {
     grid-template-columns: 1fr;

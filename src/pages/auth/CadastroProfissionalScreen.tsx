@@ -489,6 +489,10 @@ export function CadastroProfissionalScreen({ onBack, onDone }: Props) {
                 ))}
               </div>
             )}
+            <p className="cv-nota">
+              Depois do cadastro, envie o certificado de cada curso em Documentos. As empresas encontram primeiro quem
+              tem os certificados aprovados pela equipe da Mão de Obra.
+            </p>
           </>
         )}
         {step === PASSO.disponibilidade && (
