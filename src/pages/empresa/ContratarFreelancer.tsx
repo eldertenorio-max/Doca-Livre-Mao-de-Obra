@@ -1,4 +1,14 @@
-import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type ChangeEvent, type ReactNode } from 'react'
+import {
+  useEffect,
+  useId,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ChangeEvent,
+  type CSSProperties,
+  type ReactNode,
+} from 'react'
 import { AceiteTermosGate } from '../../components/AceiteTermos'
 import { BibliotecaDocumental } from '../../components/BibliotecaDocumental'
 import { PecaViewer } from '../../components/PecaViewer'
@@ -68,6 +78,10 @@ function semAcento(value: string) {
 type LocalBusca = { cidade: string; estado: string }
 
 const RAIOS_BUSCA = [10, 25, 50, 100]
+const ATALHOS_DIAS = [7, 15, 30, 60, 90, 180]
+/** 180 dias e mais uma prorrogação de até 90. */
+const LIMITE_DIAS = 180
+const MAXIMO_DIAS = 270
 
 function CampoCidade({
   cidade,
@@ -495,6 +509,13 @@ function diasEntre(inicio: string, fim: string) {
   return Math.round((b.getTime() - a.getTime()) / 86400000) + 1
 }
 
+function somarDias(iso: string, quantidade: number) {
+  const d = new Date(`${iso}T12:00:00`)
+  if (Number.isNaN(d.getTime())) return iso
+  d.setDate(d.getDate() + quantidade)
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
 export function ContratarFreelancer({ onLogout }: { onLogout: () => void }) {
   const { currentEmpresa, state, convidarParaMissao, confirmCandidato, publicarVaga, patchState } = useStore()
   const empresa = currentEmpresa!
@@ -605,6 +626,17 @@ export function ContratarFreelancer({ onLogout }: { onLogout: () => void }) {
 
   const dias = diasEntre(inicio, fim)
   const avisoPrazo = validarNecessidade('temporario', inicio, fim)
+  const valorBarra = Math.min(MAXIMO_DIAS, Math.max(1, dias))
+
+  function definirDias(quantidade: number) {
+    const total = Math.min(MAXIMO_DIAS, Math.max(1, Math.round(quantidade)))
+    if (inicio) setFim(somarDias(inicio, total - 1))
+  }
+
+  function mudarInicio(valor: string) {
+    setInicio(valor)
+    if (valor && dias >= 1) setFim(somarDias(valor, dias - 1))
+  }
   const base = state.profissionais.filter((p) => p.status === 'aprovado').length
   const opcoesRequisito = requisitosDoCargo(cargoId).opcoes
 
@@ -1312,18 +1344,69 @@ export function ContratarFreelancer({ onLogout }: { onLogout: () => void }) {
                 <div className="cf-dates">
                   <label className="cf-field">
                     <span>Início</span>
-                    <input type="date" value={inicio} onChange={(e) => setInicio(e.target.value)} />
+                    <input type="date" value={inicio} onChange={(e) => mudarInicio(e.target.value)} />
                   </label>
                   <label className="cf-field">
                     <span>Término previsto</span>
-                    <input type="date" value={fim} onChange={(e) => setFim(e.target.value)} />
+                    <input type="date" value={fim} min={inicio || undefined} onChange={(e) => setFim(e.target.value)} />
                   </label>
+                </div>
+                <div className="cf-periodo">
+                  <div className="cf-periodo-topo">
+                    <span>Arraste para escolher quantos dias</span>
+                    <strong
+                      className={`cf-periodo-dias ${
+                        dias < 1 || dias > MAXIMO_DIAS ? 'cf-periodo-dias--erro' : dias > LIMITE_DIAS ? 'cf-periodo-dias--alerta' : ''
+                      }`}
+                      aria-live="polite"
+                    >
+                      {dias >= 1 ? (
+                        <>
+                          {dias}
+                          <small>dia{dias === 1 ? '' : 's'}</small>
+                        </>
+                      ) : (
+                        'período inválido'
+                      )}
+                    </strong>
+                  </div>
+                  <input
+                    type="range"
+                    className="cf-periodo-barra"
+                    min={1}
+                    max={MAXIMO_DIAS}
+                    step={1}
+                    value={valorBarra}
+                    aria-label="Duração da missão em dias"
+                    aria-valuetext={`${valorBarra} dia${valorBarra === 1 ? '' : 's'}`}
+                    onChange={(e) => definirDias(Number(e.target.value))}
+                    style={
+                      {
+                        '--p': (valorBarra - 1) / (MAXIMO_DIAS - 1),
+                        '--l': (LIMITE_DIAS - 1) / (MAXIMO_DIAS - 1),
+                      } as CSSProperties
+                    }
+                  />
+                  <div className="cf-periodo-escala" aria-hidden>
+                    <span>1 dia</span>
+                    <span style={{ left: `${((LIMITE_DIAS - 1) / (MAXIMO_DIAS - 1)) * 100}%` }}>{LIMITE_DIAS} dias</span>
+                    <span>{MAXIMO_DIAS}</span>
+                  </div>
+                  <div className="cf-opcoes">
+                    {ATALHOS_DIAS.map((n) => (
+                      <button key={n} type="button" className={dias === n ? 'on' : ''} onClick={() => definirDias(n)}>
+                        {n} dias
+                      </button>
+                    ))}
+                  </div>
                 </div>
                 <div className={`cf-rule ${avisoPrazo.nivel === 'bloqueio' ? 'cf-rule--block' : ''}`}>
                   <p>
                     Período solicitado: {formatarDataBr(inicio)} a {formatarDataBr(fim)}
                   </p>
-                  <p>Duração: {dias >= 1 ? `${dias} dia${dias === 1 ? '' : 's'}` : 'período inválido'}</p>
+                  <p>
+                    Duração: <strong>{dias >= 1 ? `${dias} dia${dias === 1 ? '' : 's'}` : 'período inválido'}</strong>
+                  </p>
                   <p>Limite legal: até 180 dias, consecutivos ou não.</p>
                   <p>Prorrogação: até 90 dias, desde que permaneçam as condições que justificaram o trabalho temporário.</p>
                   {avisoPrazo.nivel !== 'ok' && <p>{avisoPrazo.texto}</p>}

@@ -1264,6 +1264,138 @@ button.cf-vaga-nome:disabled {
   gap: 12px;
 }
 
+.cf-periodo {
+  margin: 0 0 12px;
+  padding: 14px 16px 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: #fff;
+}
+
+.cf-periodo-topo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.cf-periodo-topo > span {
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.cf-periodo-dias {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
+  padding: 7px 16px;
+  border-radius: 999px;
+  background: #111;
+  color: var(--brand-yellow);
+  font-size: 1.75rem;
+  font-weight: 900;
+  line-height: 1;
+  letter-spacing: -0.03em;
+  white-space: nowrap;
+}
+
+.cf-periodo-dias small {
+  color: #fff;
+  font-size: 0.9rem;
+  font-weight: 800;
+  letter-spacing: 0;
+}
+
+.cf-periodo-dias--alerta {
+  background: #d97706;
+  color: #fff;
+}
+
+.cf-periodo-dias--erro {
+  background: #be123c;
+  color: #fff;
+  font-size: 1rem;
+}
+
+.cf-periodo-barra {
+  --thumb: 22px;
+  width: 100%;
+  height: 8px;
+  margin: 8px 0 6px;
+  border-radius: 999px;
+  appearance: none;
+  -webkit-appearance: none;
+  background: linear-gradient(
+    to right,
+    #111 0 calc(var(--thumb) / 2 + (100% - var(--thumb)) * var(--p)),
+    #e5e7eb calc(var(--thumb) / 2 + (100% - var(--thumb)) * var(--p)) calc(var(--thumb) / 2 + (100% - var(--thumb)) * var(--l)),
+    #fde68a calc(var(--thumb) / 2 + (100% - var(--thumb)) * var(--l)) 100%
+  );
+  cursor: pointer;
+}
+
+.cf-periodo-barra:focus-visible {
+  outline: 2px solid #111;
+  outline-offset: 6px;
+}
+
+.cf-periodo-barra::-webkit-slider-thumb {
+  width: var(--thumb);
+  height: var(--thumb);
+  border: 3px solid #111;
+  border-radius: 50%;
+  background: var(--brand-yellow);
+  box-shadow: 0 2px 6px rgb(0 0 0 / 0.2);
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.cf-periodo-barra::-moz-range-track {
+  height: 8px;
+  border: 0;
+  background: transparent;
+}
+
+.cf-periodo-barra::-moz-range-thumb {
+  width: var(--thumb);
+  height: var(--thumb);
+  box-sizing: border-box;
+  border: 3px solid #111;
+  border-radius: 50%;
+  background: var(--brand-yellow);
+  box-shadow: 0 2px 6px rgb(0 0 0 / 0.2);
+}
+
+.cf-periodo-escala {
+  position: relative;
+  height: 18px;
+  margin: 0 calc(22px / 2);
+  color: #5c6670;
+  font-size: 0.75rem;
+}
+
+.cf-periodo-escala span {
+  position: absolute;
+  top: 0;
+  transform: translateX(-50%);
+  white-space: nowrap;
+}
+
+.cf-periodo-escala span:first-child {
+  left: calc(22px / -2);
+  transform: none;
+}
+
+.cf-periodo-escala span:last-child {
+  right: calc(22px / -2);
+  transform: none;
+}
+
+.cf-periodo .cf-opcoes {
+  margin-top: 4px;
+}
+
 .cf-chips {
   display: flex;
   flex-wrap: wrap;
