@@ -42,6 +42,17 @@
   color: #fff;
 }
 
+.mt-marca h1 .mt-sistema {
+  color: #f9db00;
+  font-weight: 800;
+}
+
+.mt-marca h1 .mt-sistema::before {
+  content: '·';
+  margin: 0 8px 0 2px;
+  color: #475569;
+}
+
 .mt-marca p {
   margin: 2px 0 0;
   font-size: 0.75rem;
@@ -71,6 +82,28 @@
 .mt-resumo .mt-resumo-alerta {
   color: #fda4af;
   border-color: rgba(244, 63, 94, 0.3);
+}
+
+.mt-tela-inteira {
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid #334155;
+  background: #0f172a;
+  color: #fff;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.mt-tela-inteira:hover,
+.mt-tela-inteira[aria-pressed='true'] {
+  border-color: #f9db00;
+  color: #f9db00;
+}
+
+.mt-tela-inteira:focus-visible {
+  outline: 2px solid #f9db00;
+  outline-offset: 2px;
 }
 
 .mt-voltar {

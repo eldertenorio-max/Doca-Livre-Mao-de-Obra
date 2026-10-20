@@ -1,5 +1,6 @@
-import { Suspense, lazy, useMemo, useState } from 'react'
+import { Suspense, lazy, useEffect, useMemo, useRef, useState } from 'react'
 import mapa from '../../data/mapaTokens.json'
+import { BRAND_FULL_TITLE } from '../../lib/brandAssets'
 import { ArvorePastas } from './ArvorePastas'
 import { DesenhoPastas } from './DesenhoPastas'
 import { ExplicaTokens } from './ExplicaTokens'
@@ -24,16 +25,43 @@ export default function TelaMapaTokens() {
   const pesados = arquivosDe(raiz).filter((arquivo) => arquivo.tokens > LIMITE_MEDIO)
   const tokensPesados = pesados.reduce((soma, arquivo) => soma + arquivo.tokens, 0)
   const parcelaPesada = raiz.tokens > 0 ? Math.round((tokensPesados / raiz.tokens) * 100) : 0
+  const telaRef = useRef<HTMLDivElement>(null)
+  const [telaInteira, setTelaInteira] = useState(false)
+  const podeTelaInteira = typeof document !== 'undefined' && document.fullscreenEnabled
+
+  useEffect(() => {
+    const anterior = document.title
+    document.title = `Mapa do sistema · ${BRAND_FULL_TITLE}`
+    return () => {
+      document.title = anterior
+    }
+  }, [])
+
+  useEffect(() => {
+    const atualizar = () => setTelaInteira(Boolean(telaRef.current) && document.fullscreenElement === telaRef.current)
+    document.addEventListener('fullscreenchange', atualizar)
+    return () => document.removeEventListener('fullscreenchange', atualizar)
+  }, [])
+
+  function alternarTelaInteira() {
+    if (document.fullscreenElement) {
+      document.exitFullscreen().catch(() => {})
+      return
+    }
+    telaRef.current?.requestFullscreen().catch(() => {})
+  }
 
   return (
-    <div className="mt-tela">
+    <div className="mt-tela" ref={telaRef}>
       <header className="mt-topo">
         <div className="mt-marca">
           <span className="mt-marca-icone" aria-hidden>
             ⚡
           </span>
           <div>
-            <h1>Mapa do sistema</h1>
+            <h1>
+              Mapa do sistema <span className="mt-sistema">{BRAND_FULL_TITLE}</span>
+            </h1>
             <p>Pastas, ligações e tamanho em tokens, medidos no último build ({new Date(mapa.geradoEm).toLocaleString('pt-BR')})</p>
           </div>
         </div>
@@ -50,6 +78,17 @@ export default function TelaMapaTokens() {
           <span className="mt-resumo-alerta">
             <b>{pesados.length}</b> pesados = {parcelaPesada}% do total
           </span>
+          {podeTelaInteira && (
+            <button
+              type="button"
+              className="mt-tela-inteira"
+              aria-pressed={telaInteira}
+              title={telaInteira ? 'Sair da tela inteira (Esc)' : 'Mostrar o mapa em tela inteira'}
+              onClick={alternarTelaInteira}
+            >
+              {telaInteira ? '⤡ Sair da tela inteira' : '⤢ Tela inteira'}
+            </button>
+          )}
           <a href="/" className="mt-voltar">
             Voltar ao sistema
           </a>
